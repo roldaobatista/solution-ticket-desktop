@@ -53,7 +53,7 @@ export async function renderTicket004(
   const resumido = variante === 'RESUMIDO' || variante === 'RESUMIDO_PRODUTOR';
 
   doc.fontSize(7).font('Helvetica');
-  doc.text(`Cliente: ${t.cliente?.razaoSocial || t.cliente?.nomeFantasia || '-'}`);
+  doc.text(`Cliente: ${t.cliente?.razaoSocial || '-'}`);
   doc.text(`Produto: ${t.produto?.descricao || '-'}`);
   doc.text(`Placa: ${t.veiculo?.placa || t.veiculoPlaca || '-'}`);
   if (!resumido) {
@@ -62,7 +62,7 @@ export async function renderTicket004(
     if (t.notaFiscal) doc.text(`NF: ${t.notaFiscal}`);
   }
   if (variante === 'RESUMIDO_PRODUTOR') {
-    doc.text(`Origem: ${t.origem?.nome || '-'}`);
+    doc.text(`Origem: ${t.origem?.descricao || '-'}`);
   }
   doc.moveDown(0.2);
   doc.moveTo(8, doc.y).lineTo(218, doc.y).dash(1, { space: 2 }).stroke().undash();

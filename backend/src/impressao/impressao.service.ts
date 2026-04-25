@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { gerarPdf, TEMPLATE_REGISTRY } from './templates';
+import { ticketComRelacoesArgs, TicketComRelacoes } from './templates/types';
 import { errorMessage } from '../common/error-message.util';
 
 @Injectable()
@@ -13,25 +14,14 @@ export class ImpressaoService {
     return TEMPLATE_REGISTRY;
   }
 
-  private async carregarTicket(ticketId: string) {
+  private async carregarTicket(ticketId: string): Promise<TicketComRelacoes | null> {
     return this.prisma.ticketPesagem.findUnique({
       where: { id: ticketId },
-      include: {
-        cliente: true,
-        produto: true,
-        veiculo: true,
-        motorista: true,
-        transportadora: true,
-        origem: true,
-        destino: true,
-        passagens: { orderBy: { sequencia: 'asc' } },
-        descontos: true,
-        unidade: { include: { empresa: true } },
-      },
+      ...ticketComRelacoesArgs,
     });
   }
 
-  private async resolverTemplatePadrao(ticket: any): Promise<string> {
+  private async resolverTemplatePadrao(ticket: TicketComRelacoes): Promise<string> {
     try {
       const cfg = await this.prisma.configuracaoOperacionalUnidade.findFirst({
         where: { unidadeId: ticket.unidadeId },
@@ -51,29 +41,29 @@ export class ImpressaoService {
     try {
       const buffer = await gerarPdf(tpl, {
         ticket,
-        empresa: (ticket as any).unidade?.empresa,
-        unidade: (ticket as any).unidade,
+        empresa: ticket.unidade?.empresa,
+        unidade: ticket.unidade,
       });
       return buffer;
     } catch (err: unknown) {
       this.logger.error(
         `Falha ao gerar PDF template=${tpl}: ${errorMessage(err)}`,
-        (err as Error)?.stack,
+        err instanceof Error ? err.stack : undefined,
       );
       await this.registrarErroImpressao(ticketId, tpl, err);
       throw err;
     }
   }
 
-  async registrarErroImpressao(ticketId: string | null, template: string | null, err: any) {
+  async registrarErroImpressao(ticketId: string | null, template: string | null, err: unknown) {
     try {
-      await (this.prisma as any).erroImpressao.create({
+      await this.prisma.erroImpressao.create({
         data: {
           ticketId,
           template,
           tipo: 'PDF',
-          mensagem: String(errorMessage(err) || err || 'Erro desconhecido').substring(0, 2000),
-          stack: err?.stack ? String(err.stack).substring(0, 4000) : null,
+          mensagem: String(errorMessage(err) || 'Erro desconhecido').substring(0, 2000),
+          stack: err instanceof Error && err.stack ? err.stack.substring(0, 4000) : null,
         },
       });
     } catch (e: unknown) {
@@ -82,7 +72,7 @@ export class ImpressaoService {
   }
 
   async listarErros(resolvido?: boolean) {
-    return (this.prisma as any).erroImpressao.findMany({
+    return this.prisma.erroImpressao.findMany({
       where: resolvido === undefined ? {} : { resolvido },
       orderBy: { criadoEm: 'desc' },
       take: 200,
@@ -90,24 +80,24 @@ export class ImpressaoService {
   }
 
   async reimprimirErro(id: string): Promise<{ ok: boolean; erro?: string }> {
-    const erro = await (this.prisma as any).erroImpressao.findUnique({ where: { id } });
+    const erro = await this.prisma.erroImpressao.findUnique({ where: { id } });
     if (!erro) throw new NotFoundException('Erro de impressão não encontrado');
     if (!erro.ticketId) {
       throw new NotFoundException('Erro não tem ticketId associado');
     }
     try {
       await this.gerarTicketPdf(erro.ticketId, erro.template || undefined);
-      await (this.prisma as any).erroImpressao.update({
+      await this.prisma.erroImpressao.update({
         where: { id },
         data: { resolvido: true, resolvidoEm: new Date(), tentativas: { increment: 1 } },
       });
       return { ok: true };
     } catch (e: unknown) {
-      await (this.prisma as any).erroImpressao.update({
+      await this.prisma.erroImpressao.update({
         where: { id },
         data: {
           tentativas: { increment: 1 },
-          mensagem: String(errorMessage(e) || e).substring(0, 2000),
+          mensagem: String(errorMessage(e)).substring(0, 2000),
         },
       });
       return { ok: false, erro: errorMessage(e, 'Falha') };
@@ -115,7 +105,7 @@ export class ImpressaoService {
   }
 
   async marcarResolvido(id: string) {
-    return (this.prisma as any).erroImpressao.update({
+    return this.prisma.erroImpressao.update({
       where: { id },
       data: { resolvido: true, resolvidoEm: new Date() },
     });

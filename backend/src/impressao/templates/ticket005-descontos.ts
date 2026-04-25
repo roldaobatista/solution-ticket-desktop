@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import type { DescontoRender } from './types';
 import {
   TicketContext,
   toBuffer,
@@ -58,7 +59,7 @@ export async function renderTicket005(
   if (descontos.length === 0) {
     doc.text('  (nenhum)');
   } else {
-    descontos.forEach((d: any) => {
+    descontos.forEach((d: DescontoRender) => {
       const tipo = d.tipo || d.descricao || 'Desconto';
       const valorKg = Number(d.valor || 0);
       const pct = d.percentual ? ` (${Number(d.percentual).toFixed(2)}%)` : '';
@@ -73,7 +74,9 @@ export async function renderTicket005(
     doc.moveDown(0.3);
     doc.font('Helvetica-Bold').fontSize(10).text('Tabela de Umidade:', { underline: true });
     doc.font('Helvetica').fontSize(9);
-    const umidade = descontos.find((d: any) => (d.tipo || '').toUpperCase().includes('UMIDADE'));
+    const umidade = descontos.find((d: DescontoRender) =>
+      (d.tipo || '').toUpperCase().includes('UMIDADE'),
+    );
     if (umidade) {
       doc.text(
         `  Umidade: ${umidade.percentual || '-'}% -> Desconto ${fmtKg(Number(umidade.valor || 0))} kg`,

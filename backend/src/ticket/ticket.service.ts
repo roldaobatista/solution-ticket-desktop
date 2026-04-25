@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { gerarPdf } from '../impressao/templates';
+import { ticketComRelacoesArgs } from '../impressao/templates/types';
 import {
   StatusOperacional,
   StatusComercial,
@@ -729,23 +730,14 @@ export class TicketService {
   async gerarBilheteIntermediario(ticketId: string): Promise<Buffer> {
     const ticket = await this.prisma.ticketPesagem.findUnique({
       where: { id: ticketId },
-      include: {
-        cliente: true,
-        produto: true,
-        veiculo: true,
-        motorista: true,
-        transportadora: true,
-        passagens: { orderBy: { sequencia: 'asc' } },
-        descontos: true,
-        unidade: { include: { empresa: true } },
-      },
+      ...ticketComRelacoesArgs,
     });
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
     // Bilhete intermediário: usamos o template 1PF (A5) como base
     return gerarPdf('TICKET001', {
       ticket,
-      empresa: (ticket as any).unidade?.empresa,
-      unidade: (ticket as any).unidade,
+      empresa: ticket.unidade?.empresa,
+      unidade: ticket.unidade,
     });
   }
 

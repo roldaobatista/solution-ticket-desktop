@@ -23,7 +23,7 @@ export async function renderTicket001(ctx: TicketContext): Promise<Buffer> {
   drawCabecalho(doc, ctx, 'TICKET DE PESAGEM - 1 PASSAGEM');
   drawNumeroTicket(doc, t);
 
-  linhaCampo(doc, 'Cliente:', t.cliente?.razaoSocial || t.cliente?.nomeFantasia || '-');
+  linhaCampo(doc, 'Cliente:', t.cliente?.razaoSocial || '-');
   linhaCampo(doc, 'Produto:', t.produto?.descricao || '-');
   linhaCampo(doc, 'Placa:', t.veiculo?.placa || t.veiculoPlaca || '-');
   linhaCampo(doc, 'Motorista:', t.motorista?.nome || '-');

@@ -1,9 +1,10 @@
 import PDFDocument from 'pdfkit';
+import type { TicketComRelacoes, EmpresaRender, UnidadeRender } from './types';
 
 export interface TicketContext {
-  ticket: any;
-  empresa?: any;
-  unidade?: any;
+  ticket: TicketComRelacoes;
+  empresa?: EmpresaRender | null;
+  unidade?: UnidadeRender | null;
 }
 
 export interface TemplateResult {
@@ -40,8 +41,8 @@ export function fmtData(d?: Date | string | null): string {
 }
 
 export function drawCabecalho(doc: PDFKit.PDFDocument, ctx: TicketContext, subtitulo: string) {
-  const empresa = ctx.empresa || ctx.ticket?.unidade?.empresa;
-  const unidade = ctx.unidade || ctx.ticket?.unidade;
+  const empresa = ctx.empresa ?? ctx.ticket.unidade?.empresa;
+  const unidade = ctx.unidade ?? ctx.ticket.unidade;
   doc
     .fontSize(14)
     .font('Helvetica-Bold')
@@ -61,7 +62,7 @@ export function drawCabecalho(doc: PDFKit.PDFDocument, ctx: TicketContext, subti
   doc.moveDown(0.3);
 }
 
-export function drawNumeroTicket(doc: PDFKit.PDFDocument, ticket: any) {
+export function drawNumeroTicket(doc: PDFKit.PDFDocument, ticket: TicketComRelacoes) {
   doc.fontSize(16).font('Helvetica-Bold').text(`Ticket Nº ${ticket.numero}`, { align: 'center' });
   doc
     .fontSize(9)
@@ -104,14 +105,14 @@ export function drawAssinaturas(doc: PDFKit.PDFDocument) {
   doc.text('Balanceiro', mid + 20, y + 4, { width: right - mid - 20, align: 'center' });
 }
 
-export function calcularLiquido(ticket: any): number {
+export function calcularLiquido(ticket: TicketComRelacoes): number {
   return Number(ticket.pesoLiquidoFinal || ticket.pesoLiquidoSemDesconto || 0);
 }
 
-export function calcularBruto(ticket: any): number {
+export function calcularBruto(ticket: TicketComRelacoes): number {
   return Number(ticket.pesoBrutoApurado || 0);
 }
 
-export function calcularTara(ticket: any): number {
+export function calcularTara(ticket: TicketComRelacoes): number {
   return Number(ticket.pesoTaraApurada || ticket.taraCadastradaSnapshot || 0);
 }

@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import type { PassagemRender } from './types';
 import {
   TicketContext,
   toBuffer,
@@ -55,7 +56,7 @@ export async function renderTicket002(
     .font('Helvetica-Bold')
     .fontSize(9)
     .text('Cliente: ', left, yStart, { continued: true, width: colW });
-  doc.font('Helvetica').text(t.cliente?.razaoSocial || t.cliente?.nomeFantasia || '-');
+  doc.font('Helvetica').text(t.cliente?.razaoSocial || '-');
   doc
     .font('Helvetica-Bold')
     .fontSize(9)
@@ -87,7 +88,7 @@ export async function renderTicket002(
   const passagens = t.passagens || [];
   doc.font('Helvetica-Bold').fontSize(10).text('Passagens:', { underline: true });
   doc.font('Helvetica').fontSize(9);
-  passagens.forEach((p: any) => {
+  passagens.forEach((p: PassagemRender) => {
     doc.text(
       `  ${p.sequencia}. ${p.papelCalculo} - ${fmtKg(Number(p.pesoCapturado))} kg - ${fmtData(p.dataHora)}`,
     );

@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import type { PassagemRender } from './types';
 import {
   TicketContext,
   toBuffer,
@@ -24,7 +25,7 @@ export async function renderTicket003(ctx: TicketContext): Promise<Buffer> {
   drawCabecalho(doc, ctx, 'TICKET DE PESAGEM - 3 PASSAGENS (COM CONTROLE)');
   drawNumeroTicket(doc, t);
 
-  linhaCampo(doc, 'Cliente:', t.cliente?.razaoSocial || t.cliente?.nomeFantasia || '-');
+  linhaCampo(doc, 'Cliente:', t.cliente?.razaoSocial || '-');
   linhaCampo(doc, 'Produto:', t.produto?.descricao || '-');
   linhaCampo(doc, 'Placa:', t.veiculo?.placa || t.veiculoPlaca || '-');
   linhaCampo(doc, 'Motorista:', t.motorista?.nome || '-');
@@ -34,7 +35,7 @@ export async function renderTicket003(ctx: TicketContext): Promise<Buffer> {
 
   doc.font('Helvetica-Bold').fontSize(10).text('Passagens:', { underline: true });
   doc.font('Helvetica').fontSize(9);
-  (t.passagens || []).forEach((p: any) => {
+  (t.passagens || []).forEach((p: PassagemRender) => {
     doc.text(
       `  ${p.sequencia}. ${p.papelCalculo} (${p.direcaoOperacional}) - ${fmtKg(Number(p.pesoCapturado))} kg - ${fmtData(p.dataHora)}`,
     );
