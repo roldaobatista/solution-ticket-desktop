@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { IBalancaAdapter } from './adapter.interface';
+import { errorMessage } from '../../common/error-message.util';
 
 export interface ReconnectOptions {
   baseDelayMs?: number; // default 1000
@@ -104,12 +105,12 @@ export class ReconnectingAdapter extends EventEmitter implements IBalancaAdapter
         // RC2: NAO zerar falhasConsecutivas aqui — manter contador acumulado para alerta.
         // O alerta dispara em "Mx N falhas" total na sessao, nao por janela curta.
         this.emit('reconectado');
-      } catch (err: any) {
+      } catch (err: unknown) {
         this.emit('error', err);
         if (this.falhasConsecutivas % alertarACada === 0) {
           this.emit('alerta', {
             mensagem: `Balanca nao reconectou apos ${this.falhasConsecutivas} tentativas`,
-            ultimaTentativaErro: err?.message ?? String(err),
+            ultimaTentativaErro: errorMessage(err) ?? String(err),
           });
         }
         this.agendarReconexao();

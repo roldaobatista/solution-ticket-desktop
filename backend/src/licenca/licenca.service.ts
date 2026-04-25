@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../prisma/prisma.service';
 import { obterFingerprint } from './fingerprint.util';
+import { errorMessage } from '../common/error-message.util';
 
 export const StatusLicenca = {
   TRIAL: 'TRIAL',
@@ -133,14 +134,14 @@ export class LicencaService implements OnModuleInit {
       payload = jwt.verify(params.chave, this.publicKey, {
         algorithms: ['RS256'],
       }) as LicencaPayload;
-    } catch (e: any) {
+    } catch (e: unknown) {
       await this.registrarAtivacaoInvalida(
         params.unidadeId,
         fingerprint,
         'assinatura_invalida',
-        e?.message,
+        errorMessage(e),
       );
-      const reason = e?.name === 'TokenExpiredError' ? 'EXPIRADA' : 'INVALIDA';
+      const reason = (e as Error)?.name === 'TokenExpiredError' ? 'EXPIRADA' : 'INVALIDA';
       throw new BadRequestException(
         reason === 'EXPIRADA' ? 'Chave expirada.' : 'Chave invalida (assinatura).',
       );
@@ -241,7 +242,7 @@ export class LicencaService implements OnModuleInit {
         },
       });
     } catch (e) {
-      this.logger.warn('Falha ao registrar ativacao invalida: ' + (e as Error).message);
+      this.logger.warn('Falha ao registrar ativacao invalida: ' + errorMessage(e));
     }
   }
 

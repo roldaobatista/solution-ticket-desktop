@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import type { SerialPort as SerialPortType } from 'serialport';
 import { AdapterConfig, IBalancaAdapter } from './adapter.interface';
+import { errorMessage } from '../../common/error-message.util';
 
 /**
  * Adaptador Serial (RS-232/485) usando o pacote `serialport`.
@@ -25,11 +26,11 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       SerialPort = require('serialport').SerialPort;
-    } catch (e: any) {
+    } catch (e: unknown) {
       throw new Error(
         'Falha ao carregar driver serial (serialport). ' +
           'Rode "pnpm --filter ./electron rebuild-native" ou instale o driver CH340. ' +
-          `Detalhe: ${e?.message ?? e}`,
+          `Detalhe: ${errorMessage(e) ?? e}`,
       );
     }
 

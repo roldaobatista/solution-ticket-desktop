@@ -5,6 +5,7 @@ import { createAdapter } from './adapters/adapter.factory';
 import { IBalancaAdapter } from './adapters/adapter.interface';
 import { createParser } from './parsers/parser.factory';
 import { IBalancaParser, LeituraPeso } from './parsers/parser.interface';
+import { errorMessage } from '../common/error-message.util';
 
 export interface BalancaStatus {
   online: boolean;
@@ -107,8 +108,8 @@ export class BalancaConnectionService implements OnModuleDestroy {
 
     adapter.on('data', (chunk: Buffer) => this.processarChunk(conexao, chunk));
     adapter.on('error', (err: Error) => {
-      this.logger.warn(`Balanca ${id} erro: ${err.message}`);
-      conexao.status.erro = err.message;
+      this.logger.warn(`Balanca ${id} erro: ${errorMessage(err)}`);
+      conexao.status.erro = errorMessage(err);
       conexao.emitter.emit('error', err);
     });
     adapter.on('close', () => {
@@ -147,9 +148,9 @@ export class BalancaConnectionService implements OnModuleDestroy {
       conexao.status.online = true;
       conexao.status.erro = null;
       this.conexoes.set(id, conexao);
-    } catch (err: any) {
+    } catch (err: unknown) {
       conexao.status.online = false;
-      conexao.status.erro = err?.message ?? String(err);
+      conexao.status.erro = errorMessage(err) ?? String(err);
       throw err;
     }
     return this.getStatus(id);
@@ -191,9 +192,9 @@ export class BalancaConnectionService implements OnModuleDestroy {
       ]);
       await adapter.close();
       return { sucesso: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
       await adapter.close().catch(() => undefined);
-      return { sucesso: false, erro: err?.message ?? String(err) };
+      return { sucesso: false, erro: errorMessage(err) ?? String(err) };
     }
   }
 

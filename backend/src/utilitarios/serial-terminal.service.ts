@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { errorMessage } from '../common/error-message.util';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { SerialPort } = require('serialport');
@@ -49,8 +50,8 @@ export class SerialTerminalService implements OnModuleDestroy {
         vendorId: p.vendorId || null,
         productId: p.productId || null,
       }));
-    } catch (err: any) {
-      this.logger.error(`Erro listando portas: ${err.message}`);
+    } catch (err: unknown) {
+      this.logger.error(`Erro listando portas: ${errorMessage(err)}`);
       return [];
     }
   }
@@ -94,7 +95,7 @@ export class SerialTerminalService implements OnModuleDestroy {
       sessao.ultimaAtividade = Date.now();
     });
     port.on('error', (err: any) => {
-      this.logger.error(`[${sessionId}] serial error: ${err.message}`);
+      this.logger.error(`[${sessionId}] serial error: ${errorMessage(err)}`);
     });
 
     this.sessoes.set(sessionId, sessao);
@@ -144,12 +145,12 @@ export class SerialTerminalService implements OnModuleDestroy {
         try {
           s.port.close(() => resolve());
         } catch (err) {
-          this.logger.debug(`Erro ao fechar porta serial: ${(err as Error).message}`);
+          this.logger.debug(`Erro ao fechar porta serial: ${errorMessage(err)}`);
           resolve();
         }
       });
     } catch (err) {
-      this.logger.debug(`Falha encerrando sessão serial ${sessionId}: ${(err as Error).message}`);
+      this.logger.debug(`Falha encerrando sessão serial ${sessionId}: ${errorMessage(err)}`);
     }
     this.sessoes.delete(sessionId);
     return { ok: true };

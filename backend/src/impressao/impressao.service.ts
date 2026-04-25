@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { gerarPdf, TEMPLATE_REGISTRY } from './templates';
+import { errorMessage } from '../common/error-message.util';
 
 @Injectable()
 export class ImpressaoService {
@@ -54,8 +55,11 @@ export class ImpressaoService {
         unidade: (ticket as any).unidade,
       });
       return buffer;
-    } catch (err: any) {
-      this.logger.error(`Falha ao gerar PDF template=${tpl}: ${err?.message}`, err?.stack);
+    } catch (err: unknown) {
+      this.logger.error(
+        `Falha ao gerar PDF template=${tpl}: ${errorMessage(err)}`,
+        (err as Error)?.stack,
+      );
       await this.registrarErroImpressao(ticketId, tpl, err);
       throw err;
     }
@@ -68,12 +72,12 @@ export class ImpressaoService {
           ticketId,
           template,
           tipo: 'PDF',
-          mensagem: String(err?.message || err || 'Erro desconhecido').substring(0, 2000),
+          mensagem: String(errorMessage(err) || err || 'Erro desconhecido').substring(0, 2000),
           stack: err?.stack ? String(err.stack).substring(0, 4000) : null,
         },
       });
-    } catch (e: any) {
-      this.logger.warn(`Não foi possível registrar erro de impressão: ${e?.message}`);
+    } catch (e: unknown) {
+      this.logger.warn(`Não foi possível registrar erro de impressão: ${errorMessage(e)}`);
     }
   }
 
@@ -98,15 +102,15 @@ export class ImpressaoService {
         data: { resolvido: true, resolvidoEm: new Date(), tentativas: { increment: 1 } },
       });
       return { ok: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
       await (this.prisma as any).erroImpressao.update({
         where: { id },
         data: {
           tentativas: { increment: 1 },
-          mensagem: String(e?.message || e).substring(0, 2000),
+          mensagem: String(errorMessage(e) || e).substring(0, 2000),
         },
       });
-      return { ok: false, erro: e?.message || 'Falha' };
+      return { ok: false, erro: errorMessage(e, 'Falha') };
     }
   }
 

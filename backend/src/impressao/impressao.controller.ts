@@ -2,6 +2,7 @@ import { Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ImpressaoService } from './impressao.service';
+import { errorMessage } from '../common/error-message.util';
 
 @ApiTags('Impressão')
 @Controller('impressao')
@@ -30,8 +31,8 @@ export class ImpressaoController {
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="ticket-${ticketId}.pdf"`);
       res.send(buffer);
-    } catch (err: any) {
-      res.status(500).json({ erro: err?.message || 'Falha ao gerar PDF' });
+    } catch (err: unknown) {
+      res.status(500).json({ erro: errorMessage(err, 'Falha ao gerar PDF') });
     }
   }
 

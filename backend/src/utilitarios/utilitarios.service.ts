@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { LicencaService } from '../licenca/licenca.service';
 import { obterFingerprint } from '../licenca/fingerprint.util';
+import { errorMessage } from '../common/error-message.util';
 
 @Injectable()
 export class UtilitariosService {
@@ -48,8 +49,8 @@ export class UtilitariosService {
         ultimaEscritaIso = stat.mtime.toISOString();
       }
       return { caminho: caminho || '(config por DATABASE_URL)', tamanhoKb, ultimaEscritaIso };
-    } catch (err: any) {
-      return { caminho: null, tamanhoKb: 0, ultimaEscritaIso: null, erro: err?.message };
+    } catch (err: unknown) {
+      return { caminho: null, tamanhoKb: 0, ultimaEscritaIso: null, erro: errorMessage(err) };
     }
   }
 
@@ -75,8 +76,8 @@ export class UtilitariosService {
         diasRestantes,
         unidadeId: (licenca as any).unidadeId,
       };
-    } catch (err: any) {
-      return { status: 'ERRO', erro: err?.message, fingerprint: null, diasRestantes: null };
+    } catch (err: unknown) {
+      return { status: 'ERRO', erro: errorMessage(err), fingerprint: null, diasRestantes: null };
     }
   }
 
@@ -91,8 +92,8 @@ export class UtilitariosService {
       const linhas = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
       const tail = linhas.slice(-Math.max(1, n));
       return { caminho: logPath, existe: true, linhas: tail };
-    } catch (err: any) {
-      return { caminho: null, existe: false, linhas: [], erro: err?.message };
+    } catch (err: unknown) {
+      return { caminho: null, existe: false, linhas: [], erro: errorMessage(err) };
     }
   }
 }

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { XMLParser } from 'fast-xml-parser';
+import { errorMessage } from '../common/error-message.util';
 
 @Injectable()
 export class DocumentosService {
@@ -21,8 +22,8 @@ export class DocumentosService {
     let parsed: any;
     try {
       parsed = parser.parse(xml);
-    } catch (err: any) {
-      throw new BadRequestException('XML invalido: ' + (err?.message || 'parse error'));
+    } catch (err: unknown) {
+      throw new BadRequestException('XML invalido: ' + errorMessage(err, 'parse error'));
     }
 
     const nfe = this.localizar(parsed, 'infNFe');
