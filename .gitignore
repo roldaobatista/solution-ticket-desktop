@@ -38,6 +38,9 @@ Thumbs.db
 logs/
 *.log
 
+# Coverage reports (geração local, não versionar)
+coverage/
+
 # Chaves privadas (NUNCA commitar)
 keygen/private.key
 keygen/*.pem
