@@ -6,6 +6,24 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ## [Não lançado]
 
+### Sprint 3 — Performance & qualidade contínua (2026-04-25)
+
+- **Backend perf:** `RelatoriosService.movimento` agora usa `prisma.aggregate({_sum})` para totais (peso/descontos/bruto) em vez de carregar todos os tickets e somar em memória. Cap `MAX_TICKETS=5000` com flag `truncated:true` (B3).
+- **Backend regras:** `TicketService.create` rejeita `PF1_TARA_REFERENCIADA` sem veículo com tara cadastrada nem `taraReferenciaTipo='MANUAL'` — evita pesagem com tara=0 silenciosa. 5 testes novos (B9).
+- **Frontend resiliência:** error boundaries em `app/(authenticated)/error.tsx`, `app/error.tsx` e loading state em `app/(authenticated)/loading.tsx` (F9).
+- **Frontend a11y:** `useKeyboardShortcuts` agora ignora atalhos quando há `[role="dialog"][aria-modal="true"]` aberto (F11).
+- **Frontend stores:** `auth.store` ganha `version: 1` + `migrate` (descarta versões desconhecidas em vez de deserializar lixo). `frontend/src/stores/README.md` documenta a tabela canonical (F10).
+- **Frontend qualidade:** `no-explicit-any` elevado para `error` no ESLint do frontend após F5 (39→0). Backend mantido em `warn` (206 ocorrências, escopo Sprint 4) (Q4).
+- **Electron segurança:** `webPreferences.devTools = isDev` desabilita DevTools em build de produção (S7). S8 (Swagger fora de prod), S9 (ValidationPipe `transform:true`) e S10 (preload mínimo) já satisfeitos.
+
+### Reclassificações Sprint 3
+
+- **B5 (lazy modules backend):** NestJS não suporta lazy-load à la Angular; bootstrap atual ~2-3s aceitável para Electron.
+- **B6 (nestjs-pino):** deferido — `LoggingInterceptor` (S6) já entrega correlação via `X-Request-Id` e PII scrubbing. Pino agrega JSON estruturado; reagendar quando integrar agregador externo.
+- **B7 (soft-delete via middleware):** deferido — middleware global é alto risco. Implementar por módulo (Ticket primeiro) quando houver demanda real de undelete.
+- **B8 (cobertura ≥70%):** trabalho contínuo. Cada PR de feature deve incluir testes do módulo afetado; gate de CI quando atingir baseline.
+- **Q6.b (docs gaps):** sem gaps identificados nesta sessão; `CLAUDE.md` (190 linhas), `README.md` e `DECISOES-PENDENTES.md` cobrem o necessário.
+
 ### Sprint 2 — Hardening UX (2026-04-25)
 
 - **Backend/Segurança:** CSP estrita no Electron renderer via `session.defaultSession.webRequest.onHeadersReceived` (S4); `LoggingInterceptor` global com `scrubPii()` recursivo cobrindo senha/token/JWT/CPF/CNPJ + spec 6/6 (S6). S3 (throttler) e S5 (RESET_TOKEN_TTL=15min) já estavam.
