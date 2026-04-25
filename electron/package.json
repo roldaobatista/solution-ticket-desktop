@@ -111,7 +111,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "SOLUTION-TICKET-OWNER",
+        "owner": "rolda",
         "repo": "solution-ticket-desktop",
         "releaseType": "release"
       }

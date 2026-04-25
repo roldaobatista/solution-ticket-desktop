@@ -1,4 +1,32 @@
 const { app, BrowserWindow, Menu, shell, dialog, session } = require('electron');
+const log = require('electron-log/main');
+
+// Onda 4: electron-log com rotação (max 5MB, 5 arquivos histórico)
+log.initialize();
+log.transports.file.maxSize = 5 * 1024 * 1024;
+log.transports.file.archiveLogFn = (file) => {
+  const info = path.parse(file.path);
+  const next = path.join(info.dir, `${info.name}.old${info.ext}`);
+  try {
+    fs.renameSync(file.path, next);
+  } catch {}
+};
+
+// S7: Single-instance lock — evita múltiplas instâncias concorrentes que
+// corromperiam o SQLite e gerariam EADDRINUSE nas portas 3000/3001.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  dialog.showErrorBox('Solution Ticket', 'O aplicativo já está em execução.');
+  app.quit();
+  process.exit(0);
+}
+
+app.on('second-instance', (_event, _argv, _workingDirectory) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -20,21 +48,11 @@ let frontendProcess = null;
 // ---------- Logging ----------
 
 function getLogFile() {
-  const dir = path.join(app.getPath('userData'), 'logs');
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-  } catch {}
-  return path.join(dir, 'electron.log');
+  return log.transports.file.getFile().path;
 }
 
 function logLine(tag, msg) {
-  const line = `[${new Date().toISOString()}] [${tag}] ${msg}\n`;
-  try {
-    fs.appendFileSync(getLogFile(), line);
-  } catch {}
-  try {
-    process.stdout.write(line);
-  } catch {}
+  log.info(`[${tag}] ${msg}`);
 }
 
 // ---------- Paths ----------
@@ -441,6 +459,7 @@ function applyCspHeaders() {
 }
 
 app.on('ready', async () => {
+  logLine('boot', `instance lock adquirido`);
   logLine('boot', `Solution Ticket ${app.getVersion()} starting (dev=${isDev})`);
   applyCspHeaders();
   buildMenu();
@@ -496,5 +515,21 @@ app.on('quit', () => {
     try {
       frontendProcess.kill();
     } catch {}
+  }
+});
+
+// Onda 2: graceful shutdown — envia SIGTERM e aguarda antes de kill forçado
+app.on('before-quit', async (event) => {
+  if (backendProcess && !backendProcess.killed) {
+    event.preventDefault();
+    logLine('shutdown', 'solicitando graceful shutdown do backend...');
+    backendProcess.kill('SIGTERM');
+    // Aguarda ate 3s para o backend fechar graciosamente
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    if (!backendProcess.killed) {
+      logLine('shutdown', 'backend nao respondeu, forçando kill');
+      backendProcess.kill('SIGKILL');
+    }
+    app.quit();
   }
 });
