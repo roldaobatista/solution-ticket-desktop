@@ -7,6 +7,7 @@ import { requestPasswordReset, resetPassword } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Scale, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { extractMessage } from '@/lib/errors';
 
 export default function EsqueciSenhaPage() {
   const router = useRouter();
@@ -28,8 +29,8 @@ export default function EsqueciSenhaPage() {
         'Se o e-mail existir, um token foi gerado. Verifique os logs do sistema ou entre em contato com o administrador.',
       );
       setEtapa('token');
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || 'Erro ao solicitar reset');
+    } catch (e: unknown) {
+      setErro(extractMessage(e, 'Erro ao solicitar reset'));
     } finally {
       setLoading(false);
     }
@@ -47,8 +48,8 @@ export default function EsqueciSenhaPage() {
       await resetPassword(token.trim(), novaSenha);
       setInfo('Senha redefinida com sucesso! Redirecionando para login...');
       setTimeout(() => router.push('/login'), 1500);
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || 'Token invalido ou expirado');
+    } catch (e: unknown) {
+      setErro(extractMessage(e, 'Token invalido ou expirado'));
     } finally {
       setLoading(false);
     }

@@ -10,6 +10,7 @@ import {
   type SerialPortInfo,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { extractMessage } from '@/lib/errors';
 
 export default function TerminalSerialPage() {
   const [portas, setPortas] = useState<SerialPortInfo[]>([]);
@@ -33,8 +34,8 @@ export default function TerminalSerialPage() {
       const list = await listarPortasSeriais();
       setPortas(list);
       if (list.length > 0 && !porta) setPorta(list[0].path);
-    } catch (e: any) {
-      setErro(e?.message || 'Erro listando portas');
+    } catch (e: unknown) {
+      setErro(extractMessage(e, 'Erro listando portas'));
     }
   };
 
@@ -62,8 +63,8 @@ export default function TerminalSerialPage() {
           setRecebidoAscii((prev) => prev + buf.ascii);
           setRecebidoHex((prev) => (prev ? prev + ' ' : '') + buf.hex);
         }
-      } catch (e: any) {
-        setErro(e?.response?.data?.message || e?.message || 'Erro lendo buffer');
+      } catch (e: unknown) {
+        setErro(extractMessage(e) || extractMessage(e, 'Erro lendo buffer'));
       }
     };
     pollingRef.current = setInterval(tick, 500);
@@ -79,8 +80,8 @@ export default function TerminalSerialPage() {
     try {
       const res = await abrirSessaoSerial({ porta, baudrate, databits, parity, stopbits });
       setSessionId(res.sessionId);
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || e?.message || 'Erro ao conectar');
+    } catch (e: unknown) {
+      setErro(extractMessage(e) || extractMessage(e, 'Erro ao conectar'));
     } finally {
       setCarregando(false);
     }
@@ -99,8 +100,8 @@ export default function TerminalSerialPage() {
     try {
       await enviarSerial(sessionId, envio, formatoEnvio);
       setEnvio('');
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || e?.message || 'Erro ao enviar');
+    } catch (e: unknown) {
+      setErro(extractMessage(e) || extractMessage(e, 'Erro ao enviar'));
     }
   };
 
@@ -208,7 +209,7 @@ export default function TerminalSerialPage() {
             <select
               className="border border-slate-300 rounded px-2 py-1 text-xs"
               value={modoExibicao}
-              onChange={(e) => setModoExibicao(e.target.value as any)}
+              onChange={(e) => setModoExibicao(e.target.value as 'ASCII' | 'HEX')}
             >
               <option value="ASCII">ASCII</option>
               <option value="HEX">HEX</option>
@@ -234,7 +235,7 @@ export default function TerminalSerialPage() {
           <select
             className="border border-slate-300 rounded px-2 py-2 text-sm"
             value={formatoEnvio}
-            onChange={(e) => setFormatoEnvio(e.target.value as any)}
+            onChange={(e) => setFormatoEnvio(e.target.value as 'ASCII' | 'HEX')}
           >
             <option value="ASCII">ASCII</option>
             <option value="HEX">HEX</option>

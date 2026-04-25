@@ -31,6 +31,7 @@ import { Balanca } from '@/types';
 import { Search, Plus, Pencil, Trash2, Save, Wifi, WifiOff, Zap } from 'lucide-react';
 import { z } from 'zod';
 import { AjusteLeituraSection } from '@/components/balanca/AjusteLeituraSection';
+import { extractMessage } from '@/lib/errors';
 
 const schema = z.object({
   nome: z.string().min(1, 'Nome obrigatorio'),
@@ -88,7 +89,7 @@ export default function BalancasPage() {
       setDialogOpen(false);
       showToast('Balanca criada com sucesso', 'success');
     },
-    onError: (e: any) => showToast(e?.response?.data?.message || 'Erro ao criar', 'error'),
+    onError: (e: unknown) => showToast(extractMessage(e, 'Erro ao criar'), 'error'),
   });
 
   const updateMut = useMutation({
@@ -98,7 +99,7 @@ export default function BalancasPage() {
       setDialogOpen(false);
       showToast('Balanca atualizada', 'success');
     },
-    onError: (e: any) => showToast(e?.response?.data?.message || 'Erro ao atualizar', 'error'),
+    onError: (e: unknown) => showToast(extractMessage(e, 'Erro ao atualizar'), 'error'),
   });
 
   const deleteMut = useMutation({
@@ -108,7 +109,7 @@ export default function BalancasPage() {
       setDeleteId(null);
       showToast('Balanca excluida', 'success');
     },
-    onError: (e: any) => showToast(e?.response?.data?.message || 'Erro ao excluir', 'error'),
+    onError: (e: unknown) => showToast(extractMessage(e, 'Erro ao excluir'), 'error'),
   });
 
   const validate = () => {
@@ -151,8 +152,8 @@ export default function BalancasPage() {
       } else {
         showToast(`Falha: ${result.erro || 'erro desconhecido'}`, 'error');
       }
-    } catch (e: any) {
-      showToast(e?.response?.data?.message || 'Erro ao testar', 'error');
+    } catch (e: unknown) {
+      showToast(extractMessage(e, 'Erro ao testar'), 'error');
     } finally {
       setTesting(false);
     }

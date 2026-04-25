@@ -108,7 +108,7 @@ export async function getHistoricoTicket(id: string): Promise<
   const res = await apiClient.get(`/tickets/${id}/historico`);
   const d = res.data;
   const arr = Array.isArray(d) ? d : d?.data || [];
-  return arr.map((a: any) => ({
+  return arr.map((a: Record<string, unknown>) => ({
     id: a.id,
     ticket_id: a.entidadeId,
     campo: a.evento || '',

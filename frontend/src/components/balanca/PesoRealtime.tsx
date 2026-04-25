@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { getBalancaStreamUrl, getBalancaStatus, USE_MOCK } from '@/lib/api';
 import { formatWeight } from '@/lib/utils';
 import type { LeituraPeso } from '@/types';
+import { extractMessage } from '@/lib/errors';
 
 interface PesoRealtimeProps {
   balancaId?: string;
@@ -86,9 +87,9 @@ export function PesoRealtime({
             if (!cancelled) connect();
           }, 3000) as unknown as number;
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         setConn('ERRO');
-        setErro(e?.message || 'Erro ao conectar');
+        setErro(extractMessage(e, 'Erro ao conectar'));
       }
     };
 

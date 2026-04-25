@@ -114,7 +114,7 @@ export interface ErroImpressao {
 
 export async function listarErrosImpressao(resolvido?: boolean): Promise<ErroImpressao[]> {
   if (USE_MOCK) return [];
-  const params: any = {};
+  const params: Record<string, unknown> = {};
   if (resolvido !== undefined) params.resolvido = resolvido;
   const res = await apiClient.get('/impressao/erros', { params });
   return res.data;

@@ -18,6 +18,7 @@ import {
   captureAndDetect,
   CandidatoDetectado,
   SerialConfig,
+  FlowControl,
 } from '@/lib/api/balanca-config';
 
 interface Props {
@@ -263,7 +264,9 @@ export function WizardProtocoloDesconhecido({ tenantId, onSucesso }: Props) {
                 <Select
                   label="Flow"
                   value={serial.flowControl}
-                  onChange={(e) => setSerial({ ...serial, flowControl: e.target.value as any })}
+                  onChange={(e) =>
+                    setSerial({ ...serial, flowControl: e.target.value as FlowControl })
+                  }
                   options={[
                     { value: 'NONE', label: 'None' },
                     { value: 'XON_XOFF', label: 'XON/XOFF' },

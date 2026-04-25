@@ -35,6 +35,7 @@ import {
 import { PesoRealtime } from '@/components/balanca/PesoRealtime';
 import { Toast, useToast } from '@/components/ui/toast';
 import { formatWeight, formatDate, cn } from '@/lib/utils';
+import { extractMessage } from '@/lib/errors';
 import {
   Scale,
   Play,
@@ -122,12 +123,16 @@ export default function PesagemPage() {
   useEffect(() => {
     if (!balancaSelecionadaId && balancas?.data?.length) {
       const ativa =
-        balancas.data.find((b: any) => b.ativa !== false && b.ativo !== false) || balancas.data[0];
+        balancas.data.find(
+          (b: { ativa?: boolean; ativo?: boolean }) => b.ativa !== false && b.ativo !== false,
+        ) || balancas.data[0];
       if (ativa) setBalancaSelecionadaId(ativa.id);
     }
   }, [balancas, balancaSelecionadaId]);
 
-  const balancaSelecionada = balancas?.data?.find((b: any) => b.id === balancaSelecionadaId);
+  const balancaSelecionada = balancas?.data?.find(
+    (b: { id: string }) => b.id === balancaSelecionadaId,
+  );
 
   // Atalhos de teclado para operação sem mouse
   useKeyboardShortcuts(
@@ -153,8 +158,8 @@ export default function PesagemPage() {
         showPesoToast(`Peso capturado: ${leitura.peso} kg`, 'success');
       }
       setSimulatedWeight(leitura.peso);
-    } catch (e: any) {
-      showPesoToast(e?.response?.data?.message || 'Erro ao capturar peso', 'error');
+    } catch (e: unknown) {
+      showPesoToast(extractMessage(e, 'Erro ao capturar peso'), 'error');
     } finally {
       setCapturando(false);
     }

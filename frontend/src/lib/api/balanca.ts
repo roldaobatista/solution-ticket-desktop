@@ -38,7 +38,7 @@ export async function deleteBalanca(id: string): Promise<void> {
 export async function getBalancaById(id: string): Promise<Balanca> {
   if (USE_MOCK) {
     const list = await mockApi.getBalancas(1, 1000);
-    const found = list.data.find((b: any) => b.id === id);
+    const found = list.data.find((b: { id: string }) => b.id === id);
     if (!found) throw new Error('Balanca nao encontrada');
     return found;
   }

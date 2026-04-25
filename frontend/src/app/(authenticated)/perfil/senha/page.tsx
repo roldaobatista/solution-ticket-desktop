@@ -6,6 +6,7 @@ import { changePassword } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { extractMessage } from '@/lib/errors';
 
 export default function AlterarSenhaPage() {
   const router = useRouter();
@@ -36,8 +37,8 @@ export default function AlterarSenhaPage() {
       setNovaSenha('');
       setConfirmar('');
       setTimeout(() => router.push('/'), 1500);
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || e?.message || 'Erro ao alterar senha');
+    } catch (e: unknown) {
+      setErro(extractMessage(e) || extractMessage(e, 'Erro ao alterar senha'));
     } finally {
       setLoading(false);
     }

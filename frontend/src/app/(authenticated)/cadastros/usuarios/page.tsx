@@ -99,7 +99,11 @@ export default function UsuariosPage() {
 
   const handleSubmit = () => {
     if (!validate()) return;
-    const payload: any = { nome: form.nome, email: form.email, perfilIds: form.perfilIds || [] };
+    const payload: Record<string, unknown> = {
+      nome: form.nome,
+      email: form.email,
+      perfilIds: form.perfilIds || [],
+    };
     if (form.senha) payload.senha = form.senha;
     if (editingId) updateMutation.mutate({ id: editingId, data: payload });
     else createMutation.mutate(payload);

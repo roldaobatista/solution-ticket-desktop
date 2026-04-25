@@ -47,7 +47,7 @@ export default function ErrosImpressaoPage() {
           <select
             className="border rounded px-3 py-1.5 text-sm"
             value={filtro}
-            onChange={(e) => setFiltro(e.target.value as any)}
+            onChange={(e) => setFiltro(e.target.value as 'todos' | 'pendentes' | 'resolvidos')}
           >
             <option value="pendentes">Pendentes</option>
             <option value="resolvidos">Resolvidos</option>

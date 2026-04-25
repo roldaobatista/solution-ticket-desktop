@@ -28,7 +28,7 @@ export default function ManutencaoTicketPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<Record<string, unknown>>({});
   const [motivo, setMotivo] = useState('');
   const qc = useQueryClient();
 
@@ -171,40 +171,40 @@ export default function ManutencaoTicketPage() {
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Placa"
-              value={form.veiculo_placa || ''}
-              onChange={(e) => setForm((f: any) => ({ ...f, veiculo_placa: e.target.value }))}
+              value={String(form.veiculo_placa ?? '')}
+              onChange={(e) => setForm((f) => ({ ...f, veiculo_placa: e.target.value }))}
             />
             <Input
               label="Nota Fiscal"
-              value={form.nota_fiscal || ''}
-              onChange={(e) => setForm((f: any) => ({ ...f, nota_fiscal: e.target.value }))}
+              value={String(form.nota_fiscal ?? '')}
+              onChange={(e) => setForm((f) => ({ ...f, nota_fiscal: e.target.value }))}
             />
             <Input
               label="Peso NF (kg)"
               type="number"
-              value={form.peso_nf || ''}
-              onChange={(e) => setForm((f: any) => ({ ...f, peso_nf: Number(e.target.value) }))}
+              value={String(form.peso_nf ?? '')}
+              onChange={(e) => setForm((f) => ({ ...f, peso_nf: Number(e.target.value) }))}
             />
             <Input
               label="Peso Bruto (kg)"
               type="number"
-              value={form.peso_bruto_apurado || ''}
+              value={String(form.peso_bruto_apurado ?? '')}
               onChange={(e) =>
-                setForm((f: any) => ({ ...f, peso_bruto_apurado: Number(e.target.value) }))
+                setForm((f) => ({ ...f, peso_bruto_apurado: Number(e.target.value) }))
               }
             />
             <Input
               label="Peso Tara (kg)"
               type="number"
-              value={form.peso_tara_apurada || ''}
+              value={String(form.peso_tara_apurada ?? '')}
               onChange={(e) =>
-                setForm((f: any) => ({ ...f, peso_tara_apurada: Number(e.target.value) }))
+                setForm((f) => ({ ...f, peso_tara_apurada: Number(e.target.value) }))
               }
             />
             <Input
               label="Observacao"
-              value={form.observacao || ''}
-              onChange={(e) => setForm((f: any) => ({ ...f, observacao: e.target.value }))}
+              value={String(form.observacao ?? '')}
+              onChange={(e) => setForm((f) => ({ ...f, observacao: e.target.value }))}
             />
           </div>
 

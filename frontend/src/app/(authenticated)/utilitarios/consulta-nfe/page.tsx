@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { parseXmlDocumento, vincularDocumentoTicket, DocumentoParseado } from '@/lib/api';
 import { FileText, Search, Link2 } from 'lucide-react';
+import { extractMessage } from '@/lib/errors';
 
 export default function ConsultaNfePage() {
   const [xml, setXml] = useState('');
@@ -28,8 +29,8 @@ export default function ConsultaNfePage() {
     try {
       const r = await parseXmlDocumento(xml);
       setResultado(r);
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || e?.message || 'Falha ao analisar XML');
+    } catch (e: unknown) {
+      setErro(extractMessage(e) || extractMessage(e, 'Falha ao analisar XML'));
     } finally {
       setLoading(false);
     }
@@ -50,8 +51,8 @@ export default function ConsultaNfePage() {
         tipo: resultado.tipo,
       });
       setMensagemVincular(r?.mensagem || 'Vinculacao registrada');
-    } catch (e: any) {
-      setMensagemVincular(e?.response?.data?.message || 'Falha ao vincular');
+    } catch (e: unknown) {
+      setMensagemVincular(extractMessage(e, 'Falha ao vincular'));
     } finally {
       setLoadingVincular(false);
     }
@@ -99,8 +100,11 @@ export default function ConsultaNfePage() {
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <Campo k="Tipo" v={resultado.tipo} />
               <Campo k="Chave" v={resultado.chave} mono />
-              <Campo k="Numero" v={resultado.numero as any} />
-              <Campo k="Serie" v={resultado.serie as any} />
+              <Campo
+                k="Numero"
+                v={resultado.numero != null ? String(resultado.numero) : undefined}
+              />
+              <Campo k="Serie" v={resultado.serie != null ? String(resultado.serie) : undefined} />
               <Campo k="Emissor CNPJ" v={resultado.emissorCnpj} mono />
               <Campo k="Emissor" v={resultado.emissorNome} />
               <Campo k="Destinatario CNPJ" v={resultado.destinatarioCnpj} mono />
@@ -117,7 +121,10 @@ export default function ConsultaNfePage() {
                 k="Valor total"
                 v={resultado.valorTotal != null ? `R$ ${resultado.valorTotal.toFixed(2)}` : null}
               />
-              <Campo k="Data emissao" v={resultado.dataEmissao as any} />
+              <Campo
+                k="Data emissao"
+                v={resultado.dataEmissao != null ? String(resultado.dataEmissao) : undefined}
+              />
             </dl>
 
             <div className="mt-6 border-t pt-4">

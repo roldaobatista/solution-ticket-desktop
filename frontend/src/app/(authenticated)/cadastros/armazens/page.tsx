@@ -84,7 +84,7 @@ export default function ArmazensPage() {
 
   const handleSubmit = () => {
     if (!validate()) return;
-    const payload: any = { ...form };
+    const payload: Record<string, unknown> = { ...form };
     if (editingId) updateMutation.mutate({ id: editingId, data: payload });
     else createMutation.mutate(payload);
   };

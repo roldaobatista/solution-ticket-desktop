@@ -92,7 +92,7 @@ export async function listarRelatoriosSalvos(modulo?: string): Promise<Relatorio
 export async function criarRelatorioSalvo(
   nome: string,
   modulo: string,
-  filtros: any,
+  filtros: FiltroRelatorioValues,
 ): Promise<RelatorioSalvo> {
   const res = await apiClient.post('/relatorios-salvos', { nome, modulo, filtros });
   return res.data;

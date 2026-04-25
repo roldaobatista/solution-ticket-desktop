@@ -15,7 +15,9 @@ export async function login(
   };
   const usuario = raw.usuario;
   if (typeof window !== 'undefined' && usuario) {
-    const uid = (usuario as any).unidadeId || (usuario as any).unidade_id;
+    const uid =
+      (usuario as { unidadeId?: string; unidade_id?: string }).unidadeId ||
+      (usuario as { unidade_id?: string }).unidade_id;
     if (uid) {
       // RS4: store em memoria via dynamic import (evita ciclo).
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -33,7 +35,9 @@ export async function getMe(): Promise<Usuario> {
   const res = await apiClient.get('/auth/me');
   const usuario = res.data as Usuario & { unidadeId?: string; unidade_id?: string };
   if (typeof window !== 'undefined' && usuario) {
-    const uid = (usuario as any).unidadeId || (usuario as any).unidade_id;
+    const uid =
+      (usuario as { unidadeId?: string; unidade_id?: string }).unidadeId ||
+      (usuario as { unidade_id?: string }).unidade_id;
     if (uid) {
       // RS4: store em memoria via dynamic import (evita ciclo).
       // eslint-disable-next-line @typescript-eslint/no-var-requires
