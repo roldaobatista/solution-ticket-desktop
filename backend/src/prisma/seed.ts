@@ -870,7 +870,24 @@ async function main() {
   console.log('Ticket 3 created (2PF com desconto)');
 
   // Tickets 4-10: variados
-  const ticketData: any[] = [
+  interface TicketSeed {
+    num: string;
+    cli: number;
+    trans: number;
+    mot: number;
+    vei: number;
+    prod: number;
+    statusOp: string;
+    statusCom: string;
+    fluxo: string;
+    bruto: number | null;
+    tara: number | null;
+    liq: number | null;
+    desc: number | null;
+    final: number | null;
+    obs: string;
+  }
+  const ticketData: TicketSeed[] = [
     {
       num: 'TK-2024-0004',
       cli: 3,
