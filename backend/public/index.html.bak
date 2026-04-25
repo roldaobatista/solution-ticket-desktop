@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solution Ticket - Sistema de Pesagem Veicular</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50:'#f0f7ff',100:'#e0effe',200:'#b9dffe',300:'#7ccbfd',400:'#36b3fa',500:'#0c99eb',600:'#0178c8',700:'#0160a2',800:'#065286',900:'#0b446e' },
+            success: { 50:'#f0fdf4',100:'#dcfce7',200:'#bbf7d0',300:'#86efac',400:'#4ade80',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534' },
+            warning: { 50:'#fffbeb',100:'#fef3c7',200:'#fde68a',300:'#fcd34d',400:'#fbbf24',500:'#f59e0b',600:'#d97706',700:'#b45309' },
+            danger: { 50:'#fef2f2',100:'#fee2e2',200:'#fecaca',300:'#fca5a5',400:'#f87171',500:'#ef4444',600:'#dc2626',700:'#b91c1c' },
+          },
+          fontFamily: { sans:['Plus Jakarta Sans','system-ui','sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <style>
+    * { font-family:'Plus Jakarta Sans',system-ui,sans-serif; }
+    body { background:#f8fafc; }
+    .fade-in { animation:fadeIn .3s ease-out; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .card-hover { transition:all .2s ease; }
+    .card-hover:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,.06); }
+    .scale-glow { animation:pulse-glow 2s ease-in-out infinite; }
+    @keyframes pulse-glow { 0%,100%{box-shadow:0 0 0 0 rgba(12,153,235,.15)} 50%{box-shadow:0 0 0 8px rgba(12,153,235,0)} }
+    .pulse-green { animation:pulse-g 2s infinite; }
+    @keyframes pulse-g { 0%,100%{opacity:1} 50%{opacity:.6} }
+    .btn-primary { background:linear-gradient(135deg,#0c99eb,#0178c8); }
+    .btn-success { background:linear-gradient(135deg,#22c55e,#16a34a); }
+    .weight-display { font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+    .table-row:hover { background:#f8fafc; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useContext, createContext, useCallback } = React;
+
+    // ============================================================
+    // API CLIENT - Todas as chamadas vao para o backend real
+    // ============================================================
+    const API_BASE = '';
+    const api = {
+      async request(method, path, body) {
+        const token = localStorage.getItem('token');
+        const opts = { method, headers: { 'Content-Type': 'application/json' } };
+        if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(`${API_BASE}/api${path}`, opts);
+        if (res.status === 401) { localStorage.removeItem('token'); window.location.reload(); }
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      },
+      get: (path) => api.request('GET', path),
+      post: (path, body) => api.request('POST', path, body),
+      patch: (path, body) => api.request('PATCH', path, body),
+      delete: (path) => api.request('DELETE', path),
+    };
+
+    // ============================================================
+    // FORMATADORES
+    // ============================================================
+    const fmt = {
+      weight: v => v ? `${Number(v).toLocaleString('pt-BR')} kg` : '-',
+      currency: v => v ? `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-',
+      date: d => d ? new Date(d).toLocaleString('pt-BR') : '-',
+      dateShort: d => d ? new Date(d).toLocaleDateString('pt-BR') : '-',
+    };
+
+    // ============================================================
+    // BADGE COMPONENT
+    // ============================================================
+    function Badge({ status, text }) {
+      const colors = {
+        ABERTO: 'bg-blue-100 text-blue-700', EM_PESAGEM: 'bg-amber-100 text-amber-700',
+        AGUARDANDO_PASSAGEM: 'bg-purple-100 text-purple-700', FECHADO: 'bg-emerald-100 text-emerald-700',
+        CANCELADO: 'bg-red-100 text-red-700', EM_ATENDIMENTO: 'bg-blue-100 text-blue-700',
+        CONCLUIDO: 'bg-emerald-100 text-emerald-700', NAO_ROMANEADO: 'bg-slate-100 text-slate-600',
+        ROMANEADO: 'bg-blue-100 text-blue-700', BAIXADO: 'bg-emerald-100 text-emerald-700',
+        ONLINE: 'bg-emerald-100 text-emerald-700', OFFLINE: 'bg-red-100 text-red-700',
+      };
+      return <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${colors[status] || 'bg-slate-100 text-slate-600'}`}>{text || status}</span>;
+    }
+
+    // ============================================================
+    // ICONS
+    // ============================================================
+    const Icons = {
+      menu: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+      dashboard: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+      scale: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
+      weight: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>,
+      ticket: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+      users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+      truck: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+      box: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+      balance: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+      report: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+      file: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>,
+      invoice: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+      settings: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+      key: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
+      plus: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+      search: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+      print: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+      eye: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+      arrowLeft: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+      droplet: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z"/></svg>,
+      queue: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="6" rx="1"/><rect x="2" y="14" width="20" height="6" rx="1"/></svg>,
+      audit: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>,
+    };
+
+    // ============================================================
+    // STORE CONTEXT - Todos os dados vem da API
+    // ============================================================
+    const StoreContext = createContext(null);
+    function useStore() { return useContext(StoreContext); }
+
+    function StoreProvider({ children }) {
+      const [user, setUser] = useState(() => {
+        const saved = localStorage.getItem('user');
+        return saved ? JSON.parse(saved) : null;
+      });
+      const [currentTicket, setCurrentTicket] = useState(null);
+      const [currentRomaneio, setCurrentRomaneio] = useState(null);
+      const [currentFatura, setCurrentFatura] = useState(null);
+      const [activePage, setActivePage] = useState('dashboard');
+      const [sidebarOpen, setSidebarOpen] = useState(true);
+      const [toast, setToast] = useState(null);
+
+      // Dados da API (estados)
+      const [tickets, setTickets] = useState([]);
+      const [clientes, setClientes] = useState([]);
+      const [produtos, setProdutos] = useState([]);
+      const [veiculos, setVeiculos] = useState([]);
+      const [motoristas, setMotoristas] = useState([]);
+      const [transportadoras, setTransportadoras] = useState([]);
+      const [balancas, setBalancas] = useState([]);
+      const [destinos, setDestinos] = useState([]);
+      const [armazens, setArmazens] = useState([]);
+      const [romaneios, setRomaneios] = useState([]);
+      const [faturas, setFaturas] = useState([]);
+      const [filaPesagem, setFilaPesagem] = useState([]);
+      const [auditoria, setAuditoria] = useState([]);
+      const [dashboardStats, setDashboardStats] = useState(null);
+      const [licenca, setLicenca] = useState({ status: 'ATIVA', diasRestantes: 365, limitePesagens: null });
+
+      // Loading states
+      const [loading, setLoading] = useState({});
+      const [error, setError] = useState(null);
+
+      // Toast auto-dismiss
+      useEffect(() => {
+        if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }
+      }, [toast]);
+
+      const showToast = (message, type = 'success') => setToast({ message, type });
+
+      // Generic fetch wrapper
+      const fetchData = useCallback(async (key, fetcher) => {
+        setLoading(prev => ({ ...prev, [key]: true }));
+        try { return await fetcher(); }
+        catch (err) { setError(err.message); showToast(`Erro: ${err.message}`, 'error'); }
+        finally { setLoading(prev => ({ ...prev, [key]: false })); }
+      }, []);
+
+      // Load all data
+      const loadAll = useCallback(async () => {
+        const [t, c, p, v, m, tr, b, d, a, r, f, aud, stats] = await Promise.all([
+          fetchData('tickets', () => api.get('/tickets').catch(() => [])),
+          fetchData('clientes', () => api.get('/cadastros/clientes').catch(() => [])),
+          fetchData('produtos', () => api.get('/cadastros/produtos').catch(() => [])),
+          fetchData('veiculos', () => api.get('/cadastros/veiculos').catch(() => [])),
+          fetchData('motoristas', () => api.get('/cadastros/motoristas').catch(() => [])),
+          fetchData('transportadoras', () => api.get('/cadastros/transportadoras').catch(() => [])),
+          fetchData('balancas', () => api.get('/balancas').catch(() => [])),
+          fetchData('destinos', () => api.get('/cadastros/destinos').catch(() => [])),
+          fetchData('armazens', () => api.get('/cadastros/armazens').catch(() => [])),
+          fetchData('romaneios', () => api.get('/romaneios').catch(() => [])),
+          fetchData('faturas', () => api.get('/faturas').catch(() => [])),
+          fetchData('auditoria', () => api.get('/auditoria').catch(() => [])),
+          fetchData('dashboard', () => api.get('/dashboard').catch(() => null)),
+        ]);
+        setTickets(t || []); setClientes(c || []); setProdutos(p || []); setVeiculos(v || []);
+        setMotoristas(m || []); setTransportadoras(tr || []); setBalancas(b || []); setDestinos(d || []);
+        setArmazens(a || []); setRomaneios(r || []); setFaturas(f || []); setAuditoria(aud || []);
+        setDashboardStats(stats);
+        // Derivar fila de pesagem (tickets EM_PESAGEM)
+        setFilaPesagem((t || []).filter(tk => tk.statusOperacional === 'EM_PESAGEM' || tk.statusOperacional === 'AGUARDANDO_PASSAGEM'));
+      }, [fetchData]);
+
+      const addTicket = async (data) => {
+        const created = await api.post('/tickets', data);
+        setTickets(prev => [created, ...prev]);
+        showToast('Ticket criado com sucesso');
+        return created;
+      };
+
+      const updateTicketStatus = async (id, status, data = {}) => {
+        const updated = await api.patch(`/tickets/${id}`, { statusOperacional: status, ...data });
+        setTickets(prev => prev.map(t => t.id === id ? updated : t));
+        return updated;
+      };
+
+      // Load data on mount if logged in
+      useEffect(() => {
+        if (user) loadAll();
+      }, [user]);
+
+      const value = {
+        user, setUser,
+        currentTicket, setCurrentTicket,
+        currentRomaneio, setCurrentRomaneio,
+        currentFatura, setCurrentFatura,
+        tickets, setTickets,
+        clientes, produtos, veiculos, motoristas, transportadoras, balancas, destinos, armazens,
+        romaneios, faturas,
+        filaPesagem, setFilaPesagem,
+        auditoria, dashboardStats, licenca,
+        activePage, setActivePage,
+        sidebarOpen, setSidebarOpen,
+        toast, showToast,
+        loading, error,
+        loadAll,
+        addTicket, updateTicketStatus,
+      };
+
+      return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+    }
+
+
+    // ============================================================
+    // LOGIN PAGE
+    // ============================================================
+    function LoginPage({ onLogin }) {
+      const [email, setEmail] = useState('admin@solutionticket.com');
+      const [password, setPassword] = useState('admin123');
+      const [error, setError] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          if (!res.ok) throw new Error('Credenciais invalidas');
+          const data = await res.json();
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          onLogin(data.user);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 to-primary-900 p-6">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 fade-in">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Icons.weight />
+              </div>
+              <h1 className="text-2xl font-bold text-slate-900">Solution Ticket</h1>
+              <p className="text-sm text-slate-500 mt-1">Sistema de Pesagem Veicular</p>
+            </div>
+            <form onSubmit={handleLogin} className="space-y-4">
+              {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500" required />
+              </div>
+              <button type="submit" disabled={loading} className={`w-full py-2.5 rounded-lg font-semibold text-white transition-all ${loading ? 'bg-slate-400' : 'btn-primary'}`}>
+                {loading ? 'Entrando...' : 'Entrar'}
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // SIDEBAR
+    // ============================================================
+    function Sidebar() {
+      const { activePage, setActivePage, sidebarOpen, setSidebarOpen, user, filaPesagem } = useStore();
+      const menuItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: Icons.dashboard },
+        { id: 'sep1', label: 'PESAGEM', separator: true },
+        { id: 'pesagem', label: 'Pesagem', icon: Icons.scale },
+        { id: 'tickets', label: 'Tickets', icon: Icons.ticket },
+        { id: 'cadastros', label: 'Cadastros', icon: Icons.users },
+        { id: 'balancas', label: 'Balancas', icon: Icons.balance },
+        { id: 'sepOp', label: 'OPERACAO', separator: true },
+        { id: 'tabelaUmidade', label: 'Tabela de Umidade', icon: Icons.droplet },
+        { id: 'fila', label: 'Fila de Veiculos', icon: Icons.queue },
+        { id: 'auditoria', label: 'Auditoria', icon: Icons.audit },
+        { id: 'sep2', label: 'FINANCEIRO', separator: true },
+        { id: 'romaneios', label: 'Romaneios', icon: Icons.file },
+        { id: 'faturas', label: 'Faturas', icon: Icons.invoice },
+        { id: 'relatorios', label: 'Relatorios', icon: Icons.report },
+        { id: 'sep3', label: 'SISTEMA', separator: true },
+        { id: 'licenca', label: 'Licenca', icon: Icons.key },
+        { id: 'configuracoes', label: 'Configuracoes', icon: Icons.settings },
+      ];
+
+      return (
+        <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white border-r border-slate-200 h-screen sticky top-0 flex flex-col transition-all duration-300 z-20`}>
+          <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
+            {sidebarOpen && <div className="flex items-center gap-2.5"><div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center"><Icons.weight /></div><span className="font-bold text-sm text-slate-800 tracking-tight">Solution Ticket</span></div>}
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400"><Icons.menu /></button>
+          </div>
+          <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+            {menuItems.map(item => item.separator
+              ? (sidebarOpen && <div key={item.id} className="pt-4 pb-2 px-3 text-[10px] font-bold text-slate-400 tracking-widest">{item.label}</div>)
+              : (
+                <button key={item.id} onClick={() => setActivePage(item.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${activePage === item.id ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  <item.icon />
+                  {sidebarOpen && <span className="truncate">{item.label}</span>}
+                  {item.id === 'pesagem' && filaPesagem.length > 0 && sidebarOpen && <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{filaPesagem.length}</span>}
+                </button>
+              )
+            )}
+          </nav>
+          {user && sidebarOpen && (
+            <div className="p-4 border-t border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xs font-bold">{user.nome?.[0] || 'U'}</div>
+                <div className="flex-1 min-w-0"><p className="text-sm font-medium text-slate-700 truncate">{user.nome || 'Usuario'}</p><p className="text-xs text-slate-400 truncate">{user.email}</p></div>
+              </div>
+            </div>
+          )}
+        </aside>
+      );
+    }
+
+    // ============================================================
+    // TOAST
+    // ============================================================
+    function Toast({ toast }) {
+      if (!toast) return null;
+      const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-blue-500' };
+      return (
+        <div className="fixed top-4 right-4 z-50 fade-in">
+          <div className={`${colors[toast.type]} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 min-w-[280px]`}>
+            <span className="text-sm font-medium">{toast.message}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // DASHBOARD PAGE
+    // ============================================================
+    function DashboardPage() {
+      const { tickets, balancas, filaPesagem, dashboardStats, setActivePage } = useStore();
+      const hoje = new Date().toISOString().slice(0, 10);
+      const fechadosHoje = tickets.filter(t => t.statusOperacional === 'FECHADO' && t.criadoEm?.startsWith(hoje));
+      const totalLiquidoHoje = fechadosHoje.reduce((s, t) => s + Number(t.pesoLiquidoFinal || 0), 0);
+      const balancasOffline = balancas.filter(b => !b.statusOnline);
+      const filaAguardando = filaPesagem;
+      const alertas = [];
+      if (balancasOffline.length > 0) alertas.push({ tipo: 'danger', msg: `${balancasOffline.length} balanca(s) offline`, acao: () => setActivePage('balancas') });
+      if (filaAguardando.length >= 1) alertas.push({ tipo: 'warning', msg: `${filaAguardando.length} veiculo(s) aguardando saida`, acao: () => setActivePage('pesagem') });
+
+      const kpis = [
+        { label: 'Tickets Hoje', value: tickets.filter(t => t.criadoEm?.startsWith(hoje)).length, color: 'text-primary-600', bg: 'bg-primary-100', icon: Icons.ticket },
+        { label: 'Peso Total Hoje', value: fmt.weight(totalLiquidoHoje), color: 'text-success-600', bg: 'bg-success-100', icon: Icons.weight },
+        { label: 'Em Pesagem', value: tickets.filter(t => t.statusOperacional === 'EM_PESAGEM').length, color: 'text-warning-600', bg: 'bg-warning-100', icon: Icons.scale },
+        { label: 'Fechados', value: tickets.filter(t => t.statusOperacional === 'FECHADO').length, color: 'text-primary-600', bg: 'bg-primary-100', icon: Icons.file },
+      ];
+
+      return (
+        <div className="p-6 fade-in space-y-6">
+          <div><h1 className="text-2xl font-bold text-slate-900">Dashboard</h1><p className="text-sm text-slate-500">Visao geral do sistema</p></div>
+          <div className="grid grid-cols-4 gap-4">
+            {kpis.map((kpi, i) => (
+              <div key={i} className="bg-white rounded-xl p-5 border border-slate-100 card-hover">
+                <div className="flex items-center justify-between">
+                  <div><p className="text-sm text-slate-500">{kpi.label}</p><p className={`text-2xl font-bold mt-1 ${kpi.color}`}>{kpi.value}</p></div>
+                  <div className={`w-10 h-10 rounded-lg ${kpi.bg} flex items-center justify-center`}><kpi.icon /></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {alertas.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {alertas.map((a, i) => (
+                <button key={i} onClick={a.acao} className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${a.tipo === 'danger' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${a.tipo === 'danger' ? 'bg-red-500' : 'bg-amber-500'} text-white text-xs font-bold`}>!</div>
+                  <p className={`text-sm font-medium ${a.tipo === 'danger' ? 'text-red-800' : 'text-amber-800'}`}>{a.msg}</p>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl border border-slate-100 p-5">
+              <h3 className="font-semibold text-slate-800 mb-4">Tickets Recentes</h3>
+              {tickets.slice(0, 5).map(t => (
+                <div key={t.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <div><p className="text-sm font-medium text-primary-700">{t.numero}</p><p className="text-xs text-slate-500">{t.cliente?.razaoSocial || '-'}</p></div>
+                  <Badge status={t.statusOperacional} />
+                </div>
+              ))}
+              {tickets.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Nenhum ticket encontrado</p>}
+            </div>
+            <div className="bg-white rounded-xl border border-slate-100 p-5">
+              <h3 className="font-semibold text-slate-800 mb-4">Balanças</h3>
+              {balancas.map(b => (
+                <div key={b.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                  <div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${b.statusOnline ? 'bg-emerald-500 pulse-green' : 'bg-red-500'}`} /><span className="text-sm text-slate-700">{b.nome}</span></div>
+                  <Badge status={b.statusOnline ? 'ONLINE' : 'OFFLINE'} />
+                </div>
+              ))}
+              {balancas.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Nenhuma balanca cadastrada</p>}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    // ============================================================
+    // PESAGEM PAGE - Fluxo Entrada → Fila → Saida
+    // ============================================================
+    function PesagemPage() {
+      const { clientes, transportadoras, motoristas, produtos, veiculos, balancas, destinos, armazens, addTicket, showToast, updateTicketStatus, filaPesagem, setFilaPesagem } = useStore();
+      const [modo, setModo] = useState('entrada');
+      const [step, setStep] = useState('form');
+      const [formData, setFormData] = useState({ clienteId: '', transportadoraId: '', motoristaId: '', veiculoId: '', produtoId: '', destinoId: '', armazemId: '', notaFiscal: '', observacao: '' });
+      const [ticket, setTicket] = useState(null);
+      const [passagens, setPassagens] = useState([]);
+      const [currentWeight, setCurrentWeight] = useState(0);
+      const [isStable, setIsStable] = useState(false);
+      const [manualMode, setManualMode] = useState(false);
+      const [manualWeight, setManualWeight] = useState('');
+      const [ticketSelecionado, setTicketSelecionado] = useState(null);
+
+      const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+
+      useEffect(() => {
+        if (step !== 'weighing') return;
+        const interval = setInterval(() => { setCurrentWeight(Math.round(15000 + Math.random() * 35000)); setIsStable(Math.random() > 0.3); }, 800);
+        return () => clearInterval(interval);
+      }, [step]);
+
+      const abrirTicketEntrada = async () => {
+        if (!formData.clienteId || !formData.produtoId) { showToast('Cliente e Produto sao obrigatorios', 'error'); return; }
+        try {
+          const created = await addTicket({ ...formData, fluxoPesagem: 'PF2_BRUTO_TARA' });
+          setTicket(created);
+          setStep('weighing');
+          showToast('Ticket aberto! Aguardando pesagem de entrada.');
+        } catch (err) { showToast('Erro ao abrir ticket: ' + err.message, 'error'); }
+      };
+
+      const capturarBruto = async () => {
+        const peso = manualMode ? (parseInt(manualWeight) || 0) : currentWeight;
+        if (manualMode && (!manualWeight || parseInt(manualWeight) <= 0)) { showToast('Digite um peso valido', 'error'); return; }
+        if (!manualMode && !isStable) { showToast('Aguardando estabilizacao...', 'error'); return; }
+        try {
+          await api.post(`/tickets/${ticket.id}/passagens`, { sequencia: 1, papelCalculo: 'BRUTO_OFICIAL', pesoCapturado: peso, tipoPassagem: 'ENTRADA' });
+          await updateTicketStatus(ticket.id, 'EM_PESAGEM', { pesoBrutoApurado: peso });
+          showToast(`Bruto: ${fmt.weight(peso)} - Na fila para saida.`);
+          setStep('summary');
+        } catch (err) { showToast('Erro ao capturar: ' + err.message, 'error'); }
+      };
+
+      const selecionarTicketSaida = (tk) => { setTicketSelecionado(tk); setTicket(tk); setStep('weighing'); };
+
+      const capturarTara = async () => {
+        const peso = manualMode ? (parseInt(manualWeight) || 0) : currentWeight;
+        if (manualMode && (!manualWeight || parseInt(manualWeight) <= 0)) { showToast('Digite um peso valido', 'error'); return; }
+        if (!manualMode && !isStable) { showToast('Aguardando estabilizacao...', 'error'); return; }
+        if (ticketSelecionado.pesoBrutoApurado && Number(ticketSelecionado.pesoBrutoApurado) < peso) { showToast('Tara nao pode ser maior que o bruto!', 'error'); return; }
+        try {
+          await api.post(`/tickets/${ticketSelecionado.id}/passagens`, { sequencia: 2, papelCalculo: 'TARA_OFICIAL', pesoCapturado: peso, tipoPassagem: 'SAIDA' });
+          const bruto = Number(ticketSelecionado.pesoBrutoApurado || 0);
+          const liquido = bruto - peso;
+          await updateTicketStatus(ticketSelecionado.id, 'FECHADO', { pesoTaraApurada: peso, pesoLiquidoFinal: liquido });
+          showToast(`Tara: ${fmt.weight(peso)} | Liquido: ${fmt.weight(liquido)} - Fechado!`);
+          setStep('summary');
+        } catch (err) { showToast('Erro ao capturar tara: ' + err.message, 'error'); }
+      };
+
+      const resetar = () => { setStep('form'); setPassagens([]); setTicket(null); setTicketSelecionado(null); setManualWeight(''); };
+
+      if (step === 'form') {
+        if (modo === 'saida') {
+          return (
+            <div className="p-6 fade-in">
+              <div className="flex justify-between items-center mb-6">
+                <div><h1 className="text-2xl font-bold text-slate-900">Pesagem de Saida</h1><p className="text-sm text-slate-500">Selecione um veiculo da fila para capturar a tara</p></div>
+                <button onClick={() => setModo('entrada')} className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600">Voltar para Entrada</button>
+              </div>
+              {filaPesagem.length === 0 && (
+                <div className="bg-white rounded-xl border border-slate-100 p-12 text-center">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.weight /></div>
+                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Fila Vazia</h3>
+                  <p className="text-sm text-slate-500">Nenhum veiculo aguardando pesagem de saida.</p>
+                  <button onClick={() => setModo('entrada')} className="mt-4 btn-primary text-white px-6 py-2 rounded-lg text-sm font-medium">Abrir Nova Entrada</button>
+                </div>
+              )}
+              {filaPesagem.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {filaPesagem.map(tk => (
+                    <div key={tk.id} className="bg-white rounded-xl border border-slate-100 p-5 card-hover cursor-pointer" onClick={() => selecionarTicketSaida(tk)}>
+                      <div className="flex justify-between items-start mb-3">
+                        <div><p className="text-sm font-bold text-primary-700">{tk.numero}</p><p className="text-sm text-slate-600">{tk.cliente?.razaoSocial || '-'}</p></div>
+                        <Badge status="EM_PESAGEM" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 text-xs mb-3">
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">Placa</p><p className="font-semibold text-slate-700 font-mono">{tk.veiculoPlaca || '-'}</p></div>
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">Entrada</p><p className="font-semibold text-slate-700">{fmt.dateShort(tk.primeiraPassagemEm)}</p></div>
+                        <div className="bg-slate-50 rounded-lg p-2"><p className="text-slate-400">Bruto</p><p className="font-semibold text-emerald-600">{fmt.weight(tk.pesoBrutoApurado)}</p></div>
+                      </div>
+                      <button className="w-full btn-primary text-white py-2 rounded-lg text-sm font-medium">Selecionar para Saida</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        }
+        return (
+          <div className="p-6 max-w-5xl mx-auto fade-in">
+            <div className="flex justify-between items-center mb-6">
+              <div><h1 className="text-2xl font-bold text-slate-900">Pesagem de Entrada</h1><p className="text-sm text-slate-500">Abrir ticket e capturar peso bruto</p></div>
+              <button onClick={() => setModo('saida')} className="px-4 py-2 btn-success text-white rounded-lg text-sm font-medium shadow-md flex items-center gap-2">
+                <Icons.weight /> Pesagem de Saida ({filaPesagem.length})
+              </button>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-100 p-6">
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  ['clienteId', 'Cliente *', 'select', clientes.map(c => ({ v: c.id, l: c.razaoSocial }))],
+                  ['produtoId', 'Produto *', 'select', produtos.map(p => ({ v: p.id, l: p.descricao }))],
+                  ['veiculoId', 'Veiculo', 'select', veiculos.map(v => ({ v: v.id, l: v.placa }))],
+                  ['transportadoraId', 'Transportadora', 'select', transportadoras.map(t => ({ v: t.id, l: t.nome }))],
+                  ['motoristaId', 'Motorista', 'select', motoristas.map(m => ({ v: m.id, l: m.nome }))],
+                  ['destinoId', 'Destino', 'select', destinos.map(d => ({ v: d.id, l: d.descricao }))],
+                  ['armazemId', 'Armazem', 'select', armazens.map(a => ({ v: a.id, l: a.descricao }))],
+                  ['notaFiscal', 'Nota Fiscal', 'text'],
+                ].map(([field, label, type, options]) => (
+                  <div key={field} className={field === 'observacao' ? 'col-span-3' : ''}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+                    {type === 'select' ? (
+                      <select value={formData[field] || ''} onChange={e => handleInputChange(field, e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500">
+                        <option value="">Selecione...</option>
+                        {(options || []).map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                      </select>
+                    ) : (
+                      <input type="text" value={formData[field] || ''} onChange={e => handleInputChange(field, e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500" />
+                    )}
+                  </div>
+                ))}
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Observacao</label>
+                  <textarea value={formData.observacao || ''} onChange={e => handleInputChange('observacao', e.target.value)} rows={2} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500" />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button onClick={abrirTicketEntrada} className="btn-primary text-white px-6 py-2.5 rounded-lg font-semibold shadow-md flex items-center gap-2">
+                  <Icons.plus /> Abrir Ticket de Entrada
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (step === 'weighing') {
+        const isEntrada = modo === 'entrada';
+        const veic = veiculos.find(v => v.id === (ticketSelecionado?.veiculoId || ticket?.veiculoId));
+        const cli = clientes.find(c => c.id === (ticketSelecionado?.clienteId || ticket?.clienteId));
+        const prod = produtos.find(p => p.id === (ticketSelecionado?.produtoId || ticket?.produtoId));
+        return (
+          <div className="p-6 max-w-5xl mx-auto fade-in space-y-6">
+            <div className="flex justify-between items-center">
+              <div><h1 className="text-2xl font-bold text-slate-900">Ticket {ticket?.numero || ''}</h1><p className="text-sm text-slate-500">{isEntrada ? 'Capturar PESO BRUTO (Entrada)' : 'Capturar PESO TARA (Saida)'}</p></div>
+              <button onClick={resetar} className="text-sm text-slate-400 hover:text-red-500">Cancelar</button>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-6 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center"><Icons.truck /></div>
+                <div><p className="text-sm font-bold text-slate-800">{veic?.placa || 'N/A'}</p></div>
+              </div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div><p className="text-xs text-slate-400">Cliente</p><p className="text-sm font-medium text-slate-700">{cli?.razaoSocial?.split(' ')[0] || '-'}</p></div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div><p className="text-xs text-slate-400">Produto</p><p className="text-sm font-medium text-slate-700">{prod?.descricao || '-'}</p></div>
+              {!isEntrada && ticketSelecionado?.pesoBrutoApurado && (
+                <><div className="h-8 w-px bg-slate-200" />
+                <div className="bg-emerald-50 rounded-lg px-4 py-2"><p className="text-xs text-emerald-500">Bruto Registrado</p><p className="text-lg font-bold text-emerald-700">{fmt.weight(ticketSelecionado.pesoBrutoApurado)}</p></div></>
+              )}
+            </div>
+            <div className="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-600 font-medium">Modo:</span>
+                <button onClick={() => { setManualMode(false); setManualWeight(''); }} className={`px-3 py-1 rounded-lg text-sm font-medium ${!manualMode ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-500'}`}>Automatico</button>
+                <button onClick={() => setManualMode(true)} className={`px-3 py-1 rounded-lg text-sm font-medium ${manualMode ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-500'}`}>Manual</button>
+              </div>
+              {manualMode && <div className="flex items-center gap-2"><label className="text-sm text-slate-500">Peso (kg):</label><input type="number" value={manualWeight} onChange={e => setManualWeight(e.target.value)} className="w-40 px-3 py-2 border border-slate-200 rounded-lg text-right font-mono text-lg" /></div>}
+            </div>
+            {!manualMode && (
+              <div className={`bg-white rounded-2xl border-2 p-8 text-center scale-glow ${isStable ? 'border-emerald-200' : 'border-amber-200'}`}>
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <div className={`w-3 h-3 rounded-full ${isStable ? 'bg-emerald-500 pulse-green' : 'bg-amber-400'}`} />
+                  <span className={`text-sm font-medium ${isStable ? 'text-emerald-600' : 'text-amber-600'}`}>{isStable ? 'PESO ESTAVEL' : 'AGUARDANDO...'}</span>
+                </div>
+                <div className="weight-display text-7xl font-bold text-slate-800">{fmt.weight(currentWeight)}</div>
+                <p className="text-sm text-slate-400 mt-2">Balança: TOLEDO-001 ({isEntrada ? 'Entrada' : 'Saida'})</p>
+              </div>
+            )}
+            {manualMode && <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center"><p className="text-lg font-medium text-slate-600">Modo Manual Ativo</p></div>}
+            <div className="flex gap-3 justify-center">
+              {isEntrada
+                ? <button onClick={capturarBruto} disabled={!isStable && !manualMode} className={`px-8 py-4 rounded-xl font-bold text-lg shadow-lg ${(isStable || manualMode) ? 'btn-success text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>CAPTURAR BRUTO - ENTRADA</button>
+                : <button onClick={capturarTara} disabled={!isStable && !manualMode} className={`px-8 py-4 rounded-xl font-bold text-lg shadow-lg ${(isStable || manualMode) ? 'btn-primary text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>CAPTURAR TARA - SAIDA</button>
+              }
+            </div>
+          </div>
+        );
+      }
+
+      const isEntrada = modo === 'entrada';
+      return (
+        <div className="p-6 max-w-2xl mx-auto fade-in">
+          <div className="bg-white rounded-xl border border-slate-100 p-6 text-center">
+            <div className={`w-16 h-16 ${isEntrada ? 'bg-amber-100' : 'bg-emerald-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+              {isEntrada
+                ? <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
+                : <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+              }
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">{isEntrada ? 'Entrada Registrada!' : 'Ticket Finalizado!'}</h2>
+            <p className="text-sm text-slate-500 mt-1">{ticket?.numero}</p>
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              {!isEntrada && <><div className="bg-slate-50 rounded-lg p-4"><p className="text-xs text-slate-500">Peso Bruto</p><p className="text-xl font-bold text-slate-800">{fmt.weight(ticket?.pesoBrutoApurado)}</p></div><div className="bg-slate-50 rounded-lg p-4"><p className="text-xs text-slate-500">Peso Tara</p><p className="text-xl font-bold text-slate-800">{fmt.weight(ticket?.pesoTaraApurada)}</p></div></>}
+              {isEntrada && <div className="col-span-2 bg-amber-50 rounded-lg p-4 border border-amber-200"><p className="text-xs text-amber-600 font-medium">PESO BRUTO REGISTRADO</p><p className="text-3xl font-bold text-amber-700">{fmt.weight(ticket?.pesoBrutoApurado)}</p></div>}
+              {!isEntrada && <div className="col-span-2 bg-emerald-50 rounded-lg p-4 border border-emerald-200"><p className="text-xs text-emerald-600 font-medium">PESO LIQUIDO FINAL</p><p className="text-3xl font-bold text-emerald-700">{fmt.weight(ticket?.pesoLiquidoFinal)}</p></div>}
+            </div>
+            <div className="flex gap-3 justify-center mt-6">
+              {isEntrada
+                ? <><button onClick={resetar} className="btn-primary text-white px-6 py-2.5 rounded-lg font-semibold">Nova Entrada</button><button onClick={() => { resetar(); setModo('saida'); }} className="btn-success text-white px-6 py-2.5 rounded-lg font-semibold">Ir para Saida</button></>
+                : <><button onClick={() => { resetar(); setModo('saida'); }} className="btn-success text-white px-6 py-2.5 rounded-lg font-semibold">Nova Saida</button><button onClick={resetar} className="bg-white border border-slate-200 text-slate-600 px-6 py-2.5 rounded-lg font-semibold">Voltar ao Inicio</button></>
+              }
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    // ============================================================
+    // TICKETS PAGE
+    // ============================================================
+    function TicketsPage() {
+      const { tickets, clientes } = useStore();
+      const [filter, setFilter] = useState('');
+      const [statusFilter, setStatusFilter] = useState('');
+      const [clienteFilter, setClienteFilter] = useState('');
+
+      const filtered = useMemo(() => {
+        return tickets.filter(t => {
+          const matchesSearch = !filter || [t.numero, t.cliente?.razaoSocial, t.veiculoPlaca].some(f => f?.toLowerCase().includes(filter.toLowerCase()));
+          const matchesStatus = !statusFilter || t.statusOperacional === statusFilter;
+          const matchesCliente = !clienteFilter || t.clienteId === clienteFilter;
+          return matchesSearch && matchesStatus && matchesCliente;
+        });
+      }, [tickets, filter, statusFilter, clienteFilter]);
+
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Tickets de Pesagem</h1><p className="text-sm text-slate-500">{filtered.length} tickets</p></div>
+            <div className="flex gap-3 flex-wrap">
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <option value="">Todos os status</option>
+                {['ABERTO', 'EM_PESAGEM', 'AGUARDANDO_PASSAGEM', 'FECHADO', 'CANCELADO'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={clienteFilter} onChange={e => setClienteFilter(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <option value="">Todos os clientes</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.razaoSocial}</option>)}
+              </select>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Icons.search /></div>
+                <input type="text" placeholder="Buscar..." value={filter} onChange={e => setFilter(e.target.value)} className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-64" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50">
+                <th className="px-5 py-3">Numero</th><th className="px-5 py-3">Data</th><th className="px-5 py-3">Cliente</th>
+                <th className="px-5 py-3">Produto</th><th className="px-5 py-3">Placa</th><th className="px-5 py-3 text-right">Bruto</th>
+                <th className="px-5 py-3 text-right">Tara</th><th className="px-5 py-3 text-right">Liquido</th><th className="px-5 py-3">Status</th>
+              </tr></thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.map(t => (
+                  <tr key={t.id} className="table-row">
+                    <td className="px-5 py-3 text-sm font-medium text-primary-700">{t.numero}</td>
+                    <td className="px-5 py-3 text-sm text-slate-500">{fmt.dateShort(t.criadoEm)}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{t.cliente?.razaoSocial || '-'}</td>
+                    <td className="px-5 py-3 text-sm text-slate-600">{t.produto?.descricao || '-'}</td>
+                    <td className="px-5 py-3 text-sm font-mono text-slate-600">{t.veiculoPlaca || '-'}</td>
+                    <td className="px-5 py-3 text-sm text-right">{fmt.weight(t.pesoBrutoApurado)}</td>
+                    <td className="px-5 py-3 text-sm text-right">{fmt.weight(t.pesoTaraApurada)}</td>
+                    <td className="px-5 py-3 text-sm text-right font-semibold text-emerald-600">{fmt.weight(t.pesoLiquidoFinal)}</td>
+                    <td className="px-5 py-3"><Badge status={t.statusOperacional} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Nenhum ticket encontrado</p>}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // CADASTROS PAGE (CRUD generico)
+    // ============================================================
+    function CadastrosPage() {
+      const { clientes, produtos, veiculos, motoristas, transportadoras, destinos, armazens } = useStore();
+      const [tab, setTab] = useState('clientes');
+
+      const tabs = [
+        { id: 'clientes', label: 'Clientes', data: clientes, cols: [
+          { key: 'razaoSocial', label: 'Razao Social' },
+          { key: 'documento', label: 'Documento' },
+          { key: 'cidade', label: 'Cidade' },
+          { key: 'telefone', label: 'Telefone' },
+        ]},
+        { id: 'produtos', label: 'Produtos', data: produtos, cols: [
+          { key: 'descricao', label: 'Descricao' },
+          { key: 'unidade', label: 'Unidade' },
+          { key: 'ativo', label: 'Status', render: v => v ? 'Ativo' : 'Inativo' },
+        ]},
+        { id: 'veiculos', label: 'Veiculos', data: veiculos, cols: [
+          { key: 'placa', label: 'Placa' },
+          { key: 'taraCadastrada', label: 'Tara', render: v => fmt.weight(v) },
+          { key: 'ativo', label: 'Status', render: v => v ? 'Ativo' : 'Inativo' },
+        ]},
+        { id: 'motoristas', label: 'Motoristas', data: motoristas, cols: [
+          { key: 'nome', label: 'Nome' },
+          { key: 'documento', label: 'Documento' },
+          { key: 'cnh', label: 'CNH' },
+        ]},
+        { id: 'transportadoras', label: 'Transportadoras', data: transportadoras, cols: [
+          { key: 'nome', label: 'Nome' },
+          { key: 'documento', label: 'Documento' },
+        ]},
+      ];
+
+      const currentTab = tabs.find(t => t.id === tab) || tabs[0];
+
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Cadastros</h1><p className="text-sm text-slate-500">Gerenciamento de cadastros mestre</p></div>
+          </div>
+          <div className="flex gap-2 mb-4">
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? 'btn-primary text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>{t.label}</button>
+            ))}
+          </div>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50">
+                {currentTab.cols.map(c => <th key={c.key} className="px-5 py-3">{c.label}</th>)}
+              </tr></thead>
+              <tbody className="divide-y divide-slate-50">
+                {currentTab.data.map((row, i) => (
+                  <tr key={row.id || i} className="table-row">
+                    {currentTab.cols.map(c => (
+                      <td key={c.key} className="px-5 py-3 text-sm text-slate-700">{c.render ? c.render(row[c.key]) : row[c.key] || '-'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {currentTab.data.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Nenhum registro</p>}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // BALANCAS PAGE
+    // ============================================================
+    function BalancasPage() {
+      const { balancas } = useStore();
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Balanças</h1><p className="text-sm text-slate-500">{balancas.length} balanças cadastradas</p></div>
+            <button className="btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.plus /> Nova Balanca</button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {balancas.map(b => (
+              <div key={b.id} className="bg-white rounded-xl border border-slate-100 p-5 card-hover">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${b.statusOnline ? 'bg-emerald-500 pulse-green' : 'bg-red-500'}`} />
+                    <h3 className="font-semibold text-slate-800">{b.nome}</h3>
+                  </div>
+                  <Badge status={b.statusOnline ? 'ONLINE' : 'OFFLINE'} />
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-slate-50 rounded-lg p-2"><p className="text-xs text-slate-400">Marca/Modelo</p><p className="font-medium text-slate-700">{b.marca} {b.modelo}</p></div>
+                  <div className="bg-slate-50 rounded-lg p-2"><p className="text-xs text-slate-400">Protocolo</p><p className="font-medium text-slate-700">{b.protocolo}</p></div>
+                  <div className="bg-slate-50 rounded-lg p-2"><p className="text-xs text-slate-400">Porta</p><p className="font-medium text-slate-700">{b.porta || b.enderecoIp + ':' + b.portaTcp || '-'}</p></div>
+                  <div className="bg-slate-50 rounded-lg p-2"><p className="text-xs text-slate-400">Tipo</p><p className="font-medium text-slate-700">{b.tipoEntradaSaida || 'Neutro'}</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // FILA PAGE
+    // ============================================================
+    function FilaPage() {
+      const { filaPesagem } = useStore();
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Fila de Veiculos</h1><p className="text-sm text-slate-500">{filaPesagem.length} veiculos aguardando saida</p></div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {filaPesagem.map((tk, i) => (
+              <div key={tk.id} className="bg-white rounded-xl border border-slate-100 p-5 card-hover">
+                <div className="flex justify-between items-start mb-3">
+                  <div><p className="text-sm font-bold text-primary-700">{tk.numero}</p><p className="text-xs text-slate-500">{tk.cliente?.razaoSocial || '-'}</p></div>
+                  <Badge status="EM_PESAGEM" />
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-slate-400">Produto:</span><span className="font-medium">{tk.produto?.descricao || '-'}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Placa:</span><span className="font-medium font-mono">{tk.veiculoPlaca || '-'}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Bruto:</span><span className="font-semibold text-emerald-600">{fmt.weight(tk.pesoBrutoApurado)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Posicao:</span><span className="font-bold text-primary-600">{i + 1}o</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {filaPesagem.length === 0 && <div className="bg-white rounded-xl border border-slate-100 p-12 text-center"><p className="text-slate-400">Fila vazia - todos os veiculos foram processados</p></div>}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // TABELA UMIDADE PAGE
+    // ============================================================
+    function TabelaUmidadePage() {
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Tabela de Umidade</h1><p className="text-sm text-slate-500">Configuracao de descontos por umidade</p></div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-100 p-8 text-center">
+            <p className="text-slate-500">Modulo de tabela de umidade sera configurado aqui.</p>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // AUDITORIA PAGE
+    // ============================================================
+    function AuditoriaPage() {
+      const { auditoria } = useStore();
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Auditoria</h1><p className="text-sm text-slate-500">{auditoria.length} eventos registrados</p></div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50">
+                <th className="px-5 py-3">Data/Hora</th><th className="px-5 py-3">Entidade</th><th className="px-5 py-3">Evento</th><th className="px-5 py-3">ID</th>
+              </tr></thead>
+              <tbody className="divide-y divide-slate-50">
+                {auditoria.map(a => (
+                  <tr key={a.id} className="table-row">
+                    <td className="px-5 py-3 text-sm text-slate-500">{fmt.date(a.dataHora)}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{a.entidade}</td>
+                    <td className="px-5 py-3 text-sm text-slate-600">{a.evento}</td>
+                    <td className="px-5 py-3 text-sm font-mono text-slate-400">{a.entidadeId?.slice(0, 8)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {auditoria.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Nenhum evento</p>}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // ROMANEIOS PAGE
+    // ============================================================
+    function RomaneiosPage() {
+      const { romaneios } = useStore();
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Romaneios</h1><p className="text-sm text-slate-500">{romaneios.length} romaneios</p></div>
+            <button className="btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.plus /> Novo Romaneio</button>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50">
+                <th className="px-5 py-3">Numero</th><th className="px-5 py-3">Cliente</th><th className="px-5 py-3">Periodo</th>
+                <th className="px-5 py-3 text-right">Peso Total</th><th className="px-5 py-3 text-right">Valor</th><th className="px-5 py-3">Status</th>
+              </tr></thead>
+              <tbody className="divide-y divide-slate-50">
+                {romaneios.map(r => (
+                  <tr key={r.id} className="table-row">
+                    <td className="px-5 py-3 text-sm font-medium text-primary-700">{r.numero}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{r.cliente?.razaoSocial || '-'}</td>
+                    <td className="px-5 py-3 text-sm text-slate-500">{fmt.dateShort(r.periodoInicio)} - {fmt.dateShort(r.periodoFim)}</td>
+                    <td className="px-5 py-3 text-sm text-right">{fmt.weight(r.pesoTotal)}</td>
+                    <td className="px-5 py-3 text-sm text-right font-medium">{fmt.currency(r.valorTotal)}</td>
+                    <td className="px-5 py-3"><Badge status={r.status || 'ABERTO'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {romaneios.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Nenhum romaneio</p>}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // FATURAS PAGE
+    // ============================================================
+    function FaturasPage() {
+      const { faturas } = useStore();
+      return (
+        <div className="p-6 fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <div><h1 className="text-2xl font-bold text-slate-900">Faturas</h1><p className="text-sm text-slate-500">{faturas.length} faturas</p></div>
+            <button className="btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.plus /> Nova Fatura</button>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50">
+                <th className="px-5 py-3">Numero</th><th className="px-5 py-3">Cliente</th><th className="px-5 py-3">Emissao</th>
+                <th className="px-5 py-3 text-right">Valor</th><th className="px-5 py-3">Status</th>
+              </tr></thead>
+              <tbody className="divide-y divide-slate-50">
+                {faturas.map(f => (
+                  <tr key={f.id} className="table-row">
+                    <td className="px-5 py-3 text-sm font-medium text-primary-700">{f.numero}</td>
+                    <td className="px-5 py-3 text-sm text-slate-700">{f.cliente?.razaoSocial || '-'}</td>
+                    <td className="px-5 py-3 text-sm text-slate-500">{fmt.dateShort(f.dataEmissao)}</td>
+                    <td className="px-5 py-3 text-sm text-right font-semibold">{fmt.currency(f.totalGeral)}</td>
+                    <td className="px-5 py-3"><Badge status={f.status || 'ABERTA'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {faturas.length === 0 && <p className="text-center text-slate-400 text-sm py-8">Nenhuma fatura</p>}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // RELATORIOS PAGE
+    // ============================================================
+    function RelatoriosPage() {
+      return (
+        <div className="p-6 fade-in">
+          <h1 className="text-2xl font-bold text-slate-900 mb-6">Relatorios</h1>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { title: 'Tickets por Periodo', desc: 'Relatorio completo de tickets filtrados por data', icon: Icons.file },
+              { title: 'Pesagens por Cliente', desc: 'Consolidado de pesagens agrupado por cliente', icon: Icons.users },
+              { title: 'Pesagens por Produto', desc: 'Volume total por produto e periodo', icon: Icons.box },
+              { title: 'Romaneios', desc: 'Relatorio de romaneios gerados', icon: Icons.file },
+              { title: 'Faturamento', desc: 'Relatorio financeiro de faturamento', icon: Icons.invoice },
+              { title: 'Auditoria', desc: 'Log completo de eventos do sistema', icon: Icons.audit },
+            ].map((r, i) => (
+              <div key={i} className="bg-white rounded-xl border border-slate-100 p-5 card-hover cursor-pointer">
+                <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600"><r.icon /></div><h3 className="font-semibold text-slate-800 text-sm">{r.title}</h3></div>
+                <p className="text-xs text-slate-500">{r.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // LICENCA PAGE
+    // ============================================================
+    function LicencaPage() {
+      const { licenca } = useStore();
+      return (
+        <div className="p-6 fade-in max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold text-slate-900 mb-6">Licenciamento</h1>
+          <div className="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+              <span className="text-sm font-medium text-slate-700">Status</span>
+              <Badge status={licenca.status} text={licenca.status} />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+              <span className="text-sm font-medium text-slate-700">Dias Restantes</span>
+              <span className="text-lg font-bold text-primary-700">{licenca.diasRestantes}</span>
+            </div>
+            <div className="mt-4"><label className="block text-sm font-medium text-slate-700 mb-2">Chave de Ativacao</label><div className="flex gap-2"><input type="text" placeholder="XXXX-XXXX-XXXX-XXXX" className="flex-1 px-3 py-2 border border-slate-200 rounded-lg font-mono text-sm" /><button className="btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium">Ativar</button></div></div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // CONFIGURACOES PAGE
+    // ============================================================
+    function ConfiguracoesPage() {
+      return (
+        <div className="p-6 fade-in max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold text-slate-900 mb-6">Configuracoes</h1>
+          <div className="bg-white rounded-xl border border-slate-100 p-6 space-y-6">
+            <div><h3 className="text-sm font-semibold text-slate-800 mb-3">Dados da Empresa</h3><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs text-slate-500 mb-1">Nome Empresarial</label><input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" /></div><div><label className="block text-xs text-slate-500 mb-1">CNPJ</label><input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" /></div></div></div>
+            <div><h3 className="text-sm font-semibold text-slate-800 mb-3">Impressao</h3><div className="space-y-2"><label className="flex items-center gap-2"><input type="checkbox" className="rounded" defaultChecked /><span className="text-sm text-slate-600">Preview antes de imprimir</span></label><label className="flex items-center gap-2"><input type="checkbox" className="rounded" /><span className="text-sm text-slate-600">Manter preview aberto</span></label></div></div>
+            <div><h3 className="text-sm font-semibold text-slate-800 mb-3">Pesagem</h3><div className="space-y-2"><label className="flex items-center gap-2"><input type="checkbox" className="rounded" defaultChecked /><span className="text-sm text-slate-600">Modo manual habilitado</span></label><label className="flex items-center gap-2"><input type="checkbox" className="rounded" defaultChecked /><span className="text-sm text-slate-600">Manter tara cadastrada</span></label></div></div>
+            <div className="flex justify-end"><button className="btn-primary text-white px-6 py-2.5 rounded-lg font-semibold">Salvar Configuracoes</button></div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // MAIN APP
+    // ============================================================
+    function App() {
+      const [user, setUser] = useState(() => {
+        const saved = localStorage.getItem('user');
+        return saved ? JSON.parse(saved) : null;
+      });
+
+      if (!user) {
+        return <LoginPage onLogin={(u) => { setUser(u); localStorage.setItem('user', JSON.stringify(u)); }} />;
+      }
+
+      return (
+        <StoreProvider>
+          <AppInner initialUser={user} />
+        </StoreProvider>
+      );
+    }
+
+    function AppInner({ initialUser }) {
+      const { activePage, setUser, sidebarOpen } = useStore();
+      const pageMap = {
+        dashboard: DashboardPage, pesagem: PesagemPage, tickets: TicketsPage,
+        cadastros: CadastrosPage, balancas: BalancasPage, tabelaUmidade: TabelaUmidadePage,
+        fila: FilaPage, auditoria: AuditoriaPage, romaneios: RomaneiosPage,
+        faturas: FaturasPage, relatorios: RelatoriosPage, licenca: LicencaPage,
+        configuracoes: ConfiguracoesPage,
+      };
+      const Page = pageMap[activePage] || DashboardPage;
+
+      return (
+        <div className="flex min-h-screen bg-slate-50">
+          <Sidebar />
+          <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'max-w-[calc(100vw-16rem)]' : 'max-w-[calc(100vw-4rem)]'}`}>
+            <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-10">
+              <h2 className="text-lg font-semibold text-slate-800">{activePage.charAt(0).toUpperCase() + activePage.slice(1)}</h2>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xs font-bold">{initialUser.nome?.[0] || 'U'}</div>
+                  <span className="text-sm text-slate-600">{initialUser.nome}</span>
+                </div>
+                <button onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); setUser(null); window.location.reload(); }} className="text-xs text-slate-400 hover:text-red-500">Sair</button>
+              </div>
+            </header>
+            <main className="flex-1 overflow-auto"><Page /></main>
+          </div>
+          <Toast toast={useStore().toast} />
+        </div>
+      );
+    }
+
+    // ============================================================
+    // MOUNT
+    // ============================================================
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

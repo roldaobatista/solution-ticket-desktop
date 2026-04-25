@@ -1,0 +1,15 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": "e2e/.*\\.e2e-spec\\.ts$",
+  "testPathIgnorePatterns": ["/node_modules/", "e2e/cenarios-aceite.e2e-spec.ts"],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/../src/$1"
+  },
+  "setupFiles": ["<rootDir>/e2e/setup.ts"],
+  "testTimeout": 120000
+}

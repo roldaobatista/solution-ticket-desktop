@@ -1,0 +1,35 @@
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+*.log
+.env
+.env.local
+.env.*.local
+
+# Electron build output
+release/
+out/
+
+# SQLite
+*.db
+*.db-journal
+
+# Prisma
+prisma/migrations/dev.db*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Chaves privadas (NUNCA commitar)
+keygen/private.key
+keygen/*.pem

@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 215 25% 27%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 215 25% 27%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 215 25% 27%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 215 25% 27%;
+    --radius: 0.5rem;
+    --success: 160 84% 39%;
+    --warning: 38 92% 50%;
+    --danger: 0 84% 60%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .scale-display {
+    @apply font-mono text-6xl font-bold tracking-wider text-slate-800 bg-gradient-to-b from-slate-100 to-slate-200 border-4 border-slate-300 rounded-lg px-8 py-6 text-center shadow-inner;
+  }
+
+  .ticket-status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .kpi-card {
+    @apply bg-white rounded-lg border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-slate-800 mb-4;
+  }
+
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6;
+  }
+
+  .data-table {
+    @apply w-full border-collapse;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-sm text-slate-700 border-b border-slate-100;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-slate-50;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-slate-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors;
+  }
+
+  .btn-success {
+    @apply inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors;
+  }
+
+  .form-input {
+    @apply block w-full rounded-lg border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm text-slate-900;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-slate-700 mb-1;
+  }
+
+  .form-error {
+    @apply text-xs text-red-600 mt-1;
+  }
+}
+
+@layer utilities {
+  .status-rascunho { @apply bg-gray-100 text-gray-800 border border-gray-200; }
+  .status-aberto { @apply bg-blue-100 text-blue-800 border border-blue-200; }
+  .status-em-pesagem { @apply bg-yellow-100 text-yellow-800 border border-yellow-200; }
+  .status-aguardando-passagem { @apply bg-orange-100 text-orange-800 border border-orange-200; }
+  .status-fechado { @apply bg-emerald-100 text-emerald-800 border border-emerald-200; }
+  .status-em-manutencao { @apply bg-purple-100 text-purple-800 border border-purple-200; }
+  .status-cancelado { @apply bg-red-100 text-red-800 border border-red-200; }
+}

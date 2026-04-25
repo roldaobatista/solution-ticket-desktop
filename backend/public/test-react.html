@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body>
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script>
+console.log('React:', typeof React, 'ReactDOM:', typeof ReactDOM);
+console.log('useState:', typeof React.useState);
+const e = React.createElement;
+const u = React.useState;
+function Test() {
+  var _t = u('hello');
+  var val = _t[0], setVal = _t[1];
+  return e('div', null, 'Value: ' + val);
+}
+function Root() { return e(Test); }
+ReactDOM.createRoot(document.getElementById('root')).render(e(Root));
+console.log('Rendered!');
+</script>
+</body>
+</html>

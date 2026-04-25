@@ -1,0 +1,130 @@
+{
+  "name": "@solution-ticket/electron",
+  "version": "1.0.0",
+  "description": "Solution Ticket desktop wrapper (Electron)",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development electron .",
+    "start": "electron .",
+    "build": "echo 'Build handled by electron-builder in dist script'",
+    "rebuild:native": "node rebuild-native.js",
+    "dist": "node prep-cache.js && node rebuild-native.js && electron-builder"
+  },
+  "dependencies": {
+    "electron-is-dev": "^3.0.1",
+    "electron-log": "^5",
+    "electron-updater": "^6"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "cross-env": "^7.0.3",
+    "electron": "^41.3.0",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.solutionticket.desktop",
+    "productName": "Solution Ticket",
+    "directories": {
+      "output": "../release"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.{node,dll}"
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist",
+        "to": "backend/dist"
+      },
+      {
+        "from": "../backend/package.json",
+        "to": "backend/package.json"
+      },
+      {
+        "from": "../backend/node_modules",
+        "to": "backend/node_modules",
+        "filter": [
+          "**/*",
+          "!**/*.md",
+          "!**/*.ts",
+          "!**/test/**",
+          "!**/tests/**",
+          "!**/*.map",
+          "!**/*.d.ts"
+        ]
+      },
+      {
+        "from": "../backend/src/prisma",
+        "to": "backend/src/prisma"
+      },
+      {
+        "from": "../frontend/.next",
+        "to": "frontend/.next"
+      },
+      {
+        "from": "../frontend/package.json",
+        "to": "frontend/package.json"
+      },
+      {
+        "from": "../frontend/next.config.js",
+        "to": "frontend/next.config.js"
+      },
+      {
+        "from": "../frontend/node_modules",
+        "to": "frontend/node_modules",
+        "filter": [
+          "**/*",
+          "!**/*.md",
+          "!**/*.ts",
+          "!**/test/**",
+          "!**/tests/**",
+          "!**/*.map",
+          "!**/*.d.ts"
+        ]
+      },
+      {
+        "from": "../resources/drivers/CH340",
+        "to": "drivers/CH340"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico",
+      "artifactName": "Solution-Ticket-Setup-${version}.exe",
+      "publisherName": "Solution Ticket",
+      "signAndEditExecutable": true,
+      "signtoolOptions": {
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SOLUTION-TICKET-OWNER",
+        "repo": "solution-ticket-desktop",
+        "releaseType": "release"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Solution Ticket",
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    }
+  }
+}

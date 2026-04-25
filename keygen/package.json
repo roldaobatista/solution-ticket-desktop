@@ -1,0 +1,14 @@
+{
+  "name": "@solution-ticket/keygen",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ferramentas de geracao de chaves de licenca RSA-2048 (JWT) para Solution Ticket",
+  "scripts": {
+    "gerar-par": "node gerar-par-rsa.js",
+    "gerar-chave": "node gerar-chave.js",
+    "verificar": "node verificar-chave.js"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "solution-ticket-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Solution Ticket - Sistema de pesagem veicular desktop Windows",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "electron",
+    "keygen"
+  ],
+  "scripts": {
+    "dev:backend": "pnpm --filter ./backend start:dev",
+    "dev:frontend": "pnpm --filter ./frontend dev",
+    "dev:electron": "pnpm --filter ./electron dev",
+    "build:backend": "pnpm --filter ./backend build",
+    "build:frontend": "pnpm --filter ./frontend build",
+    "build:electron": "pnpm --filter ./electron build",
+    "build": "pnpm build:backend && pnpm build:frontend && pnpm build:electron",
+    "build:all": "pnpm --filter ./backend build && pnpm --filter ./frontend build",
+    "dist": "pnpm build && pnpm --filter ./electron dist",
+    "dist:win": "pnpm build:all && pnpm --filter ./electron dist",
+    "install:all": "pnpm install",
+    "db:generate": "pnpm --filter ./backend db:generate",
+    "db:migrate": "pnpm --filter ./backend db:migrate",
+    "db:seed": "pnpm --filter ./backend db:seed",
+    "lint": "pnpm -r --parallel lint",
+    "lint:check": "pnpm -r --parallel lint:check",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "typecheck": "pnpm --filter ./backend typecheck",
+    "typecheck:frontend": "pnpm --filter ./frontend typecheck",
+    "typecheck:all": "pnpm -r --parallel typecheck",
+    "test": "pnpm --filter ./backend test",
+    "test:e2e": "pnpm --filter ./backend test:e2e",
+    "ci": "pnpm format:check && pnpm lint:check && pnpm typecheck && pnpm test && pnpm build:all",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{js,json,md}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "pnpm": {
+    "overrides": {
+      "multer": "^2.1.1",
+      "lodash": "^4.17.21"
+    }
+  },
+  "devDependencies": {
+    "eslint-config-prettier": "^9",
+    "husky": "^9",
+    "lint-staged": "^15",
+    "prettier": "^3"
+  }
+}

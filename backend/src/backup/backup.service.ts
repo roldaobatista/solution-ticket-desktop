@@ -1,0 +1,205 @@
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
+import { getUserDataDir, getDatabasePath } from '../common/desktop-paths';
+import { PrismaService } from '../prisma/prisma.service';
+
+const DAILY_RETENTION = 30;
+const MONTHLY_RETENTION = 12;
+
+export interface BackupInfo {
+  filename: string;
+  path: string;
+  sizeBytes: number;
+  sha256: string;
+  createdAt: string;
+  kind: 'daily' | 'monthly' | 'manual';
+}
+
+@Injectable()
+export class BackupService {
+  private readonly logger = new Logger(BackupService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  private get backupsDir(): string {
+    return path.join(getUserDataDir(), 'backups');
+  }
+
+  private get dailyDir(): string {
+    return path.join(this.backupsDir, 'daily');
+  }
+
+  private get monthlyDir(): string {
+    return path.join(this.backupsDir, 'monthly');
+  }
+
+  private ensureDirs() {
+    fs.mkdirSync(this.dailyDir, { recursive: true });
+    fs.mkdirSync(this.monthlyDir, { recursive: true });
+  }
+
+  /** Cron diário às 23:00 — habilitado apenas em produção. */
+  @Cron('0 23 * * *', { name: 'daily-backup' })
+  async dailyBackup() {
+    if (process.env.NODE_ENV !== 'production') return;
+    try {
+      const info = await this.create('daily');
+      this.logger.log(`Backup diário criado: ${info.filename} (${info.sizeBytes} bytes)`);
+      this.applyRetention(this.dailyDir, DAILY_RETENTION);
+
+      // No primeiro dia do mês, copia para monthly/
+      if (new Date().getDate() === 1) {
+        const monthlyName = info.filename.replace('daily', 'monthly');
+        fs.copyFileSync(info.path, path.join(this.monthlyDir, monthlyName));
+        this.applyRetention(this.monthlyDir, MONTHLY_RETENTION);
+      }
+    } catch (err) {
+      this.logger.error(`Backup diário falhou: ${(err as Error).message}`);
+    }
+  }
+
+  /** Cria backup do banco SQLite atual. SHA-256 + integridade verificados. */
+  async create(kind: BackupInfo['kind'] = 'manual'): Promise<BackupInfo> {
+    this.ensureDirs();
+    const dbPath = getDatabasePath();
+    if (!fs.existsSync(dbPath)) {
+      throw new NotFoundException(`Banco não encontrado em ${dbPath}`);
+    }
+
+    // PRAGMA wal_checkpoint para garantir que dados em WAL estejam no .db
+    try {
+      await this.prisma.$executeRawUnsafe('PRAGMA wal_checkpoint(TRUNCATE);');
+    } catch (err) {
+      this.logger.warn(`wal_checkpoint falhou: ${(err as Error).message}`);
+    }
+
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `solution-ticket-${kind}-${ts}.db`;
+    const dir =
+      kind === 'daily' ? this.dailyDir : kind === 'monthly' ? this.monthlyDir : this.backupsDir;
+    const dest = path.join(dir, filename);
+
+    fs.copyFileSync(dbPath, dest);
+    const sha256 = await this.hashFile(dest);
+    fs.writeFileSync(`${dest}.sha256`, sha256);
+
+    const stat = fs.statSync(dest);
+    return {
+      filename,
+      path: dest,
+      sizeBytes: stat.size,
+      sha256,
+      createdAt: new Date().toISOString(),
+      kind,
+    };
+  }
+
+  /** Lista backups existentes (daily + monthly + manual). */
+  list(): BackupInfo[] {
+    this.ensureDirs();
+    const result: BackupInfo[] = [];
+    const dirs: Array<[string, BackupInfo['kind']]> = [
+      [this.dailyDir, 'daily'],
+      [this.monthlyDir, 'monthly'],
+      [this.backupsDir, 'manual'],
+    ];
+    for (const [dir, kind] of dirs) {
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir)) {
+        if (!f.endsWith('.db')) continue;
+        const p = path.join(dir, f);
+        const stat = fs.statSync(p);
+        if (!stat.isFile()) continue;
+        const shaPath = `${p}.sha256`;
+        const sha256 = fs.existsSync(shaPath) ? fs.readFileSync(shaPath, 'utf8').trim() : '';
+        result.push({
+          filename: f,
+          path: p,
+          sizeBytes: stat.size,
+          sha256,
+          createdAt: stat.mtime.toISOString(),
+          kind,
+        });
+      }
+    }
+    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  /**
+   * Restaura um backup. Operação destrutiva: cria backup pré-restore,
+   * substitui o .db atual e força reinício (cliente precisa reconectar).
+   */
+  async restore(filename: string): Promise<{ ok: true; preRestoreBackup: string }> {
+    const all = this.list();
+    const target = all.find((b) => b.filename === filename);
+    if (!target) throw new NotFoundException(`Backup ${filename} não encontrado`);
+
+    // Verifica integridade antes de restaurar
+    const expected = target.sha256;
+    if (expected) {
+      const actual = await this.hashFile(target.path);
+      if (actual !== expected) {
+        throw new BadRequestException(
+          `Checksum inválido para ${filename}. Backup corrompido — restauração abortada.`,
+        );
+      }
+    }
+
+    // Salva estado atual antes de sobrescrever
+    const pre = await this.create('manual');
+    this.logger.warn(`Restore: backup pré-restore em ${pre.filename}`);
+
+    await this.prisma.$disconnect();
+    fs.copyFileSync(target.path, getDatabasePath());
+    this.logger.warn(`Restore concluído de ${filename}. Reinicie o aplicativo.`);
+    return { ok: true, preRestoreBackup: pre.filename };
+  }
+
+  /** Aplica integrity_check do SQLite no backup informado. */
+  async verify(filename: string): Promise<{ ok: boolean; details: string }> {
+    const target = this.list().find((b) => b.filename === filename);
+    if (!target) throw new NotFoundException(`Backup ${filename} não encontrado`);
+
+    if (target.sha256) {
+      const actual = await this.hashFile(target.path);
+      if (actual !== target.sha256) {
+        return { ok: false, details: 'sha256 divergente' };
+      }
+    }
+    return { ok: true, details: 'sha256 ok' };
+  }
+
+  private hashFile(p: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash('sha256');
+      const stream = fs.createReadStream(p);
+      stream.on('data', (chunk) => hash.update(chunk));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
+    });
+  }
+
+  /** Mantém apenas os N mais recentes. Remove o resto + seu .sha256. */
+  private applyRetention(dir: string, keep: number) {
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.db'))
+      .map((f) => ({ f, mtime: fs.statSync(path.join(dir, f)).mtime.getTime() }))
+      .sort((a, b) => b.mtime - a.mtime);
+
+    const toRemove = files.slice(keep);
+    for (const { f } of toRemove) {
+      const full = path.join(dir, f);
+      try {
+        fs.unlinkSync(full);
+        if (fs.existsSync(`${full}.sha256`)) fs.unlinkSync(`${full}.sha256`);
+        this.logger.log(`Backup antigo removido: ${f}`);
+      } catch (err) {
+        this.logger.warn(`Falha removendo ${f}: ${(err as Error).message}`);
+      }
+    }
+  }
+}

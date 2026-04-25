@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solution Ticket - Gestão de Pesagem</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50:'#f0f4f8',100:'#d9e2ec',200:'#bcccdc',300:'#9fb3c8',400:'#829ab1',500:'#627d98',600:'#486581',700:'#334e68',800:'#243b53',900:'#102a43' },
+            success: { 50:'#ecfdf5',100:'#d1fae5',400:'#34d399',500:'#10b981',600:'#059669' },
+            warning: { 50:'#fffbeb',100:'#fef3c7',400:'#fbbf24',500:'#f59e0b',600:'#d97706' },
+            danger:  { 50:'#fef2f2',100:'#fee2e2',400:'#f87171',500:'#ef4444',600:'#dc2626' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body { font-family:'Inter',sans-serif; }
+    .glass { background:rgba(255,255,255,0.85); backdrop-filter:blur(12px); }
+    .weight-display { font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+    .scale-glow { box-shadow:0 0 40px rgba(16,185,129,0.15); }
+    .sidebar-item:hover { background:linear-gradient(90deg,rgba(51,78,104,0.08) 0%,transparent 100%); }
+    .sidebar-item.active { background:linear-gradient(90deg,rgba(51,78,104,0.12) 0%,transparent 100%); border-right:3px solid #334e68; }
+    .card-hover { transition:all 0.2s ease; }
+    .card-hover:hover { transform:translateY(-2px); box-shadow:0 10px 40px rgba(0,0,0,0.08); }
+    .btn-primary { background:linear-gradient(135deg,#334e68 0%,#486581 100%); }
+    .btn-primary:hover { background:linear-gradient(135deg,#243b53 0%,#334e68 100%); }
+    .btn-success { background:linear-gradient(135deg,#059669 0%,#10b981 100%); }
+    .btn-success:hover { background:linear-gradient(135deg,#047857 0%,#059669 100%); }
+    .btn-danger { background:linear-gradient(135deg,#dc2626 0%,#ef4444 100%); }
+    .status-badge { font-size:0.7rem; letter-spacing:0.05em; text-transform:uppercase; }
+    .fade-in { animation:fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .pulse-green { animation:pulseGreen 2s infinite; }
+    @keyframes pulseGreen { 0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,0.4)} 50%{box-shadow:0 0 0 8px rgba(16,185,129,0)} }
+    input:focus,select:focus { outline:none; border-color:#334e68; box-shadow:0 0 0 3px rgba(51,78,104,0.1); }
+    .table-row:hover { background-color:#f8fafc; }
+    .toggle-btn { transition:all 0.2s; }
+    .toggle-btn:active { transform:scale(0.95); }
+  </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback, createContext, useContext } = React;
+
+    // ============================================================
+    // MOCK DATA
+    // ============================================================
+    const MOCK_DATA = {
+      clientes: [
+        { id:'c1', razaoSocial:'Agropecuária Santa Fé Ltda', documento:'12.345.678/0001-90', cidade:'Ribeirão Preto', uf:'SP', status:'ATIVO' },
+        { id:'c2', razaoSocial:'Cooperativa Agrícola Mista', documento:'23.456.789/0001-01', cidade:'Sertãozinho', uf:'SP', status:'ATIVO' },
+        { id:'c3', razaoSocial:'Armazéns Gerais Paulista', documento:'34.567.890/0001-12', cidade:'Jaboticabal', uf:'SP', status:'ATIVO' },
+        { id:'c4', razaoSocial:'Fazenda Boa Vista', documento:'45.678.901/0001-23', cidade:'Orlândia', uf:'SP', status:'ATIVO' },
+        { id:'c5', razaoSocial:'Indústria de Alimentos Verde', documento:'56.789.012/0001-34', cidade:'Franca', uf:'SP', status:'ATIVO' },
+        { id:'c6', razaoSocial:'Grãos do Brasil S/A', documento:'67.890.123/0001-45', cidade:'Araraquara', uf:'SP', status:'INATIVO' },
+      ],
+      transportadoras: [
+        { id:'t1', razaoSocial:'Transporte Silva Ltda', documento:'11.222.333/0001-44' },
+        { id:'t2', razaoSocial:'Logística Campo Verde', documento:'22.333.444/0001-55' },
+        { id:'t3', razaoSocial:'Caminhões do Brasil', documento:'33.444.555/0001-66' },
+        { id:'t4', razaoSocial:'TransRural Express', documento:'44.555.666/0001-77' },
+      ],
+      motoristas: [
+        { id:'m1', nome:'João da Silva', documento:'123.456.789-00', cnh:'01234567890', telefone:'(16) 99999-1111' },
+        { id:'m2', nome:'Pedro Oliveira', documento:'234.567.890-11', cnh:'12345678901', telefone:'(16) 99999-2222' },
+        { id:'m3', nome:'Marcos Santos', documento:'345.678.901-22', cnh:'23456789012', telefone:'(16) 99999-3333' },
+        { id:'m4', nome:'Antônio Pereira', documento:'456.789.012-33', cnh:'34567890123', telefone:'(16) 99999-4444' },
+        { id:'m5', nome:'Carlos Lima', documento:'567.890.123-44', cnh:'45678901234', telefone:'(16) 99999-5555' },
+        { id:'m6', nome:'José Ferreira', documento:'678.901.234-55', cnh:'56789012345', telefone:'(16) 99999-6666' },
+      ],
+      produtos: [
+        { id:'p1', nome:'Soja em Grão', unidade:'KG', tipoOperacao:'PADRAO' },
+        { id:'p2', nome:'Milho em Grão', unidade:'KG', tipoOperacao:'PADRAO' },
+        { id:'p3', nome:'Açúcar', unidade:'KG', tipoOperacao:'PADRAO' },
+        { id:'p4', nome:'Café em Grão', unidade:'KG', tipoOperacao:'PADRAO' },
+        { id:'p5', nome:'Trigo', unidade:'KG', tipoOperacao:'PADRAO' },
+        { id:'p6', nome:'Algodão em Pluma', unidade:'KG', tipoOperacao:'PADRAO' },
+      ],
+      veiculos: [
+        { id:'v1', placa:'ABC-1234', taraCadastrada:14200, modelo:'Volvo FH 540', renavam:'123456789' },
+        { id:'v2', placa:'DEF-5678', taraCadastrada:13800, modelo:'Scania R450', renavam:'234567890' },
+        { id:'v3', placa:'GHI-9012', taraCadastrada:15100, modelo:'Mercedes Actros', renavam:'345678901' },
+        { id:'v4', placa:'JKL-3456', taraCadastrada:12900, modelo:'Iveco Stralis', renavam:'456789012' },
+        { id:'v5', placa:'MNO-7890', taraCadastrada:14500, modelo:'Volvo FH 460', renavam:'567890123' },
+        { id:'v6', placa:'PQR-1234', taraCadastrada:13200, modelo:'Scania G400', renavam:'678901234' },
+      ],
+      balancas: [
+        { id:'b1', nome:'Balança Entrada', serial:'TOLEDO-001', protocolo:'TOLEDO_IP', porta:9001, status:'ONLINE' },
+        { id:'b2', nome:'Balança Saída', serial:'TOLEDO-002', protocolo:'TOLEDO_IP', porta:9002, status:'ONLINE' },
+      ],
+      destinos: [
+        { id:'d1', nome:'Porto de Santos', cidade:'Santos', uf:'SP' },
+        { id:'d2', nome:'Armazém Central', cidade:'Ribeirão Preto', uf:'SP' },
+        { id:'d3', nome:'Usina de Açúcar', cidade:'Sertãozinho', uf:'SP' },
+        { id:'d4', nome:'Cooperativa Regional', cidade:'Jaboticabal', uf:'SP' },
+      ],
+      armazens: [
+        { id:'a1', nome:'Silo 1' },
+        { id:'a2', nome:'Silo 2' },
+        { id:'a3', nome:'Silo 3' },
+      ],
+      usuarios: [
+        { id:'u1', nome:'Administrador', email:'admin@solutionticket.com', perfil:'Administrador' },
+        { id:'u2', nome:'João Operador', email:'operador@solutionticket.com', perfil:'Operador' },
+        { id:'u3', nome:'Maria Supervisor', email:'supervisor@solutionticket.com', perfil:'Supervisor' },
+      ],
+      licenca: { status:'TRIAL', diasRestantes:12, pesagensRestantes:87, totalPesagensTrial:100, dataExpiracao:'2024-02-07', chaveValidacao:'ST-TRIAL-ABC123-XYZ789' },
+    };
+
+    const generateTickets = () => {
+      const tickets = [
+        { id:'tk1', numero:'TK-2024-0001', clienteId:'c1', transportadoraId:'t1', motoristaId:'m1', veiculoId:'v1', produtoId:'p1', fluxo:'1PF', statusOp:'FECHADO', statusCom:'NAO_ROMANEADO', bruto:48500, tara:14200, liquido:34300, descontos:0, final:34300, data:'2024-01-15 08:30' },
+        { id:'tk2', numero:'TK-2024-0002', clienteId:'c2', transportadoraId:'t2', motoristaId:'m2', veiculoId:'v2', produtoId:'p2', fluxo:'2PF', statusOp:'FECHADO', statusCom:'ROMANEADO', bruto:52100, tara:13800, liquido:38300, descontos:500, final:37800, data:'2024-01-15 10:15' },
+        { id:'tk3', numero:'TK-2024-0003', clienteId:'c1', transportadoraId:'t1', motoristaId:'m3', veiculoId:'v3', produtoId:'p1', fluxo:'2PF', statusOp:'FECHADO', statusCom:'FATURADO', bruto:49800, tara:15100, liquido:34700, descontos:0, final:34700, data:'2024-01-15 14:20' },
+        { id:'tk4', numero:'TK-2024-0004', clienteId:'c3', transportadoraId:'t3', motoristaId:'m4', veiculoId:'v4', produtoId:'p3', fluxo:'2PF', statusOp:'FECHADO', statusCom:'BAIXADO', bruto:49200, tara:12900, liquido:36300, descontos:200, final:36100, data:'2024-01-16 09:00' },
+        { id:'tk5', numero:'TK-2024-0005', clienteId:'c4', transportadoraId:'t2', motoristaId:'m5', veiculoId:'v5', produtoId:'p4', fluxo:'2PF', statusOp:'FECHADO', statusCom:'NAO_ROMANEADO', bruto:47600, tara:14500, liquido:33100, descontos:0, final:33100, data:'2024-01-16 11:30' },
+        { id:'tk6', numero:'TK-2024-0006', clienteId:'c5', transportadoraId:'t4', motoristaId:'m6', veiculoId:'v6', produtoId:'p5', fluxo:'1PF', statusOp:'CANCELADO', statusCom:'NAO_ROMANEADO', bruto:null, tara:null, liquido:null, descontos:null, final:null, data:'2024-01-16 13:45' },
+        { id:'tk7', numero:'TK-2024-0007', clienteId:'c1', transportadoraId:'t1', motoristaId:'m1', veiculoId:'v1', produtoId:'p2', fluxo:'2PF', statusOp:'EM_PESAGEM', statusCom:'NAO_ROMANEADO', bruto:55000, tara:null, liquido:null, descontos:null, final:null, data:'2024-01-17 07:20' },
+        { id:'tk8', numero:'TK-2024-0008', clienteId:'c2', transportadoraId:null, motoristaId:null, veiculoId:null, produtoId:'p1', fluxo:'2PF', statusOp:'ABERTO', statusCom:'NAO_ROMANEADO', bruto:null, tara:null, liquido:null, descontos:null, final:null, data:'2024-01-17 09:00' },
+        { id:'tk9', numero:'TK-2024-0009', clienteId:'c3', transportadoraId:'t3', motoristaId:'m2', veiculoId:'v2', produtoId:'p6', fluxo:'1PF', statusOp:'FECHADO', statusCom:'NAO_ROMANEADO', bruto:32000, tara:13800, liquido:18200, descontos:0, final:18200, data:'2024-01-17 15:30' },
+        { id:'tk10', numero:'TK-2024-0010', clienteId:'c4', transportadoraId:'t2', motoristaId:'m3', veiculoId:'v3', produtoId:'p1', fluxo:'3PF', statusOp:'AGUARDANDO_PASSAGEM', statusCom:'NAO_ROMANEADO', bruto:51000, tara:null, liquido:null, descontos:null, final:null, data:'2024-01-17 16:00' },
+        { id:'tk11', numero:'TK-2024-0011', clienteId:'c5', transportadoraId:'t1', motoristaId:'m4', veiculoId:'v4', produtoId:'p3', fluxo:'2PF', statusOp:'FECHADO', statusCom:'ROMANEADO', bruto:46700, tara:12900, liquido:33800, descontos:350, final:33450, data:'2024-01-18 08:15' },
+        { id:'tk12', numero:'TK-2024-0012', clienteId:'c1', transportadoraId:'t3', motoristaId:'m5', veiculoId:'v5', produtoId:'p4', fluxo:'2PF', statusOp:'FECHADO', statusCom:'FATURADO', bruto:54300, tara:14500, liquido:39800, descontos:0, final:39800, data:'2024-01-18 11:45' },
+        { id:'tk13', numero:'TK-2024-0013', clienteId:'c2', transportadoraId:'t4', motoristaId:'m6', veiculoId:'v6', produtoId:'p2', fluxo:'2PF', statusOp:'FECHADO', statusCom:'BAIXADO', bruto:48900, tara:13200, liquido:35700, descontos:0, final:35700, data:'2024-01-18 14:20' },
+        { id:'tk14', numero:'TK-2024-0014', clienteId:'c3', transportadoraId:'t1', motoristaId:'m1', veiculoId:'v1', produtoId:'p5', fluxo:'1PF', statusOp:'FECHADO', statusCom:'NAO_ROMANEADO', bruto:41200, tara:14200, liquido:27000, descontos:0, final:27000, data:'2024-01-19 07:30' },
+        { id:'tk15', numero:'TK-2024-0015', clienteId:'c4', transportadoraId:'t2', motoristaId:'m2', veiculoId:'v3', produtoId:'p1', fluxo:'2PF', statusOp:'ABERTO', statusCom:'NAO_ROMANEADO', bruto:null, tara:null, liquido:null, descontos:null, final:null, data:'2024-01-19 09:10' },
+      ];
+      return tickets.map(t => ({
+        ...t,
+        cliente: MOCK_DATA.clientes.find(c => c.id === t.clienteId)?.razaoSocial.split(' ')[0] || '-',
+        produto: MOCK_DATA.produtos.find(p => p.id === t.produtoId)?.nome || '-',
+        placa: MOCK_DATA.veiculos.find(v => v.id === t.veiculoId)?.placa || '-',
+        motorista: MOCK_DATA.motoristas.find(m => m.id === t.motoristaId)?.nome || '-',
+        transportadora: MOCK_DATA.transportadoras.find(tr => tr.id === t.transportadoraId)?.razaoSocial || '-',
+      }));
+    };
+
+    // Romaneios mock
+    const generateRomaneios = () => [
+      { id:'r1', numero:'ROM-2024-001', clienteId:'c2', status:'FECHADO', data:'2024-01-15', tickets:['tk2'], pesoTotal:37800, valorTotal:7560.00 },
+      { id:'r2', numero:'ROM-2024-002', clienteId:'c5', status:'FECHADO', data:'2024-01-18', tickets:['tk11'], pesoTotal:33450, valorTotal:6690.00 },
+      { id:'r3', numero:'ROM-2024-003', clienteId:'c1', status:'ABERTO', data:'2024-01-19', tickets:['tk1','tk14'], pesoTotal:61300, valorTotal:null },
+      { id:'r4', numero:'ROM-2024-004', clienteId:'c3', status:'ABERTO', data:'2024-01-19', tickets:['tk9'], pesoTotal:18200, valorTotal:null },
+    ].map(r => ({ ...r, cliente: MOCK_DATA.clientes.find(c => c.id === r.clienteId)?.razaoSocial.split(' ')[0] || '-' }));
+
+    // Faturas mock
+    const generateFaturas = () => [
+      { id:'f1', numero:'FAT-2024-001', clienteId:'c3', status:'BAIXADO', data:'2024-01-16', romaneioId:'r1', valor:16520.00, pagamentos:[{ data:'2024-01-20', valor:16520.00, forma:'PIX' }] },
+      { id:'f2', numero:'FAT-2024-002', clienteId:'c1', status:'BAIXADO', data:'2024-01-18', romaneioId:'r2', valor:10460.00, pagamentos:[{ data:'2024-01-25', valor:5000.00, forma:'BOLETO' },{ data:'2024-02-05', valor:5460.00, forma:'BOLETO' }] },
+      { id:'f3', numero:'FAT-2024-003', clienteId:'c2', status:'FATURADO', data:'2024-01-19', romaneioId:null, valor:7560.00, pagamentos:[] },
+      { id:'f4', numero:'FAT-2024-004', clienteId:'c5', status:'PARCIAL', data:'2024-01-19', romaneioId:null, valor:6690.00, pagamentos:[{ data:'2024-01-22', valor:3000.00, forma:'TRANSFERENCIA' }] },
+    ].map(f => ({ ...f, cliente: MOCK_DATA.clientes.find(c => c.id === f.clienteId)?.razaoSocial.split(' ')[0] || '-' }));
+
+    // ============================================================
+    // STORE
+    // ============================================================
+    const StoreContext = createContext(null);
+
+    function StoreProvider({ children }) {
+      const [user, setUser] = useState(null);
+      const [currentTicket, setCurrentTicket] = useState(null);
+      const [passages, setPassages] = useState([]);
+      const [tickets, setTickets] = useState(generateTickets());
+      const [romaneios, setRomaneios] = useState(generateRomaneios());
+      const [faturas, setFaturas] = useState(generateFaturas());
+      const [activePage, setActivePage] = useState('dashboard');
+      const [sidebarOpen, setSidebarOpen] = useState(true);
+      const [licenca, setLicenca] = useState(MOCK_DATA.licenca);
+      const [toast, setToast] = useState(null);
+
+      const showToast = useCallback((message, type='success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+      }, []);
+
+      const addTicket = useCallback((ticket) => {
+        const enriched = {
+          ...ticket,
+          id:'tk'+Date.now(),
+          numero:'TK-2024-'+String(tickets.length+1).padStart(4,'0'),
+          cliente: MOCK_DATA.clientes.find(c => c.id === ticket.clienteId)?.razaoSocial.split(' ')[0] || '-',
+          produto: MOCK_DATA.produtos.find(p => p.id === ticket.produtoId)?.nome || '-',
+          placa: MOCK_DATA.veiculos.find(v => v.id === ticket.veiculoId)?.placa || '-',
+          motorista: MOCK_DATA.motoristas.find(m => m.id === ticket.motoristaId)?.nome || '-',
+          transportadora: MOCK_DATA.transportadoras.find(tr => tr.id === ticket.transportadoraId)?.razaoSocial || '-',
+        };
+        setTickets(prev => [enriched, ...prev]);
+        return enriched;
+      }, [tickets.length]);
+
+      const updateTicketStatus = useCallback((ticketId, status, data={}) => {
+        setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, ...data, statusOp: status } : t));
+      }, []);
+
+      const value = {
+        user, setUser,
+        currentTicket, setCurrentTicket,
+        passages, setPassages,
+        tickets, setTickets,
+        romaneios, setRomaneios,
+        faturas, setFaturas,
+        activePage, setActivePage,
+        sidebarOpen, setSidebarOpen,
+        licenca, setLicenca,
+        toast, showToast,
+        addTicket, updateTicketStatus,
+        clientes: MOCK_DATA.clientes,
+        transportadoras: MOCK_DATA.transportadoras,
+        motoristas: MOCK_DATA.motoristas,
+        produtos: MOCK_DATA.produtos,
+        veiculos: MOCK_DATA.veiculos,
+        balancas: MOCK_DATA.balancas,
+        destinos: MOCK_DATA.destinos,
+        armazens: MOCK_DATA.armazens,
+      };
+
+      return React.createElement(StoreContext.Provider, { value }, children);
+    }
+
+    function useStore() {
+      const ctx = useContext(StoreContext);
+      if (!ctx) throw new Error('useStore must be inside StoreProvider');
+      return ctx;
+    }
+
+    // ============================================================
+    // ICONS
+    // ============================================================
+    const Icons = {
+      scale: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M12 2L2 7l10 5 10-5-10-5z'}), React.createElement('path',{d:'M2 17l10 5 10-5'}), React.createElement('path',{d:'M2 12l10 5 10-5'})),
+      dashboard: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('rect',{x:3,y:3,width:7,height:7,rx:1}), React.createElement('rect',{x:14,y:3,width:7,height:7,rx:1}), React.createElement('rect',{x:3,y:14,width:7,height:7,rx:1}), React.createElement('rect',{x:14,y:14,width:7,height:7,rx:1})),
+      weight: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M6 18h12M6 14h12M8 10h8M9 6h6'})),
+      tickets: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}), React.createElement('polyline',{points:'14 2 14 8 20 8'})),
+      clients: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'}), React.createElement('circle',{cx:9,cy:7,r:4}), React.createElement('path',{d:'M23 21v-2a4 4 0 0 0-3-3.87'}), React.createElement('path',{d:'M16 3.13a4 4 0 0 1 0 7.75'})),
+      truck: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('rect',{x:1,y:3,width:15,height:13}), React.createElement('polygon',{points:'16 8 20 8 23 11 23 16 16 16'}), React.createElement('circle',{cx:5.5,cy:18.5,r:2.5}), React.createElement('circle',{cx:18.5,cy:18.5,r:2.5})),
+      driver: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'}), React.createElement('circle',{cx:12,cy:7,r:4})),
+      product: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M12 2L2 7l10 5 10-5-10-5z'}), React.createElement('path',{d:'M2 17l10 5 10-5'}), React.createElement('path',{d:'M2 12l10 5 10-5'})),
+      car: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2'}), React.createElement('circle',{cx:6.5,cy:16.5,r:2.5}), React.createElement('circle',{cx:16.5,cy:16.5,r:2.5})),
+      balance: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('line',{x1:12,y1:20,x2:12,y2:10}), React.createElement('line',{x1:18,y1:20,x2:18,y2:4}), React.createElement('line',{x1:6,y1:20,x2:6,y2:16})),
+      warehouse: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M3 21h18M5 21V7l8-4 8 4v14'})),
+      destination: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'}), React.createElement('circle',{cx:12,cy:10,r:3})),
+      receipt: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}), React.createElement('polyline',{points:'14 2 14 8 20 8'})),
+      invoice: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('rect',{x:1,y:4,width:22,height:16,rx:2}), React.createElement('line',{x1:1,y1:10,x2:23,y2:10})),
+      report: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}), React.createElement('polyline',{points:'14 2 14 8 20 8'}), React.createElement('line',{x1:16,y1:13,x2:8,y2:13}), React.createElement('line',{x1:16,y1:17,x2:8,y2:17})),
+      settings: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('circle',{cx:12,cy:12,r:3}), React.createElement('path',{d:'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'})),
+      license: () => React.createElement('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('rect',{x:3,y:11,width:18,height:11,rx:2}), React.createElement('path',{d:'M7 11V7a5 5 0 0 1 10 0v4'})),
+      search: () => React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('circle',{cx:11,cy:11,r:8}), React.createElement('line',{x1:21,y1:21,x2:16.65,y2:16.65})),
+      plus: () => React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2.5}, React.createElement('line',{x1:12,y1:5,x2:12,y2:19}), React.createElement('line',{x1:5,y1:12,x2:19,y2:12})),
+      close: () => React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('line',{x1:18,y1:6,x2:6,y2:18}), React.createElement('line',{x1:6,y1:6,x2:18,y2:18})),
+      logout: () => React.createElement('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'}), React.createElement('polyline',{points:'16 17 21 12 16 7'}), React.createElement('line',{x1:21,y1:12,x2:9,y2:12})),
+      check: () => React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:3}, React.createElement('polyline',{points:'20 6 9 17 4 12'})),
+      alert: () => React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('circle',{cx:12,cy:12,r:10}), React.createElement('line',{x1:12,y1:8,x2:12,y2:12}), React.createElement('line',{x1:12,y1:16,x2:12.01,y2:16})),
+      print: () => React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('polyline',{points:'6 9 6 2 18 2 18 9'}), React.createElement('path',{d:'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2'}), React.createElement('rect',{x:6,y:14,width:12,height:8})),
+      eye: () => React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('path',{d:'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'}), React.createElement('circle',{cx:12,cy:12,r:3})),
+      arrowLeft: () => React.createElement('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2}, React.createElement('line',{x1:19,y1:12,x2:5,y2:12}), React.createElement('polyline',{points:'12 19 5 12 12 5'})),
+    };
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+    const fmt = {
+      weight: (v) => v != null ? new Intl.NumberFormat('pt-BR').format(v) + ' kg' : '-',
+      currency: (v) => v != null ? new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v) : '-',
+      date: (d) => d ? new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-',
+      dateShort: (d) => d ? new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '-',
+    };
+
+    const STATUS_COLORS = {
+      FECHADO:'bg-emerald-100 text-emerald-700', ABERTO:'bg-blue-100 text-blue-700',
+      EM_PESAGEM:'bg-amber-100 text-amber-700', AGUARDANDO_PASSAGEM:'bg-orange-100 text-orange-700',
+      CANCELADO:'bg-red-100 text-red-700', EM_MANUTENCAO:'bg-purple-100 text-purple-700',
+      NAO_ROMANEADO:'bg-slate-100 text-slate-600', ROMANEADO:'bg-indigo-100 text-indigo-700',
+      FATURADO:'bg-cyan-100 text-cyan-700', BAIXADO:'bg-emerald-100 text-emerald-700',
+      PARCIAL:'bg-amber-100 text-amber-700', ESTORNADO:'bg-red-100 text-red-700',
+      TRIAL:'bg-amber-100 text-amber-700', ATIVA:'bg-emerald-100 text-emerald-700',
+      EXPIRADA:'bg-red-100 text-red-700', BLOQUEADA:'bg-red-100 text-red-700',
+      ONLINE:'bg-emerald-100 text-emerald-700', OFFLINE:'bg-red-100 text-red-700',
+      BRUTO_OFICIAL:'bg-blue-100 text-blue-700', TARA_OFICIAL:'bg-emerald-100 text-emerald-700',
+      CONTROLE:'bg-purple-100 text-purple-700', DESCARTADA:'bg-slate-100 text-slate-500',
+      VALIDA:'bg-emerald-100 text-emerald-700', INVALIDADA:'bg-red-100 text-red-700',
+    };
+
+    // ============================================================
+    // REUSABLE COMPONENTS
+    // ============================================================
+    function Badge({ status, text }) {
+      return React.createElement('span', { className: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[status] || 'bg-slate-100 text-slate-600'}` }, text || status);
+    }
+
+    function Toast() {
+      const { toast } = useStore();
+      const [progress, setProgress] = useState(100);
+
+      useEffect(() => {
+        if (!toast) return;
+        setProgress(100);
+        const interval = setInterval(() => setProgress(p => Math.max(0, p - 3.3)), 100);
+        return () => clearInterval(interval);
+      }, [toast]);
+
+      if (!toast) return null;
+      const colors = toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-red-500' : toast.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500';
+      const icons = toast.type === 'success' ? Icons.check : toast.type === 'error' ? Icons.close : toast.type === 'warning' ? Icons.alert : Icons.check;
+      return React.createElement('div', { className: `fixed top-4 right-4 z-50 ${colors} text-white rounded-lg shadow-lg fade-in overflow-hidden min-w-[280px]` },
+        React.createElement('div', { className: 'px-4 py-3 flex items-center gap-2' },
+          React.createElement(icons),
+          React.createElement('span', { className: 'font-medium text-sm' }, toast.message)
+        ),
+        React.createElement('div', { className: 'h-0.5 bg-white/30' },
+          React.createElement('div', { className: 'h-full bg-white/80 transition-all', style: { width: `${progress}%` } })
+        )
+      );
+    }
+
+    function CrudPage({ title, data, columns, searchFields }) {
+      const [filter, setFilter] = useState('');
+      const [showForm, setShowForm] = useState(false);
+
+      const filtered = useMemo(() => {
+        if (!filter) return data;
+        return data.filter(row => searchFields.some(f => String(row[f] || '').toLowerCase().includes(filter.toLowerCase())));
+      }, [data, filter, searchFields]);
+
+      return React.createElement('div', { className: 'p-6 fade-in' },
+        React.createElement('div', { className: 'flex justify-between items-center mb-6' },
+          React.createElement('div', null,
+            React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, title),
+            React.createElement('p', { className: 'text-sm text-slate-500' }, `${filtered.length} registros`)
+          ),
+          React.createElement('div', { className: 'flex gap-3' },
+            React.createElement('div', { className: 'relative' },
+              React.createElement('div', { className: 'absolute left-3 top-1/2 -translate-y-1/2 text-slate-400' }, React.createElement(Icons.search)),
+              React.createElement('input', { type: 'text', placeholder: 'Buscar...', value: filter, onChange: e => setFilter(e.target.value), className: 'pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-64' })
+            ),
+            React.createElement('button', { onClick: () => setShowForm(true), className: 'btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2' },
+              React.createElement(Icons.plus), 'Novo'
+            )
+          )
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 overflow-hidden' },
+          React.createElement('table', { className: 'w-full' },
+            React.createElement('thead', null,
+              React.createElement('tr', { className: 'text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50' },
+                columns.map(col => React.createElement('th', { key: col.key, className: `px-5 py-3 ${col.align === 'right' ? 'text-right' : ''}` }, col.label))
+              )
+            ),
+            React.createElement('tbody', { className: 'divide-y divide-slate-50' },
+              filtered.map((row, i) => React.createElement('tr', { key: row.id || i, className: 'table-row' },
+                columns.map(col => React.createElement('td', { key: col.key, className: `px-5 py-3 text-sm ${col.align === 'right' ? 'text-right' : 'text-slate-700'}` },
+                  col.render ? col.render(row[col.key], row) : (row[col.key] || '-')
+                ))
+              ))
+            )
+          )
+        ),
+        showForm && React.createElement('div', { className: 'fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50' },
+          React.createElement('div', { className: 'bg-white rounded-xl p-6 w-full max-w-md fade-in' },
+            React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+              React.createElement('h3', { className: 'font-semibold text-lg' }, `Novo ${title}`),
+              React.createElement('button', { onClick: () => setShowForm(false), className: 'p-1 rounded hover:bg-slate-100' }, React.createElement(Icons.close))
+            ),
+            React.createElement('p', { className: 'text-sm text-slate-500 mb-4' }, 'Funcionalidade de cadastro disponível na API.'),
+            React.createElement('button', { onClick: () => setShowForm(false), className: 'w-full py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200' }, 'Fechar')
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // BAR CHART COMPONENT (SVG)
+    // ============================================================
+    function BarChart({ data, maxValue, color }) {
+      const chartHeight = 120;
+      const barWidth = 32;
+      const gap = 16;
+      const totalWidth = data.length * (barWidth + gap) + gap;
+      const scale = maxValue ? chartHeight / maxValue : 0;
+
+      return React.createElement('svg', { width: '100%', height: chartHeight + 30, viewBox: `0 0 ${totalWidth} ${chartHeight + 30}`, preserveAspectRatio: 'xMidYMid meet' },
+        data.map((d, i) => {
+          const barHeight = d.value * scale;
+          const x = gap + i * (barWidth + gap);
+          const y = chartHeight - barHeight;
+          return React.createElement('g', { key: i },
+            React.createElement('rect', { x, y, width: barWidth, height: barHeight, rx: 4, fill: color || '#334e68', opacity: 0.8 }),
+            React.createElement('text', { x: x + barWidth / 2, y: y - 6, textAnchor: 'middle', fontSize: 10, fill: '#627d98', fontWeight: 600 }, new Intl.NumberFormat('pt-BR').format(d.value)),
+            React.createElement('text', { x: x + barWidth / 2, y: chartHeight + 16, textAnchor: 'middle', fontSize: 9, fill: '#9fb3c8' }, d.label)
+          );
+        })
+      );
+    }
+
+    // ============================================================
+    // CONFIRM MODAL
+    // ============================================================
+    function ConfirmModal({ title, message, onConfirm, onCancel, confirmText, danger }) {
+      return React.createElement('div', { className: 'fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 fade-in' },
+        React.createElement('div', { className: 'bg-white rounded-xl p-6 w-full max-w-sm shadow-xl' },
+          React.createElement('h3', { className: 'text-lg font-semibold text-slate-900 mb-2' }, title),
+          React.createElement('p', { className: 'text-sm text-slate-500 mb-6' }, message),
+          React.createElement('div', { className: 'flex gap-3 justify-end' },
+            React.createElement('button', { onClick: onCancel, className: 'px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200' }, 'Cancelar'),
+            React.createElement('button', { onClick: onConfirm, className: `px-4 py-2 rounded-lg text-sm font-medium text-white toggle-btn ${danger ? 'btn-danger' : 'btn-success'}` }, confirmText || 'Confirmar')
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // CSV EXPORT HELPER
+    // ============================================================
+    function exportToCSV(filename, headers, rows) {
+      const csv = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    // ============================================================
+    // LOGIN PAGE
+    // ============================================================
+    function LoginPage() {
+      const { setUser, showToast } = useStore();
+      const [email, setEmail] = useState('');
+      const [senha, setSenha] = useState('');
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const u = MOCK_DATA.usuarios.find(u => u.email === email);
+        if (u && senha) { setUser(u); showToast('Login realizado!'); }
+        else { showToast('Credenciais inválidas', 'error'); }
+      };
+
+      return React.createElement('div', { className: 'min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-primary-50 to-slate-100' },
+        React.createElement('div', { className: 'w-full max-w-md' },
+          React.createElement('div', { className: 'bg-white rounded-2xl shadow-xl p-8 fade-in' },
+            React.createElement('div', { className: 'text-center mb-8' },
+              React.createElement('div', { className: 'w-16 h-16 bg-primary-700 rounded-xl flex items-center justify-center mx-auto mb-4' },
+                React.createElement(Icons.scale)
+              ),
+              React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Solution Ticket'),
+              React.createElement('p', { className: 'text-sm text-slate-500 mt-1' }, 'Plataforma de Gestão de Pesagem')
+            ),
+            React.createElement('form', { onSubmit: handleLogin, className: 'space-y-4' },
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, 'E-mail'),
+                React.createElement('input', { type: 'email', value: email, onChange: e => setEmail(e.target.value), placeholder: 'admin@solutionticket.com', className: 'w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 transition-all' })
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, 'Senha'),
+                React.createElement('input', { type: 'password', value: senha, onChange: e => setSenha(e.target.value), placeholder: '••••••••', className: 'w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 transition-all' })
+              ),
+              React.createElement('button', { type: 'submit', className: 'w-full btn-primary text-white font-semibold py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all' }, 'Entrar')
+            ),
+            React.createElement('div', { className: 'mt-6 p-3 bg-slate-50 rounded-lg' },
+              React.createElement('p', { className: 'text-xs text-slate-500 mb-2 font-medium' }, 'Credenciais de demonstração:'),
+              React.createElement('div', { className: 'space-y-1' },
+                MOCK_DATA.usuarios.map(u => React.createElement('div', { key: u.id, className: 'flex justify-between text-xs' },
+                  React.createElement('span', { className: 'text-slate-600' }, u.email),
+                  React.createElement('span', { className: 'text-slate-400' }, u.perfil)
+                ))
+              )
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // SIDEBAR
+    // ============================================================
+    function Sidebar() {
+      const { activePage, setActivePage, sidebarOpen, setSidebarOpen, user } = useStore();
+      const [mobileOpen, setMobileOpen] = useState(false);
+
+      const menuItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: Icons.dashboard },
+        { id: 'pesagem', label: 'Pesagem', icon: Icons.weight },
+        { id: 'tickets', label: 'Tickets', icon: Icons.tickets },
+        { id: 'sep1', label: 'CADASTROS', separator: true },
+        { id: 'cadastros', label: 'Clientes', icon: Icons.clients },
+        { id: 'transportadoras', label: 'Transportadoras', icon: Icons.truck },
+        { id: 'motoristas', label: 'Motoristas', icon: Icons.driver },
+        { id: 'produtos', label: 'Produtos', icon: Icons.product },
+        { id: 'veiculos', label: 'Veículos', icon: Icons.car },
+        { id: 'balancas', label: 'Balanças', icon: Icons.balance },
+        { id: 'sep2', label: 'FINANCEIRO', separator: true },
+        { id: 'romaneios', label: 'Romaneios', icon: Icons.receipt },
+        { id: 'faturas', label: 'Faturas', icon: Icons.invoice },
+        { id: 'sep3', label: 'SISTEMA', separator: true },
+        { id: 'relatorios', label: 'Relatórios', icon: Icons.report },
+        { id: 'config', label: 'Configuração', icon: Icons.settings },
+        { id: 'licenca', label: 'Licença', icon: Icons.license },
+      ];
+
+      return React.createElement('div', { className: `${sidebarOpen ? 'w-64' : 'w-16'} bg-white border-r border-slate-200 flex flex-col transition-all duration-300 shrink-0` },
+        React.createElement('div', { className: 'h-14 flex items-center px-4 border-b border-slate-100' },
+          sidebarOpen && React.createElement('div', { className: 'flex items-center gap-2' },
+            React.createElement('div', { className: 'w-8 h-8 bg-primary-700 rounded-lg flex items-center justify-center' }, React.createElement(Icons.scale)),
+            React.createElement('span', { className: 'font-bold text-slate-800 text-sm' }, 'Solution Ticket')
+          ),
+          React.createElement('button', { onClick: () => setSidebarOpen(!sidebarOpen), className: `${sidebarOpen ? 'ml-auto' : 'mx-auto'} p-1 rounded hover:bg-slate-100 text-slate-400` },
+            React.createElement('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+              sidebarOpen
+                ? React.createElement('path', { d: 'M11 17l-5-5 5-5M18 17l-5-5 5-5' })
+                : React.createElement('path', { d: 'M4 6h16M4 12h16M4 18h16' })
+            )
+          )
+        ),
+        React.createElement('nav', { className: 'flex-1 overflow-y-auto py-2' },
+          menuItems.map(item => {
+            if (item.separator) return sidebarOpen && React.createElement('div', { key: item.id, className: 'px-4 pt-4 pb-1 text-[10px] font-bold text-slate-400 tracking-wider' }, item.label);
+            return React.createElement('button', {
+              key: item.id,
+              onClick: () => setActivePage(item.id),
+              className: `w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all sidebar-item ${activePage === item.id ? 'active text-primary-700 font-semibold' : 'text-slate-600'}`
+            }, React.createElement(item.icon), sidebarOpen && React.createElement('span', null, item.label));
+          })
+        ),
+        user && React.createElement('div', { className: 'border-t border-slate-100 p-3' },
+          React.createElement('div', { className: 'flex items-center gap-3' },
+            React.createElement('div', { className: 'w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-xs shrink-0' }, user.nome.charAt(0)),
+            sidebarOpen && React.createElement('div', { className: 'min-w-0' },
+              React.createElement('p', { className: 'text-sm font-medium text-slate-700 truncate' }, user.nome),
+              React.createElement('p', { className: 'text-xs text-slate-400 truncate' }, user.perfil)
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // HEADER
+    // ============================================================
+    function Header() {
+      const { setUser, licenca, balancas } = useStore();
+      const balancasOnline = balancas.filter(b => b.status === 'ONLINE').length;
+
+      return React.createElement('header', { className: 'h-14 bg-white border-b border-slate-200 flex items-center px-6 justify-between shrink-0' },
+        React.createElement('div', { className: 'flex items-center gap-4' },
+          React.createElement('h2', { className: 'text-lg font-semibold text-slate-800' }, 'Solution Ticket'),
+          React.createElement('span', { className: 'text-xs text-slate-400' }, 'Unidade Principal')
+        ),
+        React.createElement('div', { className: 'flex items-center gap-4' },
+          React.createElement('div', { className: 'flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-full' },
+            React.createElement(Icons.alert),
+            React.createElement('span', { className: 'text-xs font-medium text-amber-700' }, `TRIAL - ${licenca.diasRestantes}d`)
+          ),
+          React.createElement('div', { className: 'flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full' },
+            React.createElement('div', { className: 'w-2 h-2 rounded-full bg-emerald-500 pulse-green' }),
+            React.createElement('span', { className: 'text-xs font-medium text-emerald-700' }, `${balancasOnline}/${balancas.length} balanças`)
+          ),
+          React.createElement('button', { onClick: () => setUser(null), className: 'p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all' }, React.createElement(Icons.logout))
+        )
+      );
+    }
+
+    // ============================================================
+    // DASHBOARD
+    // ============================================================
+    function DashboardPage() {
+      const { tickets, balancas } = useStore();
+      const hoje = new Date().toISOString().slice(0, 10);
+      const fechadosHoje = tickets.filter(t => t.statusOp === 'FECHADO' && t.data?.startsWith(hoje));
+      const totalLiquidoHoje = fechadosHoje.reduce((s, t) => s + (t.final || 0), 0);
+
+      const kpis = [
+        { label: 'Pesagens Hoje', value: fechadosHoje.length, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Icons.weight },
+        { label: 'Tickets Abertos', value: tickets.filter(t => t.statusOp === 'ABERTO').length, color: 'text-blue-600', bg: 'bg-blue-50', icon: Icons.tickets },
+        { label: 'Peso Líquido', value: fmt.weight(totalLiquidoHoje), color: 'text-primary-600', bg: 'bg-primary-50', icon: Icons.scale },
+        { label: 'Balanças Online', value: `${balancas.filter(b => b.status === 'ONLINE').length}/${balancas.length}`, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Icons.balance },
+      ];
+
+      return React.createElement('div', { className: 'p-6 space-y-6 fade-in' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Dashboard'),
+          React.createElement('p', { className: 'text-sm text-slate-500 mt-1' }, 'Visão geral da operação')
+        ),
+        React.createElement('div', { className: 'grid grid-cols-4 gap-4' },
+          kpis.map((kpi, i) => React.createElement('div', { key: i, className: 'bg-white rounded-xl p-5 border border-slate-100 card-hover' },
+            React.createElement('div', { className: 'flex items-center justify-between' },
+              React.createElement('div', null,
+                React.createElement('p', { className: 'text-sm text-slate-500' }, kpi.label),
+                React.createElement('p', { className: `text-2xl font-bold mt-1 ${kpi.color}` }, kpi.value)
+              ),
+              React.createElement('div', { className: `w-10 h-10 rounded-lg ${kpi.bg} flex items-center justify-center` }, React.createElement(kpi.icon))
+            )
+          ))
+        ),
+        React.createElement('div', { className: 'grid grid-cols-3 gap-6' },
+          React.createElement('div', { className: 'col-span-2 bg-white rounded-xl border border-slate-100 p-6' },
+            React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+              React.createElement('h3', { className: 'font-semibold text-slate-800' }, 'Pesagens por Dia'),
+              React.createElement('span', { className: 'text-xs text-slate-400' }, 'Últimos 7 dias')
+            ),
+            React.createElement(BarChart, {
+              color: '#486581',
+              maxValue: 450000,
+              data: [
+                { label: '15/01', value: 108200 },
+                { label: '16/01', value: 69400 },
+                { label: '17/01', value: 143800 },
+                { label: '18/01', value: 108950 },
+                { label: '19/01', value: 27000 },
+                { label: '20/01', value: 39800 },
+                { label: '21/01', value: 35700 },
+              ]
+            })
+          ),
+          React.createElement('div', { className: 'col-span-1 bg-white rounded-xl border border-slate-100 p-5' },
+            React.createElement('h3', { className: 'font-semibold text-slate-800 mb-4' }, 'Pesagens por Produto'),
+            React.createElement(BarChart, {
+              color: '#10b981',
+              maxValue: 200000,
+              data: [
+                { label: 'Soja', value: 155800 },
+                { label: 'Milho', value: 73500 },
+                { label: 'Açúcar', value: 69500 },
+                { label: 'Café', value: 72900 },
+                { label: 'Trigo', value: 27000 },
+              ]
+            })
+          ),
+        ),
+        React.createElement('div', { className: 'grid grid-cols-3 gap-6' },
+          React.createElement('div', { className: 'col-span-2 bg-white rounded-xl border border-slate-100' },
+            React.createElement('div', { className: 'px-5 py-4 border-b border-slate-100 flex justify-between items-center' },
+              React.createElement('h3', { className: 'font-semibold text-slate-800' }, 'Últimas Pesagens'),
+              React.createElement('span', { className: 'text-xs text-slate-400' }, 'Últimas 24h')
+            ),
+            React.createElement('div', { className: 'overflow-x-auto' },
+              React.createElement('table', { className: 'w-full' },
+                React.createElement('thead', null, React.createElement('tr', { className: 'text-left text-xs text-slate-400 uppercase tracking-wider' },
+                  React.createElement('th', { className: 'px-5 py-3' }, 'Nº'), React.createElement('th', { className: 'px-5 py-3' }, 'Cliente'),
+                  React.createElement('th', { className: 'px-5 py-3' }, 'Produto'), React.createElement('th', { className: 'px-5 py-3' }, 'Placa'),
+                  React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Peso Líquido'), React.createElement('th', { className: 'px-5 py-3' }, 'Status')
+                )),
+                React.createElement('tbody', { className: 'divide-y divide-slate-50' },
+                  tickets.slice(0, 8).map(t => React.createElement('tr', { key: t.id, className: 'table-row' },
+                    React.createElement('td', { className: 'px-5 py-3 text-sm font-medium text-primary-700' }, t.numero),
+                    React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-600' }, t.cliente),
+                    React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-600' }, t.produto),
+                    React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-600 font-mono' }, t.placa),
+                    React.createElement('td', { className: 'px-5 py-3 text-sm text-right font-medium text-slate-700' }, fmt.weight(t.final)),
+                    React.createElement('td', { className: 'px-5 py-3' }, React.createElement(Badge, { status: t.statusOp }))
+                  ))
+                )
+              )
+            )
+          ),
+          React.createElement('div', { className: 'space-y-4' },
+            React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-5' },
+              React.createElement('h3', { className: 'font-semibold text-slate-800 mb-4' }, 'Status dos Tickets'),
+              React.createElement('div', { className: 'space-y-3' },
+                ['FECHADO', 'ABERTO', 'EM_PESAGEM', 'AGUARDANDO_PASSAGEM', 'CANCELADO'].map(st => {
+                  const count = tickets.filter(t => t.statusOp === st).length;
+                  const colors = { FECHADO: 'bg-emerald-500', ABERTO: 'bg-blue-500', EM_PESAGEM: 'bg-amber-500', AGUARDANDO_PASSAGEM: 'bg-orange-500', CANCELADO: 'bg-red-500' };
+                  const total = tickets.length;
+                  return React.createElement('div', { key: st },
+                    React.createElement('div', { className: 'flex justify-between text-sm mb-1' },
+                      React.createElement('span', { className: 'text-slate-600' }, st === 'AGUARDANDO_PASSAGEM' ? 'AG. PASSAGEM' : st),
+                      React.createElement('span', { className: 'font-semibold text-slate-800' }, count)
+                    ),
+                    React.createElement('div', { className: 'w-full bg-slate-100 rounded-full h-2' },
+                      React.createElement('div', { className: `${colors[st]} h-2 rounded-full transition-all`, style: { width: `${total ? (count / total * 100) : 0}%` } })
+                    )
+                  );
+                })
+              )
+            ),
+            React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-5' },
+              React.createElement('h3', { className: 'font-semibold text-slate-800 mb-3' }, 'Licença'),
+              React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+                React.createElement(Badge, { status: 'TRIAL', text: 'TRIAL' }),
+                React.createElement('span', { className: 'text-sm text-slate-500' }, '12 dias restantes')
+              ),
+              React.createElement('div', { className: 'w-full bg-slate-100 rounded-full h-2 mb-1' },
+                React.createElement('div', { className: 'bg-amber-500 h-2 rounded-full', style: { width: '80%' } })
+              ),
+              React.createElement('p', { className: 'text-xs text-slate-400' }, '87/100 pesagens restantes')
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // PESAGEM PAGE
+    // ============================================================
+    function PesagemPage() {
+      const { clientes, transportadoras, motoristas, produtos, veiculos, balancas, destinos, armazens, addTicket, showToast, setActivePage } = useStore();
+      const [step, setStep] = useState('form');
+      const [fluxo, setFluxo] = useState('PF2_BRUTO_TARA');
+      const [formData, setFormData] = useState({ clienteId: '', transportadoraId: '', motoristaId: '', veiculoId: '', produtoId: '', destinoId: '', armazemId: '', nf: '', observacao: '' });
+      const [ticket, setTicket] = useState(null);
+      const [passagens, setPassagens] = useState([]);
+      const [currentWeight, setCurrentWeight] = useState(0);
+      const [isStable, setIsStable] = useState(false);
+      const [manualMode, setManualMode] = useState(false);
+      const [manualWeight, setManualWeight] = useState('');
+
+      const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+
+      const abrirTicket = () => {
+        if (!formData.clienteId || !formData.produtoId) { showToast('Cliente e Produto são obrigatórios', 'error'); return; }
+        const newTicket = addTicket({ ...formData, fluxoPesagem: fluxo, statusOperacional: 'ABERTO' });
+        setTicket(newTicket);
+        setStep('weighing');
+        showToast('Ticket aberto!');
+      };
+
+      useEffect(() => {
+        if (step !== 'weighing') return;
+        const interval = setInterval(() => {
+          setCurrentWeight(Math.round(20000 + Math.random() * 40000));
+          setIsStable(Math.random() > 0.3);
+        }, 800);
+        return () => clearInterval(interval);
+      }, [step]);
+
+      const capturarPeso = (papel) => {
+        const peso = manualMode ? (parseInt(manualWeight) || 0) : currentWeight;
+        if (manualMode && (!manualWeight || parseInt(manualWeight) <= 0)) { showToast('Digite um peso válido', 'error'); return; }
+        if (!manualMode && !isStable) { showToast('Aguardando estabilização...', 'error'); return; }
+        const novaPassagem = { id: Date.now(), sequencia: passagens.length + 1, papelCalculo: papel, pesoCapturado: peso, tipo: papel === 'BRUTO_OFICIAL' ? 'ENTRADA' : papel === 'TARA_OFICIAL' ? 'SAIDA' : 'INTERMEDIARIA', data: new Date() };
+        setPassagens(prev => [...prev, novaPassagem]);
+        showToast(`${papel === 'BRUTO_OFICIAL' ? 'Bruto' : papel === 'TARA_OFICIAL' ? 'Tara' : 'Controle'}: ${fmt.weight(peso)}`);
+        setManualWeight('');
+      };
+
+      const fecharTicket = () => {
+        const bruto = passagens.find(p => p.papelCalculo === 'BRUTO_OFICIAL')?.pesoCapturado;
+        const veiculo = veiculos.find(v => v.id === formData.veiculoId);
+        let tara = fluxo === 'PF1_TARA_REFERENCIADA' && veiculo ? veiculo.taraCadastrada : passagens.find(p => p.papelCalculo === 'TARA_OFICIAL')?.pesoCapturado;
+        if (!bruto) { showToast('Passagem BRUTO obrigatória', 'error'); return; }
+        if (!tara) { showToast('Tara obrigatória', 'error'); return; }
+        if (bruto < tara) { showToast('Bruto não pode ser menor que a tara', 'error'); return; }
+        setTicket(prev => ({ ...prev, statusOp: 'FECHADO', pesoBrutoApurado: bruto, pesoTaraApurada: tara, pesoLiquidoFinal: bruto - tara }));
+        setStep('summary');
+        showToast('Ticket fechado!');
+      };
+
+      if (step === 'form') {
+        return React.createElement('div', { className: 'p-6 max-w-5xl mx-auto fade-in' },
+          React.createElement('div', { className: 'flex justify-between items-center mb-6' },
+            React.createElement('div', null,
+              React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Nova Pesagem'),
+              React.createElement('p', { className: 'text-sm text-slate-500' }, 'Abrir ticket de pesagem')
+            ),
+            React.createElement('div', { className: 'flex gap-2' },
+              ['PF2_BRUTO_TARA', 'PF1_TARA_REFERENCIADA', 'PF3_COM_CONTROLE'].map(f =>
+                React.createElement('button', { key: f, onClick: () => setFluxo(f), className: `px-4 py-2 rounded-lg text-sm font-medium transition-all toggle-btn ${fluxo === f ? 'btn-primary text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-primary-300'}` },
+                  f === 'PF2_BRUTO_TARA' ? '2 PF (Padrão)' : f === 'PF1_TARA_REFERENCIADA' ? '1 PF (Tara Ref.)' : '3 PF (Controle)')
+              )
+            )
+          ),
+          React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+            React.createElement('div', { className: 'grid grid-cols-3 gap-4' },
+              [['clienteId', 'Cliente *', true, 'select-clientes'], ['produtoId', 'Produto *', true, 'select-produtos'], ['veiculoId', 'Veículo', false, 'select-veiculos'],
+               ['transportadoraId', 'Transportadora', false, 'select-transportadoras'], ['motoristaId', 'Motorista', false, 'select-motoristas'], ['destinoId', 'Destino', false, 'select-destinos'],
+               ['armazemId', 'Armazém', false, 'select-armazens'], ['nf', 'Nota Fiscal', false, 'text']].map(([field, label, required, type]) => {
+                if (type.startsWith('select-')) {
+                  const source = type.split('-')[1];
+                  const data = { clientes, produtos, veiculos, transportadoras, motoristas, destinos, armazens }[source] || [];
+                  return React.createElement('div', { key: field },
+                    React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, label),
+                    React.createElement('select', { value: formData[field], onChange: e => handleInputChange(field, e.target.value), className: 'w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500' },
+                      React.createElement('option', { value: '' }, 'Selecione...'),
+                      data.map(item => React.createElement('option', { key: item.id, value: item.id }, item.razaoSocial || item.nome || item.placa || item.id))
+                    )
+                  );
+                }
+                return React.createElement('div', { key: field },
+                  React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, label),
+                  React.createElement('input', { type, value: formData[field], onChange: e => handleInputChange(field, e.target.value), className: 'w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500' })
+                );
+              }),
+              React.createElement('div', { className: 'col-span-3' },
+                React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, 'Observação'),
+                React.createElement('textarea', { value: formData.observacao, onChange: e => handleInputChange('observacao', e.target.value), rows: 2, className: 'w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500' })
+              )
+            ),
+            React.createElement('div', { className: 'mt-6 flex justify-end' },
+              React.createElement('button', { onClick: abrirTicket, className: 'btn-primary text-white px-6 py-2.5 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-2' },
+                React.createElement(Icons.plus), 'Abrir Ticket'
+              )
+            )
+          )
+        );
+      }
+
+      if (step === 'weighing') {
+        const veiculo = veiculos.find(v => v.id === formData.veiculoId);
+        const podeFechar = (fluxo === 'PF1_TARA_REFERENCIADA' && passagens.find(p => p.papelCalculo === 'BRUTO_OFICIAL')) ||
+                           (fluxo === 'PF2_BRUTO_TARA' && passagens.find(p => p.papelCalculo === 'BRUTO_OFICIAL') && passagens.find(p => p.papelCalculo === 'TARA_OFICIAL')) ||
+                           (fluxo === 'PF3_COM_CONTROLE' && passagens.filter(p => ['BRUTO_OFICIAL', 'TARA_OFICIAL'].includes(p.papelCalculo)).length === 2);
+        return React.createElement('div', { className: 'p-6 max-w-5xl mx-auto fade-in space-y-6' },
+          React.createElement('div', { className: 'flex justify-between items-center' },
+            React.createElement('div', null,
+              React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, `Ticket ${ticket?.numero || ''}`),
+              React.createElement('p', { className: 'text-sm text-slate-500' }, `Fluxo: ${fluxo} | ${passagens.length === 0 ? 'Capturar BRUTO' : !passagens.find(p => p.papelCalculo === 'TARA_OFICIAL') && fluxo !== 'PF1_TARA_REFERENCIADA' ? 'Capturar TARA' : fluxo === 'PF3_COM_CONTROLE' && !passagens.find(p => p.papelCalculo === 'CONTROLE') ? 'Capturar CONTROLE' : 'Fechar ticket'}`)
+            ),
+            React.createElement('button', { onClick: () => { setStep('form'); setPassagens([]); setTicket(null); }, className: 'text-sm text-slate-400 hover:text-red-500' }, 'Cancelar')
+          ),
+          React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between mb-4' },
+            React.createElement('div', { className: 'flex items-center gap-3' },
+              React.createElement('span', { className: 'text-sm text-slate-600 font-medium' }, 'Modo:'),
+              React.createElement('button', { onClick: () => { setManualMode(false); setManualWeight(''); }, className: `px-3 py-1 rounded-lg text-sm font-medium transition-all toggle-btn ${!manualMode ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-500'}` }, 'Automático'),
+              React.createElement('button', { onClick: () => setManualMode(true), className: `px-3 py-1 rounded-lg text-sm font-medium transition-all toggle-btn ${manualMode ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-500'}` }, 'Manual')
+            ),
+            manualMode && React.createElement('div', { className: 'flex items-center gap-2' },
+              React.createElement('label', { className: 'text-sm text-slate-500' }, 'Peso (kg):'),
+              React.createElement('input', { type: 'number', value: manualWeight, onChange: e => setManualWeight(e.target.value), placeholder: 'Digite o peso...', className: 'w-40 px-3 py-2 border border-slate-200 rounded-lg text-right font-mono text-lg focus:ring-2 focus:ring-primary-500' })
+            )
+          ),
+          !manualMode && React.createElement('div', { className: `bg-white rounded-2xl border-2 p-8 text-center scale-glow ${isStable ? 'border-emerald-200' : 'border-amber-200'}` },
+            React.createElement('div', { className: 'flex items-center justify-center gap-3 mb-2' },
+              React.createElement('div', { className: `w-3 h-3 rounded-full ${isStable ? 'bg-emerald-500 pulse-green' : 'bg-amber-400'}` }),
+              React.createElement('span', { className: `text-sm font-medium ${isStable ? 'text-emerald-600' : 'text-amber-600'}` }, isStable ? 'PESO ESTÁVEL' : 'AGUARDANDO...')
+            ),
+            React.createElement('div', { className: 'weight-display text-7xl font-bold text-slate-800 tracking-tight' }, fmt.weight(currentWeight)),
+            React.createElement('p', { className: 'text-sm text-slate-400 mt-2' }, 'Balança: TOLEDO-001 (Entrada)')
+          ),
+          manualMode && React.createElement('div', { className: 'bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center' },
+            React.createElement('p', { className: 'text-lg font-medium text-slate-600' }, 'Modo Manual Ativo'),
+            React.createElement('p', { className: 'text-sm text-slate-400 mt-1' }, 'Digite o peso no campo acima e clique em Capturar')
+          ),
+          React.createElement('div', { className: 'flex gap-3 justify-center' },
+            passagens.length === 0 && React.createElement('button', { onClick: () => capturarPeso('BRUTO_OFICIAL'), disabled: !isStable, className: `px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-all toggle-btn ${isStable ? 'btn-success text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}` }, 'CAPTURAR BRUTO'),
+            passagens.length > 0 && !passagens.find(p => p.papelCalculo === 'TARA_OFICIAL') && fluxo !== 'PF1_TARA_REFERENCIADA' &&
+              React.createElement('button', { onClick: () => capturarPeso('TARA_OFICIAL'), disabled: !isStable, className: `px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-all toggle-btn ${isStable ? 'btn-primary text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}` }, 'CAPTURAR TARA'),
+            fluxo === 'PF3_COM_CONTROLE' && passagens.find(p => p.papelCalculo === 'TARA_OFICIAL') && !passagens.find(p => p.papelCalculo === 'CONTROLE') &&
+              React.createElement('button', { onClick: () => capturarPeso('CONTROLE'), disabled: !isStable, className: `px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-all toggle-btn ${isStable ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}` }, 'CAPTURAR CONTROLE'),
+            podeFechar && React.createElement('button', { onClick: fecharTicket, className: 'px-8 py-4 rounded-xl font-bold text-lg btn-success text-white shadow-lg hover:shadow-xl transition-all toggle-btn' }, 'FECHAR TICKET')
+          ),
+          passagens.length > 0 && React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100' },
+            React.createElement('div', { className: 'px-5 py-3 border-b border-slate-100' },
+              React.createElement('h3', { className: 'font-semibold text-slate-800' }, 'Passagens Registradas')
+            ),
+            React.createElement('table', { className: 'w-full' },
+              React.createElement('thead', null, React.createElement('tr', { className: 'text-left text-xs text-slate-400 uppercase tracking-wider' },
+                React.createElement('th', { className: 'px-5 py-2' }, 'Seq'), React.createElement('th', { className: 'px-5 py-2' }, 'Tipo'),
+                React.createElement('th', { className: 'px-5 py-2' }, 'Papel'), React.createElement('th', { className: 'px-5 py-2 text-right' }, 'Peso'), React.createElement('th', { className: 'px-5 py-2' }, 'Status')
+              )),
+              React.createElement('tbody', { className: 'divide-y divide-slate-50' },
+                passagens.map(p => React.createElement('tr', { key: p.id },
+                  React.createElement('td', { className: 'px-5 py-2 text-sm' }, p.sequencia),
+                  React.createElement('td', { className: 'px-5 py-2 text-sm text-slate-600' }, p.tipo),
+                  React.createElement('td', { className: 'px-5 py-2' }, React.createElement(Badge, { status: p.papelCalculo, text: p.papelCalculo })),
+                  React.createElement('td', { className: 'px-5 py-2 text-sm text-right font-semibold' }, fmt.weight(p.pesoCapturado)),
+                  React.createElement('td', { className: 'px-5 py-2' }, React.createElement(Badge, { status: 'VALIDA', text: 'VALIDA' }))
+                ))
+              )
+            ),
+            fluxo === 'PF1_TARA_REFERENCIADA' && veiculo && React.createElement('div', { className: 'px-5 py-3 bg-primary-50 border-t border-primary-100' },
+              React.createElement('p', { className: 'text-sm text-primary-700' }, React.createElement('strong', null, 'Tara Referenciada: '), `${fmt.weight(veiculo.taraCadastrada)} (veículo ${veiculo.placa})`)
+            )
+          )
+        );
+      }
+
+      return React.createElement('div', { className: 'p-6 max-w-2xl mx-auto fade-in' },
+        React.createElement('div', { className: 'bg-white rounded-xl border border-emerald-200 p-6 text-center' },
+          React.createElement('div', { className: 'w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4' },
+            React.createElement('svg', { width: 32, height: 32, viewBox: '0 0 24 24', fill: 'none', stroke: '#10b981', strokeWidth: 3 }, React.createElement('polyline', { points: '20 6 9 17 4 12' }))
+          ),
+          React.createElement('h2', { className: 'text-2xl font-bold text-slate-900' }, 'Ticket Fechado!'),
+          React.createElement('p', { className: 'text-sm text-slate-500 mt-1' }, `${ticket?.numero} - ${ticket?.cliente}`),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-4 mt-6' },
+            React.createElement('div', { className: 'bg-slate-50 rounded-lg p-4' },
+              React.createElement('p', { className: 'text-xs text-slate-500' }, 'Peso Bruto'), React.createElement('p', { className: 'text-xl font-bold text-slate-800' }, fmt.weight(ticket?.pesoBrutoApurado))
+            ),
+            React.createElement('div', { className: 'bg-slate-50 rounded-lg p-4' },
+              React.createElement('p', { className: 'text-xs text-slate-500' }, 'Peso Tara'), React.createElement('p', { className: 'text-xl font-bold text-slate-800' }, fmt.weight(ticket?.pesoTaraApurada))
+            ),
+            React.createElement('div', { className: 'col-span-2 bg-emerald-50 rounded-lg p-4 border border-emerald-200' },
+              React.createElement('p', { className: 'text-xs text-emerald-600 font-medium' }, 'PESO LÍQUIDO FINAL'),
+              React.createElement('p', { className: 'text-3xl font-bold text-emerald-700' }, fmt.weight(ticket?.pesoLiquidoFinal))
+            )
+          ),
+          React.createElement('div', { className: 'flex gap-3 justify-center mt-6' },
+            React.createElement('button', { onClick: () => { setStep('form'); setPassagens([]); setTicket(null); }, className: 'btn-primary text-white px-6 py-2.5 rounded-lg font-semibold toggle-btn' }, 'Nova Pesagem'),
+            React.createElement('button', { onClick: () => setActivePage('tickets'), className: 'bg-white border border-slate-200 text-slate-600 px-6 py-2.5 rounded-lg font-semibold hover:bg-slate-50 toggle-btn' }, 'Ver Tickets')
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // TICKETS LIST PAGE
+    // ============================================================
+    function TicketsPage() {
+      const { tickets, setCurrentTicket, setActivePage } = useStore();
+      const [filter, setFilter] = useState('');
+      const [statusFilter, setStatusFilter] = useState('');
+
+      const filtered = useMemo(() => {
+        return tickets.filter(t => {
+          const matchesSearch = !filter || [t.numero, t.cliente, t.placa, t.produto, t.motorista].some(f => f?.toLowerCase().includes(filter.toLowerCase()));
+          const matchesStatus = !statusFilter || t.statusOp === statusFilter;
+          return matchesSearch && matchesStatus;
+        });
+      }, [tickets, filter, statusFilter]);
+
+      const verDetalhes = (ticket) => {
+        setCurrentTicket(ticket);
+        setActivePage('ticketDetail');
+      };
+
+      return React.createElement('div', { className: 'p-6 fade-in' },
+        React.createElement('div', { className: 'flex justify-between items-center mb-6' },
+          React.createElement('div', null,
+            React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Tickets'),
+            React.createElement('p', { className: 'text-sm text-slate-500' }, `${filtered.length} registros`)
+          ),
+          React.createElement('div', { className: 'flex gap-3' },
+            React.createElement('select', { value: statusFilter, onChange: e => setStatusFilter(e.target.value), className: 'px-3 py-2 border border-slate-200 rounded-lg text-sm' },
+              React.createElement('option', { value: '' }, 'Todos os status'),
+              ['ABERTO', 'EM_PESAGEM', 'AGUARDANDO_PASSAGEM', 'FECHADO', 'CANCELADO'].map(s => React.createElement('option', { key: s, value: s }, s))
+            ),
+            React.createElement('div', { className: 'relative' },
+              React.createElement('div', { className: 'absolute left-3 top-1/2 -translate-y-1/2 text-slate-400' }, React.createElement(Icons.search)),
+              React.createElement('input', { type: 'text', placeholder: 'Buscar...', value: filter, onChange: e => setFilter(e.target.value), className: 'pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-64' })
+            )
+          )
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 overflow-hidden' },
+          React.createElement('table', { className: 'w-full' },
+            React.createElement('thead', null, React.createElement('tr', { className: 'text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50' },
+              React.createElement('th', { className: 'px-5 py-3' }, 'Nº'), React.createElement('th', { className: 'px-5 py-3' }, 'Data'),
+              React.createElement('th', { className: 'px-5 py-3' }, 'Cliente'), React.createElement('th', { className: 'px-5 py-3' }, 'Placa'),
+              React.createElement('th', { className: 'px-5 py-3' }, 'Produto'), React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Peso Líquido'),
+              React.createElement('th', { className: 'px-5 py-3' }, 'Fluxo'), React.createElement('th', { className: 'px-5 py-3' }, 'Status'), React.createElement('th', { className: 'px-5 py-3' }, '')
+            )),
+            React.createElement('tbody', { className: 'divide-y divide-slate-50' },
+              filtered.map(t => React.createElement('tr', { key: t.id, className: 'table-row cursor-pointer', onClick: () => verDetalhes(t) },
+                React.createElement('td', { className: 'px-5 py-3 text-sm font-medium text-primary-700' }, t.numero),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-500' }, t.data),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-700' }, t.cliente),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-600 font-mono' }, t.placa),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-600' }, t.produto),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-right font-semibold text-slate-700' }, fmt.weight(t.final)),
+                React.createElement('td', { className: 'px-5 py-3' }, React.createElement('span', { className: 'text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded' }, t.fluxo)),
+                React.createElement('td', { className: 'px-5 py-3' }, React.createElement(Badge, { status: t.statusOp })),
+                React.createElement('td', { className: 'px-5 py-3' },
+                  React.createElement('div', { className: 'flex gap-1' },
+                    React.createElement('button', { onClick: e => { e.stopPropagation(); verDetalhes(t); }, className: 'p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-primary-600' }, React.createElement(Icons.eye)),
+                    t.statusOp === 'FECHADO' && React.createElement('button', { onClick: e => e.stopPropagation(), className: 'p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-primary-600' }, React.createElement(Icons.print))
+                  )
+                )
+              ))
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // TICKET DETAIL PAGE
+    // ============================================================
+    function TicketDetailPage() {
+      const { currentTicket, setActivePage, setCurrentTicket, tickets, veiculos, motoristas, transportadoras, clientes, produtos, updateTicketStatus, showToast } = useStore();
+      const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+      if (!currentTicket) {
+        return React.createElement('div', { className: 'p-6 fade-in' },
+          React.createElement('button', { onClick: () => setActivePage('tickets'), className: 'flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-4' },
+            React.createElement(Icons.arrowLeft), 'Voltar para Tickets'
+          ),
+          React.createElement('p', { className: 'text-slate-500' }, 'Nenhum ticket selecionado.')
+        );
+      }
+
+      const ticket = tickets.find(t => t.id === currentTicket.id) || currentTicket;
+      const veiculo = veiculos.find(v => v.id === ticket.veiculoId);
+      const motorista = motoristas.find(m => m.id === ticket.motoristaId);
+      const transportadora = transportadoras.find(tr => tr.id === ticket.transportadoraId);
+      const cliente = clientes.find(c => c.id === ticket.clienteId);
+      const produto = produtos.find(p => p.id === ticket.produtoId);
+
+      const statusTimeline = [
+        { label: 'Aberto', status: 'ABERTO', done: true },
+        { label: 'Em Pesagem', status: 'EM_PESAGEM', done: ticket.statusOp === 'EM_PESAGEM' || ticket.statusOp === 'AGUARDANDO_PASSAGEM' || ticket.statusOp === 'FECHADO' || ticket.statusOp === 'EM_MANUTENCAO' },
+        { label: 'Aguardando', status: 'AGUARDANDO_PASSAGEM', done: ticket.statusOp === 'AGUARDANDO_PASSAGEM' || ticket.statusOp === 'FECHADO' || ticket.statusOp === 'EM_MANUTENCAO' },
+        { label: 'Fechado', status: 'FECHADO', done: ticket.statusOp === 'FECHADO' },
+      ];
+
+      return React.createElement('div', { className: 'p-6 max-w-4xl mx-auto fade-in space-y-6' },
+        React.createElement('div', { className: 'flex items-center justify-between' },
+          React.createElement('button', { onClick: () => { setCurrentTicket(null); setActivePage('tickets'); }, className: 'flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600' },
+            React.createElement(Icons.arrowLeft), 'Voltar'
+          ),
+          React.createElement(Badge, { status: ticket.statusOp })
+        ),
+        // Header
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+          React.createElement('div', { className: 'flex justify-between items-start' },
+            React.createElement('div', null,
+              React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, ticket.numero),
+              React.createElement('p', { className: 'text-sm text-slate-500 mt-1' }, `${fmt.date(ticket.data)} | Fluxo: ${ticket.fluxo}`)
+            ),
+            React.createElement('div', { className: 'flex gap-2' },
+              ticket.statusOp === 'FECHADO' && React.createElement('button', { className: 'flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200' }, React.createElement(Icons.print), 'Imprimir'),
+              (ticket.statusOp === 'ABERTO' || ticket.statusOp === 'EM_PESAGEM') && React.createElement('button', { onClick: () => setShowCancelConfirm(true), className: 'flex items-center gap-2 px-4 py-2 btn-danger text-white rounded-lg text-sm font-medium toggle-btn' }, 'Cancelar')
+            )
+          )
+        ),
+        // Timeline
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+          React.createElement('h3', { className: 'font-semibold text-slate-800 mb-4' }, 'Timeline do Ticket'),
+          React.createElement('div', { className: 'flex items-center' },
+            statusTimeline.map((step, i) => React.createElement(React.Fragment, { key: step.status },
+              React.createElement('div', { className: 'flex flex-col items-center' },
+                React.createElement('div', { className: `w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}` },
+                  step.done ? '✓' : i + 1
+                ),
+                React.createElement('span', { className: 'text-xs mt-1 text-slate-500' }, step.label)
+              ),
+              i < statusTimeline.length - 1 && React.createElement('div', { className: 'flex-1 h-0.5 mx-2 bg-slate-200' })
+            ))
+          )
+        ),
+        // Info + Calculation
+        React.createElement('div', { className: 'grid grid-cols-2 gap-6' },
+          React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+            React.createElement('h3', { className: 'font-semibold text-slate-800 mb-4' }, 'Informações do Ticket'),
+            React.createElement('div', { className: 'space-y-3' },
+              [['Cliente', cliente?.razaoSocial || '-'], ['Produto', produto?.nome || '-'], ['Veículo', veiculo ? `${veiculo.placa} - ${veiculo.modelo}` : '-'],
+               ['Motorista', motorista?.nome || '-'], ['Transportadora', transportadora?.razaoSocial || '-'], ['Tara Cadastrada', veiculo ? fmt.weight(veiculo.taraCadastrada) : '-']].map(([label, value]) =>
+                React.createElement('div', { key: label, className: 'flex justify-between' },
+                  React.createElement('span', { className: 'text-sm text-slate-500' }, label),
+                  React.createElement('span', { className: 'text-sm font-medium text-slate-700' }, value)
+                )
+              )
+            )
+          ),
+          ticket.statusOp === 'FECHADO' && React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+            React.createElement('h3', { className: 'font-semibold text-slate-800 mb-4' }, 'Cálculo da Pesagem'),
+            React.createElement('div', { className: 'space-y-3' },
+              React.createElement('div', { className: 'flex justify-between' },
+                React.createElement('span', { className: 'text-sm text-slate-500' }, 'Peso Bruto Apurado'), React.createElement('span', { className: 'text-sm font-bold text-slate-800' }, fmt.weight(ticket.bruto))
+              ),
+              React.createElement('div', { className: 'flex justify-between' },
+                React.createElement('span', { className: 'text-sm text-slate-500' }, 'Peso Tara Apurada'), React.createElement('span', { className: 'text-sm font-bold text-slate-800' }, fmt.weight(ticket.tara))
+              ),
+              React.createElement('div', { className: 'flex justify-between' },
+                React.createElement('span', { className: 'text-sm text-slate-500' }, 'Descontos'), React.createElement('span', { className: 'text-sm font-bold text-red-500' }, fmt.weight(ticket.descontos))
+              ),
+              React.createElement('div', { className: 'border-t border-slate-100 pt-3 flex justify-between' },
+                React.createElement('span', { className: 'text-sm font-semibold text-slate-700' }, 'PESO LÍQUIDO FINAL'),
+                React.createElement('span', { className: 'text-xl font-bold text-emerald-600' }, fmt.weight(ticket.final))
+              ),
+              React.createElement('div', { className: 'text-xs text-slate-400 bg-slate-50 rounded p-2' },
+                `Fórmula: ${fmt.weight(ticket.bruto)} - ${fmt.weight(ticket.tara)} - ${fmt.weight(ticket.descontos)} = ${fmt.weight(ticket.final)}`
+              )
+            )
+          )
+        ),
+        showCancelConfirm && React.createElement(ConfirmModal, {
+          title: 'Cancelar Ticket',
+          message: `Tem certeza que deseja cancelar o ticket ${ticket.numero}? Esta ação não pode ser desfeita.`,
+          confirmText: 'Sim, Cancelar',
+          danger: true,
+          onConfirm: () => { updateTicketStatus(ticket.id, 'CANCELADO'); setShowCancelConfirm(false); showToast('Ticket cancelado', 'warning'); },
+          onCancel: () => setShowCancelConfirm(false),
+        })
+      );
+    }
+
+    // ============================================================
+    // ROMANEIOS PAGE
+    // ============================================================
+    function RomaneiosPage() {
+      const { romaneios } = useStore();
+      const [filter, setFilter] = useState('');
+
+      const filtered = useMemo(() => {
+        if (!filter) return romaneios;
+        return romaneios.filter(r => r.numero.toLowerCase().includes(filter.toLowerCase()) || r.cliente.toLowerCase().includes(filter.toLowerCase()));
+      }, [romaneios, filter]);
+
+      return React.createElement('div', { className: 'p-6 fade-in' },
+        React.createElement('div', { className: 'flex justify-between items-center mb-6' },
+          React.createElement('div', null,
+            React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Romaneios'),
+            React.createElement('p', { className: 'text-sm text-slate-500' }, `${filtered.length} registros`)
+          ),
+          React.createElement('div', { className: 'flex gap-3' },
+            React.createElement('div', { className: 'relative' },
+              React.createElement('div', { className: 'absolute left-3 top-1/2 -translate-y-1/2 text-slate-400' }, React.createElement(Icons.search)),
+              React.createElement('input', { type: 'text', placeholder: 'Buscar...', value: filter, onChange: e => setFilter(e.target.value), className: 'pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-64' })
+            ),
+            React.createElement('button', { className: 'btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2' }, React.createElement(Icons.plus), 'Novo Romaneio')
+          )
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 overflow-hidden' },
+          React.createElement('table', { className: 'w-full' },
+            React.createElement('thead', null, React.createElement('tr', { className: 'text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50' },
+              React.createElement('th', { className: 'px-5 py-3' }, 'Nº'), React.createElement('th', { className: 'px-5 py-3' }, 'Data'),
+              React.createElement('th', { className: 'px-5 py-3' }, 'Cliente'), React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Tickets'),
+              React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Peso Total'),
+              React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Valor'), React.createElement('th', { className: 'px-5 py-3' }, 'Status')
+            )),
+            React.createElement('tbody', { className: 'divide-y divide-slate-50' },
+              filtered.map(r => React.createElement('tr', { key: r.id, className: 'table-row' },
+                React.createElement('td', { className: 'px-5 py-3 text-sm font-medium text-primary-700' }, r.numero),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-500' }, r.data),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-700' }, r.cliente),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-right text-slate-600' }, r.tickets.length),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-right font-medium' }, fmt.weight(r.pesoTotal)),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-right font-medium' }, fmt.currency(r.valorTotal)),
+                React.createElement('td', { className: 'px-5 py-3' }, React.createElement(Badge, { status: r.status }))
+              ))
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // FATURAS PAGE
+    // ============================================================
+    function FaturasPage() {
+      const { faturas } = useStore();
+      const [filter, setFilter] = useState('');
+
+      const filtered = useMemo(() => {
+        if (!filter) return faturas;
+        return faturas.filter(f => f.numero.toLowerCase().includes(filter.toLowerCase()) || f.cliente.toLowerCase().includes(filter.toLowerCase()));
+      }, [faturas, filter]);
+
+      return React.createElement('div', { className: 'p-6 fade-in' },
+        React.createElement('div', { className: 'flex justify-between items-center mb-6' },
+          React.createElement('div', null,
+            React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Faturas'),
+            React.createElement('p', { className: 'text-sm text-slate-500' }, `${filtered.length} registros`)
+          ),
+          React.createElement('div', { className: 'flex gap-3' },
+            React.createElement('div', { className: 'relative' },
+              React.createElement('div', { className: 'absolute left-3 top-1/2 -translate-y-1/2 text-slate-400' }, React.createElement(Icons.search)),
+              React.createElement('input', { type: 'text', placeholder: 'Buscar...', value: filter, onChange: e => setFilter(e.target.value), className: 'pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-64' })
+            ),
+            React.createElement('button', { className: 'btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2' }, React.createElement(Icons.plus), 'Nova Fatura')
+          )
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 overflow-hidden' },
+          React.createElement('table', { className: 'w-full' },
+            React.createElement('thead', null, React.createElement('tr', { className: 'text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50' },
+              React.createElement('th', { className: 'px-5 py-3' }, 'Nº'), React.createElement('th', { className: 'px-5 py-3' }, 'Data'),
+              React.createElement('th', { className: 'px-5 py-3' }, 'Cliente'), React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Valor'),
+              React.createElement('th', { className: 'px-5 py-3 text-center' }, 'Pagamentos'), React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Pago'),
+              React.createElement('th', { className: 'px-5 py-3' }, 'Status')
+            )),
+            React.createElement('tbody', { className: 'divide-y divide-slate-50' },
+              filtered.map(f => {
+                const totalPago = f.pagamentos.reduce((s, p) => s + p.valor, 0);
+                return React.createElement('tr', { key: f.id, className: 'table-row' },
+                  React.createElement('td', { className: 'px-5 py-3 text-sm font-medium text-primary-700' }, f.numero),
+                  React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-500' }, f.data),
+                  React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-700' }, f.cliente),
+                  React.createElement('td', { className: 'px-5 py-3 text-sm text-right font-semibold' }, fmt.currency(f.valor)),
+                  React.createElement('td', { className: 'px-5 py-3 text-sm text-center' }, f.pagamentos.length),
+                  React.createElement('td', { className: 'px-5 py-3 text-sm text-right' }, fmt.currency(totalPago)),
+                  React.createElement('td', { className: 'px-5 py-3' }, React.createElement(Badge, { status: f.status, text: f.status }))
+                );
+              })
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // RELATORIOS PAGE
+    // ============================================================
+    function RelatoriosPage() {
+      const { tickets } = useStore();
+      const [tipo, setTipo] = useState('movimentacao');
+      const [dataInicio, setDataInicio] = useState('2024-01-01');
+      const [dataFim, setDataFim] = useState('2024-12-31');
+
+      const filtered = useMemo(() => {
+        return tickets.filter(t => {
+          const d = t.data?.slice(0, 10);
+          return d >= dataInicio && d <= dataFim;
+        });
+      }, [tickets, dataInicio, dataFim]);
+
+      const stats = {
+        totalTickets: filtered.length,
+        totalFechados: filtered.filter(t => t.statusOp === 'FECHADO').length,
+        totalCancelados: filtered.filter(t => t.statusOp === 'CANCELADO').length,
+        pesoTotal: filtered.filter(t => t.statusOp === 'FECHADO').reduce((s, t) => s + (t.final || 0), 0),
+        mediaPeso: filtered.filter(t => t.statusOp === 'FECHADO').length > 0 ? filtered.filter(t => t.statusOp === 'FECHADO').reduce((s, t) => s + (t.final || 0), 0) / filtered.filter(t => t.statusOp === 'FECHADO').length : 0,
+      };
+
+      return React.createElement('div', { className: 'p-6 fade-in space-y-6' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Relatórios'),
+          React.createElement('p', { className: 'text-sm text-slate-500' }, 'Análise de movimentação e performance')
+        ),
+        // Filtros
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+          React.createElement('div', { className: 'flex gap-4 items-end' },
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, 'Tipo'),
+              React.createElement('select', { value: tipo, onChange: e => setTipo(e.target.value), className: 'px-3 py-2 border border-slate-200 rounded-lg text-sm' },
+                React.createElement('option', { value: 'movimentacao' }, 'Movimentação'),
+                React.createElement('option', { value: 'alteradas' }, 'Pesagens Alteradas'),
+                React.createElement('option', { value: 'excluidas' }, 'Pesagens Excluídas')
+              )
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, 'Data Início'),
+              React.createElement('input', { type: 'date', value: dataInicio, onChange: e => setDataInicio(e.target.value), className: 'px-3 py-2 border border-slate-200 rounded-lg text-sm' })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-medium text-slate-700 mb-1' }, 'Data Fim'),
+              React.createElement('input', { type: 'date', value: dataFim, onChange: e => setDataFim(e.target.value), className: 'px-3 py-2 border border-slate-200 rounded-lg text-sm' })
+            ),
+            React.createElement('button', { className: 'btn-primary text-white px-6 py-2 rounded-lg text-sm font-medium toggle-btn' }, 'Gerar'),
+            React.createElement('button', {
+              onClick: () => {
+                exportToCSV(
+                  `relatorio_${tipo}_${dataInicio}_${dataFim}.csv`,
+                  ['Numero', 'Data', 'Cliente', 'Produto', 'Peso Liquido', 'Status'],
+                  filtered.map(t => [t.numero, t.data, t.cliente, t.produto, String(t.final || 0), t.statusOp])
+                );
+                showToast('Relatório exportado!');
+              },
+              className: 'px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 flex items-center gap-2 toggle-btn'
+            }, 'Exportar CSV')
+          )
+        ),
+        // Estatísticas
+        React.createElement('div', { className: 'grid grid-cols-5 gap-4' },
+          [
+            { label: 'Total Tickets', value: stats.totalTickets, color: 'text-primary-600', bg: 'bg-primary-50' },
+            { label: 'Fechados', value: stats.totalFechados, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Cancelados', value: stats.totalCancelados, color: 'text-red-600', bg: 'bg-red-50' },
+            { label: 'Peso Total', value: fmt.weight(stats.pesoTotal), color: 'text-primary-600', bg: 'bg-primary-50' },
+            { label: 'Média/Pesagem', value: fmt.weight(stats.mediaPeso), color: 'text-blue-600', bg: 'bg-blue-50' },
+          ].map((s, i) => React.createElement('div', { key: i, className: 'bg-white rounded-xl p-4 border border-slate-100 card-hover' },
+            React.createElement('p', { className: 'text-xs text-slate-500' }, s.label),
+            React.createElement('p', { className: `text-xl font-bold mt-1 ${s.color}` }, s.value)
+          ))
+        ),
+        // Resultados
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 overflow-hidden' },
+          React.createElement('div', { className: 'px-5 py-4 border-b border-slate-100 flex justify-between items-center' },
+            React.createElement('h3', { className: 'font-semibold text-slate-800' }, 'Resultados'),
+            React.createElement('span', { className: 'text-xs text-slate-400' }, `${filtered.length} registros`)
+          ),
+          React.createElement('table', { className: 'w-full' },
+            React.createElement('thead', null, React.createElement('tr', { className: 'text-left text-xs text-slate-400 uppercase tracking-wider bg-slate-50' },
+              React.createElement('th', { className: 'px-5 py-3' }, 'Nº'), React.createElement('th', { className: 'px-5 py-3' }, 'Data'),
+              React.createElement('th', { className: 'px-5 py-3' }, 'Cliente'), React.createElement('th', { className: 'px-5 py-3' }, 'Produto'),
+              React.createElement('th', { className: 'px-5 py-3 text-right' }, 'Peso'), React.createElement('th', { className: 'px-5 py-3' }, 'Status')
+            )),
+            React.createElement('tbody', { className: 'divide-y divide-slate-50' },
+              filtered.map(t => React.createElement('tr', { key: t.id, className: 'table-row' },
+                React.createElement('td', { className: 'px-5 py-3 text-sm font-medium text-primary-700' }, t.numero),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-500' }, t.data),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-600' }, t.cliente),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-slate-600' }, t.produto),
+                React.createElement('td', { className: 'px-5 py-3 text-sm text-right font-medium' }, fmt.weight(t.final)),
+                React.createElement('td', { className: 'px-5 py-3' }, React.createElement(Badge, { status: t.statusOp }))
+              ))
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // LICENCA PAGE
+    // ============================================================
+    function LicencaPage() {
+      const { licenca, showToast } = useStore();
+      const [chaveInput, setChaveInput] = useState('');
+
+      const diasPercent = Math.round((licenca.diasRestantes / 15) * 100);
+      const pesagemPercent = Math.round((licenca.pesagensRestantes / licenca.totalPesagensTrial) * 100);
+
+      return React.createElement('div', { className: 'p-6 max-w-3xl mx-auto fade-in space-y-6' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Licenciamento'),
+          React.createElement('p', { className: 'text-sm text-slate-500' }, 'Gerenciamento da licença da instalação')
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+          React.createElement('div', { className: 'flex items-center gap-4 mb-6' },
+            React.createElement('div', { className: 'w-16 h-16 bg-amber-100 rounded-xl flex items-center justify-center' }, React.createElement(Icons.license)),
+            React.createElement('div', null,
+              React.createElement(Badge, { status: licenca.status, text: licenca.status }),
+              React.createElement('p', { className: 'text-2xl font-bold text-slate-900 mt-1' }, `${licenca.diasRestantes} dias restantes`)
+            )
+          ),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-6' },
+            React.createElement('div', null,
+              React.createElement('div', { className: 'flex justify-between text-sm mb-2' },
+                React.createElement('span', { className: 'text-slate-600' }, 'Dias do Trial'), React.createElement('span', { className: 'font-semibold' }, `${licenca.diasRestantes}/15`)
+              ),
+              React.createElement('div', { className: 'w-full bg-slate-100 rounded-full h-3' },
+                React.createElement('div', { className: 'bg-amber-500 h-3 rounded-full transition-all', style: { width: `${diasPercent}%` } })
+              )
+            ),
+            React.createElement('div', null,
+              React.createElement('div', { className: 'flex justify-between text-sm mb-2' },
+                React.createElement('span', { className: 'text-slate-600' }, 'Pesagens Restantes'), React.createElement('span', { className: 'font-semibold' }, `${licenca.pesagensRestantes}/${licenca.totalPesagensTrial}`)
+              ),
+              React.createElement('div', { className: 'w-full bg-slate-100 rounded-full h-3' },
+                React.createElement('div', { className: 'bg-primary-500 h-3 rounded-full transition-all', style: { width: `${pesagemPercent}%` } })
+              )
+            )
+          )
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+          React.createElement('h3', { className: 'font-semibold text-slate-800 mb-3' }, 'Chave de Validação'),
+          React.createElement('div', { className: 'flex gap-2' },
+            React.createElement('div', { className: 'flex-1 bg-slate-50 rounded-lg px-4 py-3 font-mono text-sm text-slate-700' }, licenca.chaveValidacao),
+            React.createElement('button', { onClick: () => { navigator.clipboard.writeText(licenca.chaveValidacao); showToast('Chave copiada!'); }, className: 'px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium hover:bg-slate-200' }, 'Copiar')
+          )
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+          React.createElement('h3', { className: 'font-semibold text-slate-800 mb-3' }, 'Ativar Licença'),
+          React.createElement('div', { className: 'flex gap-3' },
+            React.createElement('input', { type: 'text', placeholder: 'Cole a chave de licenciamento...', value: chaveInput, onChange: e => setChaveInput(e.target.value), className: 'flex-1 px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500' }),
+            React.createElement('button', { onClick: () => chaveInput && showToast('Licença ativada com sucesso!'), className: 'btn-primary text-white px-6 py-2.5 rounded-lg font-semibold toggle-btn' }, 'Ativar')
+          )
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 p-6' },
+          React.createElement('h3', { className: 'font-semibold text-slate-800 mb-4' }, 'Estados do Licenciamento'),
+          React.createElement('div', { className: 'grid grid-cols-5 gap-3' },
+            ['TRIAL', 'ATIVA', 'EXPIRADA', 'BLOQUEADA', 'INVALIDA'].map(s =>
+              React.createElement('div', { key: s, className: `p-3 rounded-lg border text-center ${s === 'TRIAL' ? 'border-amber-200 bg-amber-50' : 'border-slate-200'}` },
+                React.createElement(Badge, { status: s, text: s }),
+                React.createElement('p', { className: 'text-xs text-slate-500 mt-2' },
+                  s === 'TRIAL' ? '15 dias / 100 pesagens' : s === 'ATIVA' ? 'Operação normal' : s === 'EXPIRADA' ? 'Bloqueia pesagem' : s === 'BLOQUEADA' ? 'Aguarda chave' : 'Chave inválida'
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    // ============================================================
+    // CONFIG PAGE
+    // ============================================================
+    function ConfigPage() {
+      const features = [
+        { id: 'pesagem_com_tara', label: 'Pesagem com Tara', desc: 'Permite usar tara cadastrada do veículo', active: true },
+        { id: 'pesagem_entrada', label: 'Pesagem Entrada', desc: 'Fluxo de pesagem na entrada', active: true },
+        { id: 'pesagem_saida', label: 'Pesagem Saída', desc: 'Fluxo de pesagem na saída', active: true },
+        { id: 'financeiro', label: 'Módulo Financeiro', desc: 'Ativa faturas e pagamentos', active: true },
+        { id: 'manutencao_ticket', label: 'Manutenção de Ticket', desc: 'Permite editar ticket fechado', active: true },
+        { id: 'descontos', label: 'Descontos', desc: 'Aplica descontos na pesagem', active: true },
+        { id: 'tabela_umidade', label: 'Tabela de Umidade', desc: 'Desconto automático por umidade', active: true },
+        { id: 'preco_venda', label: 'Preço de Venda', desc: 'Calcula valor da carga', active: true },
+        { id: 'calculo_frete', label: 'Cálculo de Frete', desc: 'Calcula frete do transporte', active: true },
+        { id: 'origem_destino', label: 'Origem/Destino', desc: 'Rastreia origem e destino', active: true },
+        { id: 'emissao_romaneio', label: 'Emissão de Romaneio', desc: 'Permite emitir romaneios', active: true },
+        { id: 'edicao_romaneio', label: 'Edição de Romaneio', desc: 'Permite editar romaneios', active: true },
+        { id: 'habilita_baixa', label: 'Baixa de Fatura', desc: 'Permite baixar faturas', active: true },
+        { id: 'preview_impressao', label: 'Preview de Impressão', desc: 'Mostra preview antes de imprimir', active: true },
+        { id: 'numero_copias', label: 'Número de Cópias', desc: 'Cópias do ticket impresso', value: 2 },
+      ];
+
+      return React.createElement('div', { className: 'p-6 max-w-3xl mx-auto fade-in space-y-6' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-2xl font-bold text-slate-900' }, 'Configuração'),
+          React.createElement('p', { className: 'text-sm text-slate-500' }, 'Feature flags e parâmetros operacionais')
+        ),
+        React.createElement('div', { className: 'bg-white rounded-xl border border-slate-100 divide-y divide-slate-50' },
+          features.map(f => React.createElement('div', { key: f.id, className: 'flex items-center justify-between px-6 py-4' },
+            React.createElement('div', null,
+              React.createElement('p', { className: 'font-medium text-slate-800' }, f.label),
+              React.createElement('p', { className: 'text-xs text-slate-400' }, f.desc)
+            ),
+            f.value != null
+              ? React.createElement('input', { type: 'number', defaultValue: f.value, className: 'w-16 px-2 py-1 border border-slate-200 rounded text-center' })
+              : React.createElement('button', { className: `w-12 h-6 rounded-full transition-all relative ${f.active ? 'bg-primary-500' : 'bg-slate-200'}` },
+                React.createElement('div', { className: `absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${f.active ? 'left-6' : 'left-0.5'}` })
+              )
+          ))
+        )
+      );
+    }
+
+    // ============================================================
+    // MAIN APP
+    // ============================================================
+    function App() {
+      const { user, activePage } = useStore();
+
+      if (!user) return React.createElement(LoginPage);
+
+      const pageMap = {
+        dashboard: DashboardPage,
+        pesagem: PesagemPage,
+        tickets: TicketsPage,
+        ticketDetail: TicketDetailPage,
+        cadastros: () => React.createElement(CrudPage, { title: 'Clientes', data: MOCK_DATA.clientes, columns: [{ key: 'razaoSocial', label: 'Razão Social' }, { key: 'documento', label: 'Documento' }, { key: 'cidade', label: 'Cidade' }, { key: 'uf', label: 'UF' }, { key: 'status', label: 'Status', render: v => React.createElement(Badge, { status: v === 'ATIVO' ? 'FECHADO' : 'CANCELADO', text: v }) }], searchFields: ['razaoSocial', 'documento', 'cidade'] }),
+        transportadoras: () => React.createElement(CrudPage, { title: 'Transportadoras', data: MOCK_DATA.transportadoras, columns: [{ key: 'razaoSocial', label: 'Razão Social' }, { key: 'documento', label: 'Documento' }], searchFields: ['razaoSocial'] }),
+        motoristas: () => React.createElement(CrudPage, { title: 'Motoristas', data: MOCK_DATA.motoristas, columns: [{ key: 'nome', label: 'Nome' }, { key: 'documento', label: 'Documento' }, { key: 'cnh', label: 'CNH' }, { key: 'telefone', label: 'Telefone' }], searchFields: ['nome', 'documento', 'cnh'] }),
+        produtos: () => React.createElement(CrudPage, { title: 'Produtos', data: MOCK_DATA.produtos, columns: [{ key: 'nome', label: 'Nome' }, { key: 'unidade', label: 'Unidade' }, { key: 'tipoOperacao', label: 'Tipo' }], searchFields: ['nome'] }),
+        veiculos: () => React.createElement(CrudPage, { title: 'Veículos', data: MOCK_DATA.veiculos, columns: [{ key: 'placa', label: 'Placa' }, { key: 'modelo', label: 'Modelo' }, { key: 'taraCadastrada', label: 'Tara (kg)', align: 'right', render: v => fmt.weight(v) }], searchFields: ['placa', 'modelo'] }),
+        balancas: () => React.createElement(CrudPage, { title: 'Balanças', data: MOCK_DATA.balancas, columns: [{ key: 'nome', label: 'Nome' }, { key: 'serial', label: 'Serial' }, { key: 'protocolo', label: 'Protocolo' }, { key: 'porta', label: 'Porta', align: 'right' }, { key: 'status', label: 'Status', render: v => React.createElement(Badge, { status: v, text: v }) }], searchFields: ['nome', 'serial'] }),
+        romaneios: RomaneiosPage,
+        faturas: FaturasPage,
+        relatorios: RelatoriosPage,
+        licenca: LicencaPage,
+        config: ConfigPage,
+      };
+
+      const PageComponent = pageMap[activePage] || DashboardPage;
+
+      return React.createElement('div', { className: 'h-screen flex' },
+        React.createElement(Sidebar),
+        React.createElement('div', { className: 'flex-1 flex flex-col overflow-hidden' },
+          React.createElement(Header),
+          React.createElement('main', { className: 'flex-1 overflow-y-auto bg-slate-50' }, React.createElement(PageComponent))
+        ),
+        React.createElement(Toast)
+      );
+    }
+
+    // ============================================================
+    // RENDER
+    // ============================================================
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      React.createElement(StoreProvider, null, React.createElement(App))
+    );
+  </script>
+</body>
+</html>
