@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface AvatarProps {
@@ -16,6 +17,8 @@ export function Avatar({ name = 'U', src, size = 'md', className }: AvatarProps)
     lg: 'w-16 h-16 text-xl',
   };
 
+  const pixelSizes = { sm: 32, md: 40, lg: 64 };
+
   const initials = name
     .split(' ')
     .map((n) => n[0])
@@ -25,9 +28,12 @@ export function Avatar({ name = 'U', src, size = 'md', className }: AvatarProps)
 
   if (src) {
     return (
-      <img
+      <Image
         src={src}
         alt={name}
+        width={pixelSizes[size]}
+        height={pixelSizes[size]}
+        unoptimized
         className={cn('rounded-full object-cover', sizes[size], className)}
       />
     );

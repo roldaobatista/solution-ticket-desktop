@@ -1897,7 +1897,7 @@ export const mockApi = {
       }));
   },
 
-  getExtratoCliente: async (cliente_id: string): Promise<ExtratoItem[]> => {
+  getExtratoCliente: async (_cliente_id: string): Promise<ExtratoItem[]> => {
     await delay(200);
     return [
       {

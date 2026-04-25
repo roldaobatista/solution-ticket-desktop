@@ -33,7 +33,7 @@ export interface GerarChaveOptions {
 
 export function gerarChaveRSA(opts: GerarChaveOptions): string {
   const now = Math.floor(Date.now() / 1000);
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     fingerprints: opts.fingerprints,
     plan: opts.plan ?? 'PADRAO',
     maxMaquinas: opts.maxMaquinas ?? opts.fingerprints.length,

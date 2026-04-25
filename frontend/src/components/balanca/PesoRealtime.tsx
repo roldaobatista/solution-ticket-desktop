@@ -106,7 +106,7 @@ export function PesoRealtime({
         esRef.current = null;
       }
     };
-  }, [balancaId]);
+  }, [balancaId, onPesoChange]);
 
   // Poll status para fallback (mesmo com SSE, marca erro/offline)
   useEffect(() => {

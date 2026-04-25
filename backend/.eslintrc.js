@@ -9,9 +9,7 @@ module.exports = {
   extends: ['plugin:@typescript-eslint/recommended', 'prettier'],
   root: true,
   env: { node: true, jest: true },
-  // test/e2e fora do tsconfig.json — ESLint typed-linting não consegue parsear.
-  // Asserções de cenarios-aceite foram fortalecidas em commit T5.4.
-  ignorePatterns: ['.eslintrc.js', 'dist', 'coverage', 'node_modules', 'test/'],
+  ignorePatterns: ['.eslintrc.js', 'dist', 'coverage', 'node_modules'],
   rules: {
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',
@@ -25,7 +23,12 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['**/*.spec.ts', 'test/**/*.ts'],
+      files: ['test/**/*.ts', '**/*.spec.ts'],
+      parserOptions: {
+        project: 'tsconfig.test.json',
+        tsconfigRootDir: __dirname,
+        sourceType: 'module',
+      },
       rules: {
         '@typescript-eslint/no-explicit-any': 'warn',
       },

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getLicenca, ativarLicenca } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { KeyRound, Copy, CheckCircle2, AlertTriangle, Clock, Scale, Shield } from 'lucide-react';
+import { KeyRound, Copy, CheckCircle2, AlertTriangle, Clock, Shield } from 'lucide-react';
 
 export default function LicencaPage() {
   const queryClient = useQueryClient();

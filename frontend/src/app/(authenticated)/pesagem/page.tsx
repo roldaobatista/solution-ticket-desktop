@@ -3,22 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { useTicketStore } from '@/stores/ticket.store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, ConfirmDialog } from '@/components/ui/dialog';
-import {
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableHeader,
-  TableCell,
-} from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
+import { ConfirmDialog } from '@/components/ui/dialog';
 import {
   getClientes,
   getTransportadoras,
@@ -27,17 +17,13 @@ import {
   getVeiculos,
   getBalancas,
   capturarPeso,
-  createTicket,
-  registrarPassagem,
-  fecharTicket,
-  cancelarTicket,
 } from '@/lib/api';
 import { PesoRealtime } from '@/components/balanca/PesoRealtime';
 import { PassagensList } from '@/components/pesagem/PassagensList';
 import { CancelTicketDialog } from '@/components/pesagem/CancelTicketDialog';
 import { ResumoCalculoCard } from '@/components/pesagem/ResumoCalculoCard';
 import { Toast, useToast } from '@/components/ui/toast';
-import { formatWeight, formatDate, cn } from '@/lib/utils';
+import { formatWeight, cn } from '@/lib/utils';
 import { extractMessage } from '@/lib/errors';
 import {
   Scale,
@@ -45,14 +31,12 @@ import {
   Square,
   X,
   Printer,
-  Save,
   RotateCcw,
   AlertTriangle,
   Wifi,
   WifiOff,
   Gauge,
   ArrowDownToLine,
-  ArrowUpFromLine,
   CheckCircle2,
   Timer,
 } from 'lucide-react';
@@ -83,7 +67,7 @@ export default function PesagemPage() {
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [cancelMotivo, setCancelMotivo] = useState('');
   const [ticketOpened, setTicketOpened] = useState(false);
-  const [passageCount, setPassageCount] = useState(0);
+  const [_passageCount, setPassageCount] = useState(0);
   const [passages, setPassages] = useState<
     Array<{
       id: string;
@@ -217,7 +201,7 @@ export default function PesagemPage() {
     ticketForm.cliente_id &&
     ticketForm.produto_id &&
     (ticketForm.veiculo_placa || ticketForm.veiculo_id);
-  const canCapture = ticketOpened && !isSimulating;
+  const _canCapture = ticketOpened && !isSimulating;
   const canClose =
     ticketOpened &&
     ((ticketForm.fluxo_pesagem === '1PF_TARA_REFERENCIADA' && brutoPassage) ||

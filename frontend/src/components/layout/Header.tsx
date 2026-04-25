@@ -3,18 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
-import { cn } from '@/lib/utils';
-import {
-  Scale,
-  CircleDot,
-  LogOut,
-  User,
-  Building2,
-  Wifi,
-  WifiOff,
-  KeyRound,
-  ChevronDown,
-} from 'lucide-react';
+import { LogOut, Building2, KeyRound, ChevronDown } from 'lucide-react';
 import { BalancaStatusGlobal } from '@/components/balanca/BalancaStatusGlobal';
 
 export default function Header() {

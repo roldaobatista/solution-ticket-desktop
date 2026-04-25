@@ -24,8 +24,8 @@ import {
   deleteVeiculo,
 } from '@/lib/api';
 import { Veiculo } from '@/types';
-import { formatWeight, formatDate } from '@/lib/utils';
-import { Search, Plus, Pencil, Trash2, Save, Car } from 'lucide-react';
+import { formatWeight } from '@/lib/utils';
+import { Search, Plus, Pencil, Trash2, Save } from 'lucide-react';
 import { z } from 'zod';
 
 const schema = z.object({

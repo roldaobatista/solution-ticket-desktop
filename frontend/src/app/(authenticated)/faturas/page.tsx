@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs } from '@/components/ui/tabs';
 import {
   Table,
   TableHead,
@@ -16,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import { getFaturas, getFaturaById } from '@/lib/api';
 import { formatCurrency, formatDate, formatDateShort } from '@/lib/utils';
-import { Receipt, Eye, ChevronLeft } from 'lucide-react';
+import { Eye, ChevronLeft } from 'lucide-react';
 
 export default function FaturasPage() {
   const [page, setPage] = useState(1);

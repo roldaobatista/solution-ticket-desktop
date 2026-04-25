@@ -9,8 +9,9 @@ describe('Licenca (e2e)', () => {
 
   beforeAll(async () => {
     ctx = await setupTestApp();
-    const licencaService: any = ctx.app.get(LicencaService);
-    licencaService.publicKey = TEST_PUBLIC_KEY;
+    const licencaService = ctx.app.get<LicencaService>(LicencaService);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (licencaService as any).publicKey = TEST_PUBLIC_KEY;
   });
 
   afterAll(async () => {

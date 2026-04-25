@@ -7,13 +7,6 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Scale,
-  FileText,
-  Users,
-  Truck,
-  UserCircle,
-  Package,
-  Car,
-  Cpu,
   ClipboardList,
   Receipt,
   BarChart3,

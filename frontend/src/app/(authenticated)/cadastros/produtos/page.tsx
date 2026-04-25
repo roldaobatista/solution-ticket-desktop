@@ -18,7 +18,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { getProdutos, createProduto, updateProduto, deleteProduto } from '@/lib/api';
 import { Produto } from '@/types';
-import { Search, Plus, Pencil, Trash2, Save, Package } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Save } from 'lucide-react';
 import { z } from 'zod';
 
 const schema = z.object({

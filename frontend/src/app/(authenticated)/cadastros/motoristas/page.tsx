@@ -24,7 +24,7 @@ import {
   deleteMotorista,
 } from '@/lib/api';
 import { Motorista } from '@/types';
-import { Search, Plus, Pencil, Trash2, Save, UserCircle } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Save } from 'lucide-react';
 import { z } from 'zod';
 
 const schema = z.object({

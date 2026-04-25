@@ -1,12 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    // Type errors serao resolvidos na etapa de refinamento do frontend
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // TypeScript e ESLint são gates bloqueantes (Wave 0)
+  // Não adicionar ignoreBuildErrors nem ignoreDuringBuilds
   async rewrites() {
     return [{ source: '/api/:path*', destination: 'http://localhost:3001/api/:path*' }];
   },

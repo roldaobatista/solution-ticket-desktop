@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs } from '@/components/ui/tabs';
@@ -17,7 +17,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { getTicketById } from '@/lib/api';
 import { DocumentosTicket } from '@/components/ticket/DocumentosTicket';
-import { formatWeight, formatDate, formatDateShort } from '@/lib/utils';
+import { formatWeight, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   ArrowLeft,

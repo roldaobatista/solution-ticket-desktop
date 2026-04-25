@@ -21,7 +21,7 @@ export default function PesagemSaidaPage() {
   const [balancaId, setBalancaId] = useState('');
   const [pesagemManual, setPesagemManual] = useState(false);
   const [pesoAtual, setPesoAtual] = useState(0);
-  const [estavel, setEstavel] = useState(false);
+  const [, setEstavel] = useState(false);
   const [descontos, setDescontos] = useState(0);
   const [previewTicketId, setPreviewTicketId] = useState<string | null>(null);
 
