@@ -3,3 +3,14 @@ packages:
   - frontend
   - electron
   - keygen
+
+# Onda 1 fix: overrides de segurança devem ficar no workspace root,
+# não no package.json raiz, para que o pnpm os aplique corretamente.
+overrides:
+  multer: ^2.1.1
+  lodash: ^4.17.23
+  js-yaml: ^4.1.1
+  file-type: ^21.3.2
+  uuid: ^11.1.0
+  postcss: ^8.5.10
+  "@nestjs/core": ^11.1.19
