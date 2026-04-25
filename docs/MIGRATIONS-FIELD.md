@@ -129,6 +129,18 @@ DATABASE_URL="file:..." \
 - [ ] Backup automático funciona (quando implementado)
 - [ ] Changelog menciona qualquer migration destrutiva
 
+## Migration de catch-up `20260425000000_catchup_indices_uniques_v1_1`
+
+Resolve RD1 da reauditoria 2026-04-25. Reconcilia drift entre schema.prisma e o histórico de migrations.
+
+**Importante:** antes de aplicar em produção, rodar:
+
+```bash
+sqlite3 solution-ticket.db < src/prisma/migrations/20260425000000_catchup_indices_uniques_v1_1/PRE-CHECK-duplicates.sql
+```
+
+Para detalhes ver `backend/src/prisma/migrations/20260425000000_catchup_indices_uniques_v1_1/README.md`.
+
 ## Referências
 
 - Prisma docs — Production migrations: https://www.prisma.io/docs/orm/prisma-migrate/workflows/production-and-testing
