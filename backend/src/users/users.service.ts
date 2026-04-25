@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
+import { BCRYPT_COST_PROD } from '../auth/bcrypt-cost';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
@@ -18,7 +19,7 @@ export class UsersService {
       throw new ConflictException('Email já cadastrado');
     }
 
-    const senhaHash = await bcrypt.hash(dto.senha, 10);
+    const senhaHash = await bcrypt.hash(dto.senha, BCRYPT_COST_PROD);
 
     const usuario = await this.prisma.usuario.create({
       data: {
@@ -119,7 +120,7 @@ export class UsersService {
     if (dto.nome) data.nome = dto.nome;
     if (dto.email) data.email = dto.email;
     if (dto.ativo !== undefined) data.ativo = dto.ativo;
-    if (dto.senha) data.senhaHash = await bcrypt.hash(dto.senha, 10);
+    if (dto.senha) data.senhaHash = await bcrypt.hash(dto.senha, BCRYPT_COST_PROD);
 
     const usuario = await this.prisma.usuario.update({
       where: { id },

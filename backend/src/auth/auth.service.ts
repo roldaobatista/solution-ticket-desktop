@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { BCRYPT_COST_PROD } from './bcrypt-cost';
 
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
 
@@ -96,7 +97,7 @@ export class AuthService {
     if (!usuario) throw new UnauthorizedException('Usuario nao encontrado');
     const ok = await bcrypt.compare(senhaAtual, usuario.senhaHash);
     if (!ok) throw new UnauthorizedException('Senha atual incorreta');
-    const hash = await bcrypt.hash(novaSenha, 10);
+    const hash = await bcrypt.hash(novaSenha, BCRYPT_COST_PROD);
     await this.prisma.usuario.update({ where: { id: usuarioId }, data: { senhaHash: hash } });
     return { ok: true };
   }
@@ -130,7 +131,7 @@ export class AuthService {
     if (!reg || reg.usado || reg.expiraEm < new Date()) {
       throw new UnauthorizedException('Token inválido ou expirado');
     }
-    const hash = await bcrypt.hash(novaSenha, 10);
+    const hash = await bcrypt.hash(novaSenha, BCRYPT_COST_PROD);
     await this.prisma.$transaction([
       this.prisma.usuario.update({ where: { id: reg.usuarioId }, data: { senhaHash: hash } }),
       this.prisma.tokenReset.update({ where: { id: reg.id }, data: { usado: true } }),
