@@ -14,13 +14,20 @@ export interface AdapterConfig {
   // Modbus
   modbusUnitId?: number | null;
   modbusRegister?: number | null;
+  // Timeouts / reconexão (opcionais — defaults aplicados pelos adapters)
+  connectTimeoutMs?: number | null;
+  readTimeoutMs?: number | null;
+  keepAliveMs?: number | null;
+  intervalMs?: number | null;
 }
 
 /**
  * Adaptador de transporte. Emite eventos:
- *   'data'  (Buffer) — bytes recebidos
- *   'error' (Error)
- *   'close'
+ *   'data'          (Buffer) — bytes recebidos
+ *   'error'         (Error)
+ *   'close'                  — conexão encerrada (sem tentar reconectar)
+ *   'reconectando'  (tentativa: number, delayMs: number) — wrapper vai tentar reabrir
+ *   'reconectado'            — reabertura bem-sucedida
  */
 export interface IBalancaAdapter extends EventEmitter {
   connect(): Promise<void>;

@@ -115,6 +115,32 @@ export class BalancaConnectionService implements OnModuleDestroy {
       conexao.status.online = false;
       conexao.emitter.emit('close');
     });
+    // C11: flush de buffer residual ao reconectar — evita parse de meia-trama
+    adapter.on('reconectando', (info: { tentativa: number; delayMs: number }) => {
+      conexao.status.online = false;
+      this.logger.warn(
+        `Balanca ${id} reconectando (tentativa=${info.tentativa} delay=${info.delayMs}ms)`,
+      );
+      conexao.emitter.emit('reconectando', info);
+    });
+    adapter.on('reconectado', () => {
+      conexao.buffer = Buffer.alloc(0);
+      conexao.historico = [];
+      conexao.status.online = true;
+      conexao.status.erro = null;
+      this.logger.log(`Balanca ${id} reconectada`);
+      conexao.emitter.emit('reconectado');
+    });
+    adapter.on('alerta', (info: { mensagem: string; ultimaTentativaErro: string }) => {
+      this.logger.error(`Balanca ${id} ALERTA: ${info.mensagem}`);
+      conexao.emitter.emit('alerta', info);
+    });
+    adapter.on('falha-permanente', (info: { tentativas: number }) => {
+      this.logger.error(`Balanca ${id} falha permanente apos ${info.tentativas} tentativas`);
+      conexao.status.online = false;
+      conexao.status.erro = `Falha permanente apos ${info.tentativas} tentativas`;
+      conexao.emitter.emit('falha-permanente', info);
+    });
 
     try {
       await adapter.connect();
@@ -141,16 +167,21 @@ export class BalancaConnectionService implements OnModuleDestroy {
   async testar(id: string, timeoutMs = 2000): Promise<{ sucesso: boolean; erro?: string }> {
     const balanca = await this.getBalancaComIndicador(id);
     const indicador = balanca.indicador;
-    const adapter = createAdapter(balanca.protocolo ?? 'serial', {
-      porta: balanca.porta,
-      baudrate: balanca.baudRate ?? indicador?.baudrate ?? null,
-      databits: indicador?.databits ?? 8,
-      stopbits: indicador?.stopbits ?? 1,
-      parity: indicador?.parity ?? 'none',
-      flowControl: indicador?.flowControl ?? 'none',
-      enderecoIp: balanca.enderecoIp,
-      portaTcp: balanca.portaTcp,
-    });
+    const adapter = createAdapter(
+      balanca.protocolo ?? 'serial',
+      {
+        porta: balanca.porta,
+        baudrate: balanca.baudRate ?? indicador?.baudrate ?? null,
+        databits: indicador?.databits ?? 8,
+        stopbits: indicador?.stopbits ?? 1,
+        parity: indicador?.parity ?? 'none',
+        flowControl: indicador?.flowControl ?? 'none',
+        enderecoIp: balanca.enderecoIp,
+        portaTcp: balanca.portaTcp,
+        connectTimeoutMs: timeoutMs,
+      },
+      { autoReconnect: false }, // teste de conexao: falhar rapido
+    );
     try {
       await Promise.race([
         adapter.connect(),

@@ -5,7 +5,9 @@ import { AdapterConfig, IBalancaAdapter } from './adapter.interface';
 /**
  * Adaptador Serial (RS-232/485) usando o pacote `serialport`.
  * O require é feito dentro do connect() para não falhar no build em ambientes
- * sem binding nativo.
+ * sem binding nativo. Hardening (C6, C12 da auditoria):
+ *  - try/catch no require com mensagem acionável
+ *  - parityMap completo (none/even/odd/mark/space)
  */
 export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
   private port: SerialPortType | null = null;
@@ -18,13 +20,25 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
     if (!this.config.porta) {
       throw new Error('Porta serial nao configurada');
     }
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { SerialPort } = require('serialport');
+
+    let SerialPort: any;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      SerialPort = require('serialport').SerialPort;
+    } catch (e: any) {
+      throw new Error(
+        'Falha ao carregar driver serial (serialport). ' +
+          'Rode "pnpm --filter ./electron rebuild-native" ou instale o driver CH340. ' +
+          `Detalhe: ${e?.message ?? e}`,
+      );
+    }
 
     const parityMap: Record<string, 'none' | 'even' | 'odd' | 'mark' | 'space'> = {
       none: 'none',
       even: 'even',
       odd: 'odd',
+      mark: 'mark',
+      space: 'space',
     };
 
     this.port = new SerialPort({
