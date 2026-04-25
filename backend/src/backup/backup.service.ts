@@ -128,14 +128,35 @@ export class BackupService {
     return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  /** Valida que filename é basename puro (sem separadores nem ..) e resolve dentro de backupsDir. */
+  private assertSafeBackupFilename(filename: string): void {
+    if (!filename || typeof filename !== 'string') {
+      throw new BadRequestException('filename inválido');
+    }
+    if (filename !== path.basename(filename) || filename.includes('..')) {
+      throw new BadRequestException('filename inválido (path traversal)');
+    }
+    if (!/^[A-Za-z0-9._-]+\.db$/.test(filename)) {
+      throw new BadRequestException('filename inválido (caracteres não permitidos)');
+    }
+  }
+
   /**
    * Restaura um backup. Operação destrutiva: cria backup pré-restore,
    * substitui o .db atual e força reinício (cliente precisa reconectar).
    */
   async restore(filename: string): Promise<{ ok: true; preRestoreBackup: string }> {
+    this.assertSafeBackupFilename(filename);
     const all = this.list();
     const target = all.find((b) => b.filename === filename);
     if (!target) throw new NotFoundException(`Backup ${filename} não encontrado`);
+
+    // Defesa em profundidade: garante que path resolvido está dentro de backupsDir
+    const resolvedTarget = path.resolve(target.path);
+    const resolvedRoot = path.resolve(this.backupsDir);
+    if (!resolvedTarget.startsWith(resolvedRoot + path.sep)) {
+      throw new BadRequestException('path do backup fora do diretório permitido');
+    }
 
     // Verifica integridade antes de restaurar
     const expected = target.sha256;
@@ -160,6 +181,7 @@ export class BackupService {
 
   /** Aplica integrity_check do SQLite no backup informado. */
   async verify(filename: string): Promise<{ ok: boolean; details: string }> {
+    this.assertSafeBackupFilename(filename);
     const target = this.list().find((b) => b.filename === filename);
     if (!target) throw new NotFoundException(`Backup ${filename} não encontrado`);
 
