@@ -1,32 +1,34 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
 import { numeroParaExtenso } from '../common/extenso.util';
-import * as PDFDocument from 'pdfkit';
+import { CreateReciboDto, UpdateReciboDto } from './dto/create-recibo.dto';
 
 @Injectable()
 export class RecibosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: any) {
-    const valor = Number(data.valor || 0);
+  async create(dto: CreateReciboDto) {
+    const valor = Number(dto.valor || 0);
     const valorExtenso =
-      data.valorExtenso && String(data.valorExtenso).trim().length > 0
-        ? data.valorExtenso
+      dto.valorExtenso && dto.valorExtenso.trim().length > 0
+        ? dto.valorExtenso
         : numeroParaExtenso(valor);
     return this.prisma.recibo.create({
       data: {
-        tenantId: data.tenantId,
-        data: new Date(data.data),
-        cedente: data.cedente,
-        sacado: data.sacado,
+        tenantId: dto.tenantId,
+        data: new Date(dto.data),
+        cedente: dto.cedente,
+        sacado: dto.sacado,
         valor,
-        telefone: data.telefone || null,
-        celular: data.celular || null,
-        cpf: data.cpf || null,
-        endereco: data.endereco || null,
+        telefone: dto.telefone ?? null,
+        celular: dto.celular ?? null,
+        cpf: dto.cpf ?? null,
+        endereco: dto.endereco ?? null,
         valorExtenso,
-        referente: data.referente || null,
-        usuarioId: data.usuarioId || null,
+        referente: dto.referente ?? null,
+        usuarioId: dto.usuarioId ?? null,
       },
     });
   }
@@ -44,18 +46,27 @@ export class RecibosService {
     return r;
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, dto: UpdateReciboDto) {
     await this.findOne(id);
-    const patch: any = { ...data };
-    if (patch.data) patch.data = new Date(patch.data);
-    if (patch.valor !== undefined) {
-      patch.valor = Number(patch.valor);
-      if (!patch.valorExtenso || String(patch.valorExtenso).trim().length === 0) {
-        patch.valorExtenso = numeroParaExtenso(patch.valor);
+    const patch: Prisma.ReciboUpdateInput = {};
+    if (dto.data !== undefined) patch.data = new Date(dto.data);
+    if (dto.cedente !== undefined) patch.cedente = dto.cedente;
+    if (dto.sacado !== undefined) patch.sacado = dto.sacado;
+    if (dto.telefone !== undefined) patch.telefone = dto.telefone;
+    if (dto.celular !== undefined) patch.celular = dto.celular;
+    if (dto.cpf !== undefined) patch.cpf = dto.cpf;
+    if (dto.endereco !== undefined) patch.endereco = dto.endereco;
+    if (dto.referente !== undefined) patch.referente = dto.referente;
+    if (dto.usuarioId !== undefined) patch.usuarioId = dto.usuarioId;
+    if (dto.valor !== undefined) {
+      patch.valor = Number(dto.valor);
+      if (!dto.valorExtenso || dto.valorExtenso.trim().length === 0) {
+        patch.valorExtenso = numeroParaExtenso(Number(dto.valor));
       }
     }
-    delete patch.id;
-    delete patch.criadoEm;
+    if (dto.valorExtenso !== undefined && dto.valorExtenso.trim().length > 0) {
+      patch.valorExtenso = dto.valorExtenso;
+    }
     return this.prisma.recibo.update({ where: { id }, data: patch });
   }
 
@@ -68,7 +79,7 @@ export class RecibosService {
     const r = await this.findOne(id);
     return new Promise<Buffer>((resolve, reject) => {
       try {
-        const doc = new (PDFDocument as any)({ size: 'A4', margin: 50 });
+        const doc = new PDFDocument({ size: 'A4', margin: 50 });
         const chunks: Buffer[] = [];
         doc.on('data', (c: Buffer) => chunks.push(c));
         doc.on('end', () => resolve(Buffer.concat(chunks)));

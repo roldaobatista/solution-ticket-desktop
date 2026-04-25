@@ -14,6 +14,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { RecibosService } from './recibos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateReciboDto, UpdateReciboDto } from './dto/create-recibo.dto';
 
 @ApiTags('Recibos')
 @ApiBearerAuth()
@@ -24,8 +25,8 @@ export class RecibosController {
 
   @Post()
   @ApiOperation({ summary: 'Criar recibo' })
-  create(@Body() data: any) {
-    return this.service.create(data);
+  create(@Body() dto: CreateReciboDto) {
+    return this.service.create(dto);
   }
 
   @Get()
@@ -42,8 +43,8 @@ export class RecibosController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar recibo' })
-  update(@Param('id') id: string, @Body() data: any) {
-    return this.service.update(id, data);
+  update(@Param('id') id: string, @Body() dto: UpdateReciboDto) {
+    return this.service.update(id, dto);
   }
 
   @Delete(':id')
