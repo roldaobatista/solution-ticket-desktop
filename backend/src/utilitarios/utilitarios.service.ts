@@ -17,7 +17,7 @@ export class UtilitariosService {
   async diagnostico() {
     const sistema = {
       node: process.version,
-      electron: (process.versions as any).electron || null,
+      electron: (process.versions as Record<string, string | undefined>).electron ?? null,
       os: `${os.type()} ${os.release()} (${os.arch()})`,
       ram: `${(os.totalmem() / 1024 / 1024 / 1024).toFixed(1)} GB`,
       ramLivre: `${(os.freemem() / 1024 / 1024 / 1024).toFixed(1)} GB`,
@@ -57,24 +57,24 @@ export class UtilitariosService {
   private async inspecionarLicenca() {
     try {
       const fingerprint = obterFingerprint();
-      const licenca = await (this.prisma as any).licencaInstalacao?.findFirst?.({
+      const licenca = await this.prisma.licencaInstalacao.findFirst({
         where: { fingerprintDispositivo: fingerprint },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { criadoEm: 'desc' },
       });
       if (!licenca) {
         return { status: 'SEM_LICENCA', fingerprint, diasRestantes: null };
       }
       let diasRestantes: number | null = null;
-      const validade = (licenca as any).dataValidade || (licenca as any).validade || null;
+      const validade = licenca.expiraEm;
       if (validade) {
         const ms = new Date(validade).getTime() - Date.now();
         diasRestantes = Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
       }
       return {
-        status: (licenca as any).statusLicenca || 'DESCONHECIDO',
+        status: licenca.statusLicenca || 'DESCONHECIDO',
         fingerprint,
         diasRestantes,
-        unidadeId: (licenca as any).unidadeId,
+        unidadeId: licenca.unidadeId,
       };
     } catch (err: unknown) {
       return { status: 'ERRO', erro: errorMessage(err), fingerprint: null, diasRestantes: null };

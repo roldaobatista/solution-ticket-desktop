@@ -2,6 +2,16 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { XMLParser } from 'fast-xml-parser';
 import { errorMessage } from '../common/error-message.util';
 
+type XmlNode = string | number | boolean | null | XmlNode[] | { [k: string]: XmlNode };
+type XmlObject = { [k: string]: XmlNode };
+
+function asObject(v: unknown): XmlObject | null {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as XmlObject) : null;
+}
+function asString(v: unknown): string | null {
+  return typeof v === 'string' ? v : v == null ? null : String(v);
+}
+
 @Injectable()
 export class DocumentosService {
   private readonly logger = new Logger(DocumentosService.name);
@@ -19,15 +29,15 @@ export class DocumentosService {
       trimValues: true,
     });
 
-    let parsed: any;
+    let parsed: XmlNode;
     try {
-      parsed = parser.parse(xml);
+      parsed = parser.parse(xml) as XmlNode;
     } catch (err: unknown) {
       throw new BadRequestException('XML invalido: ' + errorMessage(err, 'parse error'));
     }
 
-    const nfe = this.localizar(parsed, 'infNFe');
-    const cte = this.localizar(parsed, 'infCte') || this.localizar(parsed, 'infCTe');
+    const nfe = asObject(this.localizar(parsed, 'infNFe'));
+    const cte = asObject(this.localizar(parsed, 'infCte') ?? this.localizar(parsed, 'infCTe'));
 
     if (nfe) return this.extrairNFe(nfe);
     if (cte) return this.extrairCTe(cte);
@@ -35,8 +45,9 @@ export class DocumentosService {
     throw new BadRequestException('Nao foi possivel identificar NFe ou CTe no XML');
   }
 
-  private localizar(obj: any, chave: string): any {
-    if (!obj || typeof obj !== 'object') return null;
+  private localizar(node: XmlNode, chave: string): XmlNode | null {
+    const obj = asObject(node);
+    if (!obj) return null;
     if (chave in obj) return obj[chave];
     for (const k of Object.keys(obj)) {
       const r = this.localizar(obj[k], chave);
@@ -45,48 +56,52 @@ export class DocumentosService {
     return null;
   }
 
-  private extrairNFe(inf: any) {
-    const chave = (inf?.['@_Id'] || '').replace(/^NFe/, '') || inf?.chNFe || null;
-    const emit = inf?.emit || {};
-    const dest = inf?.dest || {};
-    const total = inf?.total?.ICMSTot || {};
+  private extrairNFe(inf: XmlObject) {
+    const chave = (asString(inf['@_Id']) || '').replace(/^NFe/, '') || asString(inf.chNFe);
+    const emit = asObject(inf.emit) ?? {};
+    const dest = asObject(inf.dest) ?? {};
+    const total = asObject(asObject(inf.total)?.ICMSTot) ?? {};
+    const ide = asObject(inf.ide) ?? {};
 
-    // peso: transp.vol.pesoB / pesoL
-    const vols = inf?.transp?.vol;
-    const vol = Array.isArray(vols) ? vols[0] : vols;
-    const pesoBruto = this.num(vol?.pesoB);
-    const pesoLiquido = this.num(vol?.pesoL);
+    const vols = asObject(inf.transp)?.vol;
+    const vol = asObject(Array.isArray(vols) ? vols[0] : vols) ?? {};
+    const pesoBruto = this.num(vol.pesoB);
+    const pesoLiquido = this.num(vol.pesoL);
 
     return {
       tipo: 'NFe',
       chave,
-      emissorCnpj: emit?.CNPJ || emit?.CPF || null,
-      emissorNome: emit?.xNome || null,
-      destinatarioCnpj: dest?.CNPJ || dest?.CPF || null,
-      destinatarioNome: dest?.xNome || null,
+      emissorCnpj: asString(emit.CNPJ) ?? asString(emit.CPF),
+      emissorNome: asString(emit.xNome),
+      destinatarioCnpj: asString(dest.CNPJ) ?? asString(dest.CPF),
+      destinatarioNome: asString(dest.xNome),
       pesoBruto,
       pesoLiquido,
-      valorTotal: this.num(total?.vNF),
-      numero: inf?.ide?.nNF || null,
-      serie: inf?.ide?.serie || null,
-      dataEmissao: inf?.ide?.dhEmi || inf?.ide?.dEmi || null,
+      valorTotal: this.num(total.vNF),
+      numero: asString(ide.nNF),
+      serie: asString(ide.serie),
+      dataEmissao: asString(ide.dhEmi) ?? asString(ide.dEmi),
     };
   }
 
-  private extrairCTe(inf: any) {
-    const chave = (inf?.['@_Id'] || '').replace(/^CTe/, '') || null;
-    const emit = inf?.emit || {};
-    const dest = inf?.dest || inf?.receb || inf?.toma3 || {};
-    const vPrest = inf?.vPrest || {};
-    const infCarga = inf?.infCTeNorm?.infCarga || inf?.infCarga || {};
-    const infQ = infCarga?.infQ;
+  private extrairCTe(inf: XmlObject) {
+    const chave = (asString(inf['@_Id']) || '').replace(/^CTe/, '') || null;
+    const emit = asObject(inf.emit) ?? {};
+    const dest = asObject(inf.dest) ?? asObject(inf.receb) ?? asObject(inf.toma3) ?? {};
+    const vPrest = asObject(inf.vPrest) ?? {};
+    const infCarga = asObject(asObject(inf.infCTeNorm)?.infCarga) ?? asObject(inf.infCarga) ?? {};
+    const ide = asObject(inf.ide) ?? {};
+
+    const infQRaw = infCarga.infQ;
     let pesoBruto: number | null = null;
     let pesoLiquido: number | null = null;
 
-    const infQArr = Array.isArray(infQ) ? infQ : infQ ? [infQ] : [];
+    const infQArr: XmlObject[] = (Array.isArray(infQRaw) ? infQRaw : infQRaw ? [infQRaw] : [])
+      .map(asObject)
+      .filter((x): x is XmlObject => x !== null);
     for (const q of infQArr) {
-      const tipo = (q?.tpMed || '').toString().toUpperCase();
-      const valor = this.num(q?.qCarga);
+      const tipo = (asString(q.tpMed) ?? '').toUpperCase();
+      const valor = this.num(q.qCarga);
       if (tipo.includes('BRUTO')) pesoBruto = valor;
       else if (tipo.includes('LIQUIDO') || tipo.includes('LÍQUIDO')) pesoLiquido = valor;
       else if (pesoBruto == null) pesoBruto = valor;
@@ -95,20 +110,20 @@ export class DocumentosService {
     return {
       tipo: 'CTe',
       chave,
-      emissorCnpj: emit?.CNPJ || emit?.CPF || null,
-      emissorNome: emit?.xNome || null,
-      destinatarioCnpj: dest?.CNPJ || dest?.CPF || null,
-      destinatarioNome: dest?.xNome || null,
+      emissorCnpj: asString(emit.CNPJ) ?? asString(emit.CPF),
+      emissorNome: asString(emit.xNome),
+      destinatarioCnpj: asString(dest.CNPJ) ?? asString(dest.CPF),
+      destinatarioNome: asString(dest.xNome),
       pesoBruto,
       pesoLiquido,
-      valorTotal: this.num(vPrest?.vTPrest || vPrest?.vRec),
-      numero: inf?.ide?.nCT || null,
-      serie: inf?.ide?.serie || null,
-      dataEmissao: inf?.ide?.dhEmi || null,
+      valorTotal: this.num(vPrest.vTPrest ?? vPrest.vRec),
+      numero: asString(ide.nCT),
+      serie: asString(ide.serie),
+      dataEmissao: asString(ide.dhEmi),
     };
   }
 
-  private num(v: any): number | null {
+  private num(v: unknown): number | null {
     if (v == null || v === '') return null;
     const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
     return Number.isFinite(n) ? n : null;

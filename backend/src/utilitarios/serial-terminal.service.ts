@@ -2,11 +2,14 @@ import { Injectable, Logger, NotFoundException, OnModuleDestroy } from '@nestjs/
 import { randomUUID } from 'crypto';
 import { errorMessage } from '../common/error-message.util';
 
+import type { SerialPort as SerialPortType } from 'serialport';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SerialPort } = require('serialport');
+const { SerialPort } = require('serialport') as { SerialPort: typeof SerialPortType };
+
+type PortInfo = Awaited<ReturnType<typeof SerialPortType.list>>[number];
 
 interface Sessao {
-  port: any;
+  port: SerialPortType;
   buffer: Buffer[];
   ultimaAtividade: number;
   config: { porta: string; baudrate: number; databits: number; parity: string; stopbits: number };
@@ -42,7 +45,7 @@ export class SerialTerminalService implements OnModuleDestroy {
   async listarPortas() {
     try {
       const portas = await SerialPort.list();
-      return portas.map((p: any) => ({
+      return portas.map((p: PortInfo) => ({
         path: p.path,
         manufacturer: p.manufacturer || null,
         serialNumber: p.serialNumber || null,
@@ -73,14 +76,14 @@ export class SerialTerminalService implements OnModuleDestroy {
     const port = new SerialPort({
       path: config.porta,
       baudRate: baudrate,
-      dataBits: databits as any,
-      stopBits: stopbits as any,
+      dataBits: databits as 5 | 6 | 7 | 8,
+      stopBits: stopbits as 1 | 1.5 | 2,
       parity,
       autoOpen: false,
     });
 
     await new Promise<void>((resolve, reject) => {
-      port.open((err: any) => (err ? reject(err) : resolve()));
+      port.open((err: Error | null) => (err ? reject(err) : resolve()));
     });
 
     const sessao: Sessao = {
@@ -94,7 +97,7 @@ export class SerialTerminalService implements OnModuleDestroy {
       sessao.buffer.push(Buffer.from(data));
       sessao.ultimaAtividade = Date.now();
     });
-    port.on('error', (err: any) => {
+    port.on('error', (err: Error) => {
       this.logger.error(`[${sessionId}] serial error: ${errorMessage(err)}`);
     });
 
@@ -114,7 +117,7 @@ export class SerialTerminalService implements OnModuleDestroy {
       buf = Buffer.from(data || '', 'ascii');
     }
     await new Promise<void>((resolve, reject) => {
-      s.port.write(buf, (err: any) => (err ? reject(err) : resolve()));
+      s.port.write(buf, (err: Error | null | undefined) => (err ? reject(err) : resolve()));
     });
     s.ultimaAtividade = Date.now();
     return { enviado: buf.length };
