@@ -12,6 +12,12 @@ Utilitários manuais. Convenção: prefixar com `oneshot-` scripts não-idempote
 
 Pré-condição: backend rodando em `http://127.0.0.1:3001` e seed aplicado.
 
+## Smoke de hardware
+
+| Script                             | O que faz                                             | Como rodar                                                                                                                                       |
+| ---------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `backend/scripts/smoke-balanca.ts` | Exercita os 13 parsers de balança com frames-amostra. | `cd backend && pnpm exec ts-node --transpile-only --compiler-options '{"module":"commonjs","moduleResolution":"node"}' scripts/smoke-balanca.ts` |
+
 ## One-shot (NÃO RE-EXECUTAR sem revisar)
 
 | Script                      | O que fez                                                  | Substituído por                                               |
