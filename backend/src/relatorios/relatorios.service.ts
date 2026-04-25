@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
+
+type PDFDoc = PDFKit.PDFDocument;
 
 const StatusOperacional = {
   RASCUNHO: 'RASCUNHO',
@@ -18,6 +21,33 @@ const StatusPassagem = {
   VALIDA: 'VALIDA',
   INVALIDADA: 'INVALIDADA',
 } as const;
+
+const ticketMovimentoArgs = Prisma.validator<Prisma.TicketPesagemDefaultArgs>()({
+  include: {
+    cliente: { select: { razaoSocial: true } },
+    transportadora: { select: { nome: true } },
+    motorista: { select: { nome: true } },
+    veiculo: { select: { placa: true } },
+    produto: { select: { descricao: true } },
+    destino: { select: { descricao: true } },
+    passagens: { orderBy: { sequencia: 'asc' as const } },
+    descontos: true,
+  },
+});
+type TicketMovimento = Prisma.TicketPesagemGetPayload<typeof ticketMovimentoArgs>;
+
+type ColAlign = 'left' | 'right' | 'center' | 'justify';
+interface ColunaTabela {
+  key: string;
+  label: string;
+  width: number;
+  align?: ColAlign;
+}
+interface CelulaTabela {
+  text: string;
+  width: number;
+  align?: ColAlign;
+}
 
 @Injectable()
 export class RelatoriosService {
@@ -37,8 +67,8 @@ export class RelatoriosService {
         include: { empresa: true },
       });
       if (!unidade) return 'Unidade nao encontrada';
-      const emp: any = (unidade as any).empresa;
-      const nomeEmp = emp?.nomeFantasia || emp?.razaoSocial || 'Empresa';
+      const emp = unidade.empresa;
+      const nomeEmp = emp?.nomeFantasia || emp?.nomeEmpresarial || 'Empresa';
       return `${nomeEmp} - ${unidade.nome}`;
     } catch (err) {
       this.logger.warn(`Falha ao resolver cabeçalho da empresa: ${(err as Error).message}`);
@@ -47,7 +77,7 @@ export class RelatoriosService {
   }
 
   private desenharCabecalho(
-    doc: any,
+    doc: PDFDoc,
     titulo: string,
     nomeEmpresa: string,
     filtros: Record<string, string | undefined>,
@@ -65,7 +95,7 @@ export class RelatoriosService {
     doc.moveDown(0.5);
   }
 
-  private finalizarComPaginacao(doc: any) {
+  private finalizarComPaginacao(doc: PDFDoc) {
     const range = doc.bufferedPageRange();
     const total = range.count;
     for (let i = 0; i < total; i++) {
@@ -82,18 +112,14 @@ export class RelatoriosService {
     }
   }
 
-  private desenharLinhaTabela(
-    doc: any,
-    cols: { text: string; width: number; align?: string }[],
-    y?: number,
-  ) {
+  private desenharLinhaTabela(doc: PDFDoc, cols: CelulaTabela[], y?: number) {
     const startX = doc.page.margins.left;
     const yPos = y ?? doc.y;
     let x = startX;
     for (const c of cols) {
       doc.text(c.text, x + 2, yPos, {
         width: c.width - 4,
-        align: (c.align as any) || 'left',
+        align: c.align ?? 'left',
         lineBreak: false,
       });
       x += c.width;
@@ -121,7 +147,7 @@ export class RelatoriosService {
    */
   async movimento(dataInicio: string, dataFim: string, unidadeId?: string) {
     const MAX_TICKETS = 5000;
-    const where: any = {
+    const where: Prisma.TicketPesagemWhereInput = {
       fechadoEm: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim),
@@ -134,16 +160,7 @@ export class RelatoriosService {
       this.prisma.ticketPesagem.findMany({
         where,
         take: MAX_TICKETS,
-        include: {
-          cliente: { select: { razaoSocial: true } },
-          transportadora: { select: { nome: true } },
-          motorista: { select: { nome: true } },
-          veiculo: { select: { placa: true } },
-          produto: { select: { descricao: true } },
-          destino: { select: { descricao: true } },
-          passagens: { orderBy: { sequencia: 'asc' } },
-          descontos: true,
-        },
+        ...ticketMovimentoArgs,
         orderBy: { fechadoEm: 'desc' },
       }),
       this.prisma.ticketPesagem.aggregate({
@@ -180,7 +197,7 @@ export class RelatoriosService {
     const incluirMotorista = variante === '002';
 
     return new Promise<Buffer>((resolve, reject) => {
-      const doc = new PDFDocument({
+      const doc: PDFDoc = new PDFDocument({
         margin: 30,
         size: 'A4',
         layout: 'landscape',
@@ -197,7 +214,7 @@ export class RelatoriosService {
       });
 
       // Larguras (landscape ~ 781 pts uteis com margem 30)
-      const cols = incluirMotorista
+      const cols: ColunaTabela[] = incluirMotorista
         ? [
             { key: 'placa', label: 'Placa', width: 70 },
             { key: 'data', label: 'Data', width: 110 },
@@ -234,7 +251,7 @@ export class RelatoriosService {
       let totalTara = 0;
       let totalLiquido = 0;
 
-      for (const t of dados.tickets) {
+      for (const t of dados.tickets as TicketMovimento[]) {
         if (y > doc.page.height - 60) {
           doc.addPage();
           this.desenharCabecalho(
@@ -255,10 +272,10 @@ export class RelatoriosService {
           doc.font('Helvetica');
         }
 
-        const cliente = (t as any).cliente?.razaoSocial || '-';
-        const produto = (t as any).produto?.descricao || '-';
-        const placa = (t as any).veiculo?.placa || (t as any).veiculoPlaca || '-';
-        const motorista = (t as any).motorista?.nome || '-';
+        const cliente = t.cliente?.razaoSocial || '-';
+        const produto = t.produto?.descricao || '-';
+        const placa = t.veiculo?.placa || t.veiculoPlaca || '-';
+        const motorista = t.motorista?.nome || '-';
         const data = t.fechadoEm ? new Date(t.fechadoEm).toLocaleString('pt-BR') : '-';
         const bruto = Number(t.pesoBrutoApurado || 0);
         const tara = Number(t.pesoTaraApurada || 0);
@@ -311,7 +328,7 @@ export class RelatoriosService {
   // ============================================================
 
   async pesagensAlteradas(dataInicio: string, dataFim: string, unidadeId?: string) {
-    const where: any = {
+    const where: Prisma.TicketPesagemWhereInput = {
       atualizadoEm: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim),
@@ -387,26 +404,28 @@ export class RelatoriosService {
       const motivo = a.motivo || '-';
       const numeroTicket = ticket?.numero || a.entidadeId.substring(0, 8);
 
-      let anterior: any = {};
-      let novo: any = {};
+      let anterior: Record<string, unknown> = {};
+      let novo: Record<string, unknown> = {};
       try {
-        anterior = a.estadoAnterior ? JSON.parse(a.estadoAnterior) : {};
+        anterior = a.estadoAnterior
+          ? (JSON.parse(a.estadoAnterior) as Record<string, unknown>)
+          : {};
       } catch (err) {
         this.logger.debug(`estadoAnterior inválido (auditoria=${a.id}): ${(err as Error).message}`);
         anterior = {};
       }
       try {
-        novo = a.estadoNovo ? JSON.parse(a.estadoNovo) : {};
+        novo = a.estadoNovo ? (JSON.parse(a.estadoNovo) as Record<string, unknown>) : {};
       } catch (err) {
         this.logger.debug(`estadoNovo inválido (auditoria=${a.id}): ${(err as Error).message}`);
         novo = {};
       }
 
-      const campos = new Set<string>([...Object.keys(anterior || {}), ...Object.keys(novo || {})]);
+      const campos = new Set<string>([...Object.keys(anterior), ...Object.keys(novo)]);
       let adicionado = false;
       for (const campo of campos) {
-        const va = anterior?.[campo];
-        const vn = novo?.[campo];
+        const va = anterior[campo];
+        const vn = novo[campo];
         if (JSON.stringify(va) === JSON.stringify(vn)) continue;
         linhas.push({
           ticket: numeroTicket,
@@ -433,7 +452,7 @@ export class RelatoriosService {
     }
 
     return new Promise<Buffer>((resolve, reject) => {
-      const doc = new PDFDocument({
+      const doc: PDFDoc = new PDFDocument({
         margin: 30,
         size: 'A4',
         layout: 'landscape',
@@ -449,7 +468,7 @@ export class RelatoriosService {
         'Data Fim': dataFim,
       });
 
-      const cols = [
+      const cols: { key: keyof Linha; label: string; width: number }[] = [
         { key: 'ticket', label: 'Ticket', width: 70 },
         { key: 'data', label: 'Data Alteracao', width: 110 },
         { key: 'usuario', label: 'Usuario', width: 110 },
@@ -490,7 +509,7 @@ export class RelatoriosService {
         }
         y = this.desenharLinhaTabela(
           doc,
-          cols.map((c) => ({ text: (ln as any)[c.key] || '-', width: c.width })),
+          cols.map((c) => ({ text: ln[c.key] || '-', width: c.width })),
           y,
         );
       }
@@ -513,7 +532,7 @@ export class RelatoriosService {
   // ============================================================
 
   async pesagensCanceladas(dataInicio: string, dataFim: string, unidadeId?: string) {
-    const where: any = {
+    const where: Prisma.TicketPesagemWhereInput = {
       canceladoEm: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim),
@@ -550,7 +569,8 @@ export class RelatoriosService {
           orderBy: { dataHora: 'desc' },
         })
       : [];
-    const mapAudit = new Map<string, any>();
+    type AuditoriaTicket = (typeof audits)[number];
+    const mapAudit = new Map<string, AuditoriaTicket>();
     for (const a of audits) if (!mapAudit.has(a.entidadeId)) mapAudit.set(a.entidadeId, a);
     const usuarioIds = Array.from(
       new Set(audits.map((a) => a.usuarioId).filter((x): x is string => Boolean(x))),
@@ -564,7 +584,7 @@ export class RelatoriosService {
     const mapUsuario = new Map(usuarios.map((u) => [u.id, u.nome]));
 
     return new Promise<Buffer>((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 30, size: 'A4', bufferPages: true });
+      const doc: PDFDoc = new PDFDocument({ margin: 30, size: 'A4', bufferPages: true });
       const chunks: Buffer[] = [];
       doc.on('data', (c: Buffer) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -617,7 +637,7 @@ export class RelatoriosService {
         const linha: Record<string, string> = {
           numero: t.numero,
           data: t.canceladoEm ? new Date(t.canceladoEm).toLocaleString('pt-BR') : '-',
-          motivo: (t as any).motivoCancelamento || audit?.motivo || '-',
+          motivo: t.motivoCancelamento || audit?.motivo || '-',
           usuario,
         };
         y = this.desenharLinhaTabela(
@@ -645,7 +665,7 @@ export class RelatoriosService {
   // ============================================================
 
   async passagensPorBalanca(dataInicio: string, dataFim: string, unidadeId?: string) {
-    const where: any = {
+    const where: Prisma.PassagemPesagemWhereInput = {
       criadoEm: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim),
