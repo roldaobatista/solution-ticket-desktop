@@ -13,6 +13,43 @@ interface RequestWithId extends Request {
   requestId?: string;
 }
 
+// S2.4: chaves PII que devem ser removidas antes de enviar a Sentry.
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'senha',
+  'senhaatual',
+  'novasenha',
+  'senhahash',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'authorization',
+  'cookie',
+  'jwt',
+  'cpf',
+  'cnpj',
+  'rg',
+  'chave',
+  'chavelicenciamento',
+  'apikey',
+  'secret',
+]);
+
+function scrubPii<T>(value: T, depth = 0): T {
+  if (depth > 8 || value == null) return value;
+  if (Array.isArray(value)) {
+    return value.map((v) => scrubPii(v, depth + 1)) as unknown as T;
+  }
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? '[REDACTED]' : scrubPii(v, depth + 1);
+    }
+    return out as unknown as T;
+  }
+  return value;
+}
+
 function initSentry(logger: Logger) {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) {
@@ -24,8 +61,20 @@ function initSentry(logger: Logger) {
     environment: process.env.NODE_ENV ?? 'development',
     release: process.env.npm_package_version,
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
+    beforeSend(event) {
+      if (event.request) {
+        if (event.request.data) event.request.data = scrubPii(event.request.data);
+        if (event.request.headers) {
+          event.request.headers = scrubPii(event.request.headers) as typeof event.request.headers;
+        }
+        if (event.request.cookies) event.request.cookies = { redacted: '[REDACTED]' };
+      }
+      if (event.extra) event.extra = scrubPii(event.extra);
+      if (event.contexts) event.contexts = scrubPii(event.contexts);
+      return event;
+    },
   });
-  logger.log('Sentry inicializado.');
+  logger.log('Sentry inicializado (com PII scrubbing).');
 }
 
 async function bootstrap() {
