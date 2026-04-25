@@ -6,6 +6,8 @@ import { IBalancaParser, LeituraPeso, ParserConfig } from './parser.interface';
  * extrai substring(inicioPeso-1, +tamanhoPeso), aplica fator e inversão.
  */
 export class GenericParser implements IBalancaParser {
+  private static readonly REGEX_LIMPO = /[^0-9\-+.]/g;
+
   constructor(protected config: ParserConfig) {}
 
   parse(buffer: Buffer): { leitura: LeituraPeso | null; restante: Buffer } {
@@ -36,7 +38,7 @@ export class GenericParser implements IBalancaParser {
       return null;
     }
     const raw = trama.substring(inicio, inicio + tamanho).trim();
-    const limpo = raw.replace(/[^0-9\-+.]/g, '');
+    const limpo = raw.replace(GenericParser.REGEX_LIMPO, '');
     if (!limpo) return null;
     let peso = parseFloat(limpo);
     if (isNaN(peso)) return null;

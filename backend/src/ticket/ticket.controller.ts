@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { TicketService } from './ticket.service';
 import { PassagemService } from './passagem.service';
+import { ImpressaoService } from '../impressao/impressao.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { TicketFilterDto } from './dto/ticket-filter.dto';
@@ -20,6 +21,7 @@ export class TicketController {
   constructor(
     private readonly ticketService: TicketService,
     private readonly passagemService: PassagemService,
+    private readonly impressaoService: ImpressaoService,
   ) {}
 
   @Post()
@@ -130,7 +132,7 @@ export class TicketController {
   @Get(':id/bilhete')
   @ApiOperation({ summary: 'Gerar bilhete intermediario (PDF) apos 1a passagem' })
   async gerarBilhete(@Param('id') id: string, @Res() res: Response) {
-    const buf = await this.ticketService.gerarBilheteIntermediario(id);
+    const buf = await this.impressaoService.gerarTicketPdf(id, 'TICKET001');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="bilhete-${id}.pdf"`);
     res.end(buf);

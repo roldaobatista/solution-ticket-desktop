@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TicketService } from './ticket.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -44,8 +45,13 @@ describe('TicketService - cálculo de fechamento', () => {
       veiculo: { findUnique: jest.fn() },
     };
 
+    const eventEmitter = { emit: jest.fn() };
     const module = await Test.createTestingModule({
-      providers: [TicketService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        TicketService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventEmitter2, useValue: eventEmitter },
+      ],
     }).compile();
 
     service = module.get(TicketService);
@@ -194,8 +200,13 @@ describe('TicketService.create - bloqueio por licença', () => {
       licencaInstalacao: { findFirst: jest.fn() },
       veiculo: { findUnique: jest.fn() },
     };
+    const eventEmitter = { emit: jest.fn() };
     const module = await Test.createTestingModule({
-      providers: [TicketService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        TicketService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventEmitter2, useValue: eventEmitter },
+      ],
     }).compile();
     service = module.get(TicketService);
   });
@@ -255,8 +266,13 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
       veiculo: { findUnique: jest.fn() },
       $transaction: jest.fn((fn: (tx: typeof prisma) => unknown) => fn(prisma)),
     };
+    const eventEmitter = { emit: jest.fn() };
     const module = await Test.createTestingModule({
-      providers: [TicketService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        TicketService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventEmitter2, useValue: eventEmitter },
+      ],
     }).compile();
     service = module.get(TicketService);
   });

@@ -7,8 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
-import { gerarPdf } from '../impressao/templates';
-import { ticketComRelacoesArgs } from '../impressao/templates/types';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   StatusOperacional,
   StatusComercial,
@@ -18,6 +17,11 @@ import {
   ModoComercial,
 } from '../constants/enums';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
+import {
+  TicketCriadoEvent,
+  TicketFechadoEvent,
+  StatusComercialAlteradoEvent,
+} from './events/ticket.events';
 import { TicketFilterDto } from './dto/ticket-filter.dto';
 import { RegistrarPassagemDto } from './dto/registrar-passagem.dto';
 import { FecharTicketDto } from './dto/fechar-ticket.dto';
@@ -46,7 +50,10 @@ const TRANSICOES_PERMITIDAS: Record<string, string[]> = {
 
 @Injectable()
 export class TicketService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   // ============================================================
   // CRUD Básico
@@ -264,6 +271,9 @@ export class TicketService {
         armazem: true,
       },
     });
+    this.eventEmitter.emit('ticket.criado', new TicketCriadoEvent(ticket.id, ticket.tenantId));
+    this.eventEmitter.emit('ticket.criado', new TicketCriadoEvent(ticket.id, ticket.tenantId));
+    return ticket;
   }
 
   // ============================================================
@@ -310,9 +320,17 @@ export class TicketService {
     });
 
     // Registra auditoria da transicao
+    const evento = new StatusComercialAlteradoEvent(
+      ticketId,
+      ticket.tenantId,
+      ticket.statusComercial,
+      ticket.statusComercial,
+    );
+    this.eventEmitter.emit('ticket.status_comercial_alterado', evento);
+
     await this.prisma.auditoria.create({
       data: {
-        tenantId: ticket.tenantId, // RD5
+        tenantId: ticket.tenantId,
         entidade: 'ticket_pesagem',
         entidadeId: ticketId,
         evento: 'ticket.transicao_estado',
@@ -492,9 +510,11 @@ export class TicketService {
     }
 
     // Auditoria de fechamento
+    this.eventEmitter.emit('ticket.fechado', new TicketFechadoEvent(ticketId, ticket.tenantId));
+
     await this.prisma.auditoria.create({
       data: {
-        tenantId: ticket.tenantId, // RD5
+        tenantId: ticket.tenantId,
         entidade: 'ticket_pesagem',
         entidadeId: ticketId,
         evento: 'ticket.fechado',
@@ -724,20 +744,6 @@ export class TicketService {
       numero: ticket.numero,
       mensagem: 'Reimpressao registrada',
     };
-  }
-
-  async gerarBilheteIntermediario(ticketId: string): Promise<Buffer> {
-    const ticket = await this.prisma.ticketPesagem.findUnique({
-      where: { id: ticketId },
-      ...ticketComRelacoesArgs,
-    });
-    if (!ticket) throw new NotFoundException('Ticket não encontrado');
-    // Bilhete intermediário: usamos o template 1PF (A5) como base
-    return gerarPdf('TICKET001', {
-      ticket,
-      empresa: ticket.unidade?.empresa,
-      unidade: ticket.unidade,
-    });
   }
 
   async getHistorico(ticketId: string) {
