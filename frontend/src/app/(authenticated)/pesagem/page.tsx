@@ -33,6 +33,8 @@ import {
   cancelarTicket,
 } from '@/lib/api';
 import { PesoRealtime } from '@/components/balanca/PesoRealtime';
+import { PassagensList } from '@/components/pesagem/PassagensList';
+import { CancelTicketDialog } from '@/components/pesagem/CancelTicketDialog';
 import { Toast, useToast } from '@/components/ui/toast';
 import { formatWeight, formatDate, cn } from '@/lib/utils';
 import { extractMessage } from '@/lib/errors';
@@ -580,70 +582,7 @@ export default function PesagemPage() {
           </Card>
 
           {/* Passages Table */}
-          {passages.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Passagens Registradas</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader>Seq.</TableHeader>
-                      <TableHeader>Tipo</TableHeader>
-                      <TableHeader>Papel</TableHeader>
-                      <TableHeader>Peso</TableHeader>
-                      <TableHeader>Balanca</TableHeader>
-                      <TableHeader>Hora</TableHeader>
-                      <TableHeader>Status</TableHeader>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {passages.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.sequencia}</TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-1">
-                            {p.tipo === 'ENTRADA' ? (
-                              <ArrowDownToLine className="w-4 h-4 text-emerald-500" />
-                            ) : (
-                              <ArrowUpFromLine className="w-4 h-4 text-blue-500" />
-                            )}
-                            {p.tipo}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              p.papel === 'BRUTO_OFICIAL'
-                                ? 'success'
-                                : p.papel === 'TARA_OFICIAL'
-                                  ? 'primary'
-                                  : 'default'
-                            }
-                          >
-                            {p.papel === 'BRUTO_OFICIAL'
-                              ? 'Bruto'
-                              : p.papel === 'TARA_OFICIAL'
-                                ? 'Tara'
-                                : p.papel}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono font-bold">
-                          {formatWeight(p.peso)}
-                        </TableCell>
-                        <TableCell>{p.balanca}</TableCell>
-                        <TableCell className="text-slate-500">{formatDate(p.data_hora)}</TableCell>
-                        <TableCell>
-                          <Badge variant="success">Valida</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
+          {passages.length > 0 && <PassagensList passages={passages} />}
 
           {/* Calculations Summary */}
           <Card className="border-2 border-slate-300">
@@ -715,36 +654,16 @@ export default function PesagemPage() {
       )}
 
       {/* Cancel Dialog */}
-      <Dialog
+      <CancelTicketDialog
         open={showCancelDialog}
+        motivo={cancelMotivo}
+        onMotivoChange={setCancelMotivo}
         onClose={() => setShowCancelDialog(false)}
-        title="Cancelar Ticket"
-        description="Informe o motivo do cancelamento. Esta acao nao pode ser desfeita."
-      >
-        <div className="space-y-4">
-          <Input
-            label="Motivo do Cancelamento *"
-            value={cancelMotivo}
-            onChange={(e) => setCancelMotivo(e.target.value)}
-            placeholder="Informe o motivo"
-          />
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowCancelDialog(false)}>
-              Voltar
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                setShowCancelDialog(false);
-                resetAll();
-              }}
-              disabled={!cancelMotivo}
-            >
-              Confirmar Cancelamento
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+        onConfirm={() => {
+          setShowCancelDialog(false);
+          resetAll();
+        }}
+      />
 
       {pesoToast && (
         <Toast message={pesoToast.message} type={pesoToast.type} onClose={hidePesoToast} />
