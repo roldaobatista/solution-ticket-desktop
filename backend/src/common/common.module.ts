@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { ResponseTransformInterceptor } from './interceptors/response-transform.interceptor';
+import { TraceparentInterceptor } from './interceptors/traceparent.interceptor';
 
 @Global()
 @Module({
@@ -13,6 +14,10 @@ import { ResponseTransformInterceptor } from './interceptors/response-transform.
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseTransformInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TraceparentInterceptor,
     },
   ],
 })

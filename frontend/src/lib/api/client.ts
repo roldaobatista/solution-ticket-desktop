@@ -7,6 +7,10 @@
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
+function generateTraceId(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
 export const apiClient: AxiosInstance = axios.create({
@@ -22,6 +26,7 @@ apiClient.interceptors.request.use(
       const token = sessionStorage.getItem('access_token');
       if (token) config.headers.Authorization = `Bearer ${token}`;
     }
+    config.headers.traceparent = `00-${generateTraceId()}-00-01`;
     return config;
   },
   (error) => Promise.reject(error),
