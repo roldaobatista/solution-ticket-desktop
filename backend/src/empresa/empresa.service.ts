@@ -4,18 +4,28 @@ import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { CreateUnidadeDto } from './dto/create-unidade.dto';
 import { UpdateUnidadeDto } from './dto/update-unidade.dto';
+import { validarPessoaFiscal, normalizarDocumento, TipoPessoa } from '../common/pessoa-fiscal';
 
 @Injectable()
 export class EmpresaService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateEmpresaDto) {
+    const tipoPessoa: TipoPessoa = (dto.tipoPessoa ?? 'PJ') as TipoPessoa;
+    validarPessoaFiscal({
+      tipoPessoa,
+      documento: dto.documento,
+      inscricaoEstadual: dto.inscricaoEstadual,
+    });
     return this.prisma.empresa.create({
       data: {
         tenantId: dto.tenantId,
         nomeEmpresarial: dto.nomeEmpresarial,
         nomeFantasia: dto.nomeFantasia,
-        documento: dto.documento,
+        tipoPessoa,
+        documento: normalizarDocumento(dto.documento),
+        inscricaoEstadual: dto.inscricaoEstadual,
+        inscricaoMunicipal: dto.inscricaoMunicipal,
         endereco: dto.endereco,
         cidade: dto.cidade,
         uf: dto.uf,
@@ -43,10 +53,25 @@ export class EmpresaService {
   }
 
   async update(id: string, dto: UpdateEmpresaDto) {
-    await this.findOne(id);
+    const atual = await this.findOne(id);
+    // Re-valida pessoa fiscal se algum campo relevante mudou.
+    if (
+      dto.tipoPessoa !== undefined ||
+      dto.documento !== undefined ||
+      dto.inscricaoEstadual !== undefined
+    ) {
+      validarPessoaFiscal({
+        tipoPessoa: (dto.tipoPessoa ?? atual.tipoPessoa) as TipoPessoa,
+        documento: dto.documento ?? atual.documento,
+        inscricaoEstadual: dto.inscricaoEstadual ?? atual.inscricaoEstadual,
+      });
+    }
     return this.prisma.empresa.update({
       where: { id },
-      data: { ...dto },
+      data: {
+        ...dto,
+        documento: dto.documento === undefined ? undefined : normalizarDocumento(dto.documento),
+      },
     });
   }
 

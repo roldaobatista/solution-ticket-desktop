@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateEmpresaDto {
@@ -12,10 +12,26 @@ export class UpdateEmpresaDto {
   @IsString()
   nomeFantasia?: string;
 
+  // RD3
+  @ApiPropertyOptional({ enum: ['PJ', 'PF', 'PRODUTOR_RURAL'] })
+  @IsOptional()
+  @IsIn(['PJ', 'PF', 'PRODUTOR_RURAL'])
+  tipoPessoa?: 'PJ' | 'PF' | 'PRODUTOR_RURAL';
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   documento?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  inscricaoEstadual?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  inscricaoMunicipal?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

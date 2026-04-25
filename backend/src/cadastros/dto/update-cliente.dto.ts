@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsBoolean } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsNumber, IsBoolean } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateClienteDto {
@@ -7,10 +7,26 @@ export class UpdateClienteDto {
   @IsString()
   razaoSocial?: string;
 
+  // RD3
+  @ApiPropertyOptional({ enum: ['PJ', 'PF', 'PRODUTOR_RURAL'] })
+  @IsOptional()
+  @IsIn(['PJ', 'PF', 'PRODUTOR_RURAL'])
+  tipoPessoa?: 'PJ' | 'PF' | 'PRODUTOR_RURAL';
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   documento?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  inscricaoEstadual?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  inscricaoMunicipal?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

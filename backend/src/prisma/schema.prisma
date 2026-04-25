@@ -31,22 +31,27 @@ model Tenant {
 }
 
 model Empresa {
-  id              String   @id @default(uuid()) @map("id")
-  tenantId        String   @map("tenant_id")
-  nomeEmpresarial String   @map("nome_empresarial")
-  nomeFantasia    String?  @map("nome_fantasia")
-  documento       String?  @map("documento")
-  endereco        String?  @map("endereco")
-  cidade          String?  @map("cidade")
-  uf              String?  @map("uf")
-  telefone        String?  @map("telefone")
-  email           String?  @map("email")
-  site            String?  @map("site")
-  logoPrincipal   String?  @map("logo_principal")
-  logoRelatorios  String?  @map("logo_relatorios")
-  ativo           Boolean  @default(true) @map("ativo")
-  criadoEm        DateTime @default(now()) @map("criado_em")
-  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  id                 String   @id @default(uuid()) @map("id")
+  tenantId           String   @map("tenant_id")
+  nomeEmpresarial    String   @map("nome_empresarial")
+  nomeFantasia       String?  @map("nome_fantasia")
+  // RD3: PJ usa CNPJ em documento; PF usa CPF; PRODUTOR_RURAL usa IE como
+  // identificador fiscal principal (CPF opcional). Validacao por tipoPessoa.
+  tipoPessoa         String   @default("PJ") @map("tipo_pessoa") // PJ | PF | PRODUTOR_RURAL
+  documento          String?  @map("documento")
+  inscricaoEstadual  String?  @map("inscricao_estadual")
+  inscricaoMunicipal String?  @map("inscricao_municipal")
+  endereco           String?  @map("endereco")
+  cidade             String?  @map("cidade")
+  uf                 String?  @map("uf")
+  telefone           String?  @map("telefone")
+  email              String?  @map("email")
+  site               String?  @map("site")
+  logoPrincipal      String?  @map("logo_principal")
+  logoRelatorios     String?  @map("logo_relatorios")
+  ativo              Boolean  @default(true) @map("ativo")
+  criadoEm           DateTime @default(now()) @map("criado_em")
+  atualizadoEm       DateTime @updatedAt @map("atualizado_em")
 
   tenant             Tenant                           @relation(fields: [tenantId], references: [id])
   unidades           Unidade[]
@@ -155,20 +160,24 @@ model Usuario {
 // ============================================================
 
 model Cliente {
-  id               String   @id @default(uuid()) @map("id")
-  tenantId         String   @map("tenant_id")
-  razaoSocial      String   @map("razao_social")
-  documento        String?  @map("documento")
-  endereco         String?  @map("endereco")
-  cidade           String?  @map("cidade")
-  uf               String?  @map("uf")
-  telefone         String?  @map("telefone")
-  email            String?  @map("email")
-  codigoIntegracao String?  @map("codigo_integracao")
-  saldoFinanceiro  Decimal? @default(0) @map("saldo_financeiro")
-  ativo            Boolean  @default(true) @map("ativo")
-  criadoEm         DateTime @default(now()) @map("criado_em")
-  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
+  id                 String   @id @default(uuid()) @map("id")
+  tenantId           String   @map("tenant_id")
+  razaoSocial        String   @map("razao_social")
+  // RD3: ver Empresa. Produtor rural muito comum em balanca de cooperativa.
+  tipoPessoa         String   @default("PJ") @map("tipo_pessoa") // PJ | PF | PRODUTOR_RURAL
+  documento          String?  @map("documento")
+  inscricaoEstadual  String?  @map("inscricao_estadual")
+  inscricaoMunicipal String?  @map("inscricao_municipal")
+  endereco           String?  @map("endereco")
+  cidade             String?  @map("cidade")
+  uf                 String?  @map("uf")
+  telefone           String?  @map("telefone")
+  email              String?  @map("email")
+  codigoIntegracao   String?  @map("codigo_integracao")
+  saldoFinanceiro    Decimal? @default(0) @map("saldo_financeiro")
+  ativo              Boolean  @default(true) @map("ativo")
+  criadoEm           DateTime @default(now()) @map("criado_em")
+  atualizadoEm       DateTime @updatedAt @map("atualizado_em")
 
   tabelasPrecoCliente TabelaPrecoProdutoCliente[]
   tickets             TicketPesagem[]

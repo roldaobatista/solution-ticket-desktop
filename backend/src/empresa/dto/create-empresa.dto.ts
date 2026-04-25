@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEmpresaDto {
@@ -16,10 +16,26 @@ export class CreateEmpresaDto {
   @IsString()
   nomeFantasia?: string;
 
-  @ApiPropertyOptional()
+  // RD3: tipo de pessoa — orienta validacao de documento/IE.
+  @ApiProperty({ enum: ['PJ', 'PF', 'PRODUTOR_RURAL'], default: 'PJ' })
+  @IsOptional()
+  @IsIn(['PJ', 'PF', 'PRODUTOR_RURAL'])
+  tipoPessoa?: 'PJ' | 'PF' | 'PRODUTOR_RURAL';
+
+  @ApiPropertyOptional({ description: 'CNPJ (PJ) ou CPF (PF/Produtor Rural)' })
   @IsOptional()
   @IsString()
   documento?: string;
+
+  @ApiPropertyOptional({ description: 'Inscricao Estadual (obrigatoria para PRODUTOR_RURAL)' })
+  @IsOptional()
+  @IsString()
+  inscricaoEstadual?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  inscricaoMunicipal?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

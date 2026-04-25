@@ -27,6 +27,9 @@ importers:
 
   backend:
     dependencies:
+      '@brazilian-utils/brazilian-utils':
+        specifier: ^2.3.0
+        version: 2.3.0
       '@nestjs/common':
         specifier: ^10.3.0
         version: 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -236,6 +239,9 @@ importers:
 
   frontend:
     dependencies:
+      '@brazilian-utils/brazilian-utils':
+        specifier: ^2.3.0
+        version: 2.3.0
       '@hookform/resolvers':
         specifier: ^3.3.0
         version: 3.10.0(react-hook-form@7.73.1)
@@ -747,6 +753,11 @@ packages:
 
   /@borewit/text-codec@0.2.2:
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
+
+  /@brazilian-utils/brazilian-utils@2.3.0:
+    resolution: {integrity: sha512-gycd2tRqkWcS5bhSjFDgnvxIXjQuxr32xw5BAkflNpEp12r+FkuK60CDb48U7xJAszNt3sPW6u9hxEcea+CZPQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    dev: false
 
   /@colors/colors@1.5.0:
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
