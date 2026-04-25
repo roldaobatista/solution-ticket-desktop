@@ -48,11 +48,26 @@ async function bootstrap() {
     next();
   });
 
-  // Security headers
+  // Security headers (S1: CSP restritivo — API só serve JSON, sem HTML ativo)
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Electron/Next.js controlam CSP no front
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'none'"],
+          connectSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:'],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Swagger UI precisa inline
+          scriptSrc: ["'self'"],
+          fontSrc: ["'self'", 'data:'],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+          formAction: ["'self'"],
+        },
+      },
       crossOriginResourcePolicy: { policy: 'same-site' },
+      referrerPolicy: { policy: 'no-referrer' },
     }),
   );
 

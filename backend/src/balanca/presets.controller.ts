@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PRESETS_BALANCA, SERIAL_OPTIONS } from './presets';
 import { AutoDetectService } from './auto-detect.service';
@@ -53,6 +54,8 @@ export class BalancaConfigController {
     return { leituras, bytesRestantes: buf.length };
   }
 
+  // S5: network discovery gera tráfego — limita a 1 scan/minuto por usuário
+  @Throttle({ default: { limit: 1, ttl: 60_000 } })
   @Post('discover')
   @ApiOperation({
     summary:
@@ -76,6 +79,8 @@ export class BalancaConfigController {
     return SERIAL_OPTIONS;
   }
 
+  // S5: captura abre porta serial/TCP — protege contra flood de abertura/fechamento
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('capture-raw')
   @ApiOperation({
     summary: 'Abre porta serial/TCP, captura bytes brutos por N ms e fecha',
@@ -84,6 +89,7 @@ export class BalancaConfigController {
     return this.capture.capturar(body);
   }
 
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('capture-and-detect')
   @ApiOperation({
     summary: 'Captura bytes da porta + roda auto-detect (one-shot)',

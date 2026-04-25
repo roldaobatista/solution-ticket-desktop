@@ -26,7 +26,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const res = await apiLogin(email, senha);
-          localStorage.setItem('access_token', res.access_token);
+          sessionStorage.setItem('access_token', res.access_token);
           set({ user: res.usuario, isAuthenticated: true, isLoading: false });
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : 'Erro ao fazer login';
@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        localStorage.removeItem('access_token');
+        sessionStorage.removeItem('access_token');
         set({ user: null, isAuthenticated: false, error: null });
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkAuth: async () => {
-        const token = localStorage.getItem('access_token');
+        const token = sessionStorage.getItem('access_token');
         if (!token) {
           set({ isAuthenticated: false, user: null });
           return;
@@ -52,7 +52,7 @@ export const useAuthStore = create<AuthState>()(
           const user = await getMe();
           set({ user, isAuthenticated: true });
         } catch {
-          localStorage.removeItem('access_token');
+          sessionStorage.removeItem('access_token');
           set({ isAuthenticated: false, user: null });
         }
       },

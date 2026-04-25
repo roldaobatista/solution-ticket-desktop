@@ -18,7 +18,8 @@ export const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token');
+      // S4: token em sessionStorage (renovado por aba/janela) reduz superfície XSS
+      const token = sessionStorage.getItem('access_token');
       if (token) config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -38,7 +39,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token');
+        sessionStorage.removeItem('access_token');
         window.location.href = '/login';
       }
     }
