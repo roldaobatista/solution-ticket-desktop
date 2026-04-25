@@ -105,7 +105,22 @@ export class RelatoriosService {
   // Relatorio de movimento de pesagem
   // ============================================================
 
+  /**
+   * B3: relatorio de movimento.
+   *
+   * Otimizacoes vs versao anterior:
+   * - Totais (peso, descontos, bruto) agora vem de prisma.aggregate em
+   *   1 query SQL (SUM no banco) em vez de carregar todos os tickets e
+   *   somar em memoria. Para 10k tickets, evita ~80k bytes em memoria
+   *   so para os totais.
+   * - Cap de seguranca em 5000 tickets retornados (com flag
+   *   `truncated:true` no payload). Acima disso o consumidor precisa
+   *   filtrar por periodo menor ou exportar via PDF/CSV streaming.
+   * - findMany() ainda carrega 1+N JOINs do include (Prisma 5 batch);
+   *   passagens/descontos cobertas em 2 queries com whereIn do batch.
+   */
   async movimento(dataInicio: string, dataFim: string, unidadeId?: string) {
+    const MAX_TICKETS = 5000;
     const where: any = {
       fechadoEm: {
         gte: new Date(dataInicio),
@@ -115,32 +130,41 @@ export class RelatoriosService {
     };
     if (unidadeId) where.unidadeId = unidadeId;
 
-    const tickets = await this.prisma.ticketPesagem.findMany({
-      where,
-      include: {
-        cliente: { select: { razaoSocial: true } },
-        transportadora: { select: { nome: true } },
-        motorista: { select: { nome: true } },
-        veiculo: { select: { placa: true } },
-        produto: { select: { descricao: true } },
-        destino: { select: { descricao: true } },
-        passagens: { orderBy: { sequencia: 'asc' } },
-        descontos: true,
-      },
-      orderBy: { fechadoEm: 'desc' },
-    });
-
-    const totalPeso = tickets.reduce((sum, t) => sum + Number(t.pesoLiquidoFinal || 0), 0);
-    const totalDescontos = tickets.reduce((sum, t) => sum + Number(t.totalDescontos || 0), 0);
-    const totalBruto = tickets.reduce((sum, t) => sum + Number(t.pesoBrutoApurado || 0), 0);
+    const [tickets, agg, totalCount] = await Promise.all([
+      this.prisma.ticketPesagem.findMany({
+        where,
+        take: MAX_TICKETS,
+        include: {
+          cliente: { select: { razaoSocial: true } },
+          transportadora: { select: { nome: true } },
+          motorista: { select: { nome: true } },
+          veiculo: { select: { placa: true } },
+          produto: { select: { descricao: true } },
+          destino: { select: { descricao: true } },
+          passagens: { orderBy: { sequencia: 'asc' } },
+          descontos: true,
+        },
+        orderBy: { fechadoEm: 'desc' },
+      }),
+      this.prisma.ticketPesagem.aggregate({
+        where,
+        _sum: {
+          pesoLiquidoFinal: true,
+          totalDescontos: true,
+          pesoBrutoApurado: true,
+        },
+      }),
+      this.prisma.ticketPesagem.count({ where }),
+    ]);
 
     return {
       periodo: { dataInicio, dataFim },
-      totalTickets: tickets.length,
-      totalPeso,
-      totalDescontos,
-      totalBruto,
+      totalTickets: totalCount,
+      totalPeso: Number(agg._sum.pesoLiquidoFinal ?? 0),
+      totalDescontos: Number(agg._sum.totalDescontos ?? 0),
+      totalBruto: Number(agg._sum.pesoBrutoApurado ?? 0),
       tickets,
+      truncated: totalCount > MAX_TICKETS,
     };
   }
 

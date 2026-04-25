@@ -16,7 +16,10 @@ module.exports = {
           'warn',
           { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
         ],
-        '@typescript-eslint/no-explicit-any': 'warn',
+        // Q4: elevado para 'error' apos limpeza F5 (39->0). Casos legitimos
+        // devem usar Record<string, unknown> ou tipo explicito; ultima saida
+        // e // eslint-disable-next-line com justificativa.
+        '@typescript-eslint/no-explicit-any': 'error',
       },
     },
   ],

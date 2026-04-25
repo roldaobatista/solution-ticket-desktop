@@ -60,7 +60,15 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
     }),
     {
+      // F10: nome no formato "<dominio>-storage" + version explicita.
+      // Bump em mudancas de shape. migrate descarta versoes desconhecidas
+      // (force re-login) ao inves de deserializar lixo.
       name: 'auth-storage',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        if (version > 1) return undefined;
+        return persisted as { user: Usuario | null; isAuthenticated: boolean };
+      },
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     },
   ),
