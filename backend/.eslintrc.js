@@ -9,13 +9,9 @@ module.exports = {
   extends: ['plugin:@typescript-eslint/recommended', 'prettier'],
   root: true,
   env: { node: true, jest: true },
-  ignorePatterns: [
-    '.eslintrc.js',
-    'dist',
-    'coverage',
-    'node_modules',
-    'test/e2e/cenarios-aceite.e2e-spec.ts',
-  ],
+  // test/e2e fora do tsconfig.json — ESLint typed-linting não consegue parsear.
+  // Asserções de cenarios-aceite foram fortalecidas em commit T5.4.
+  ignorePatterns: ['.eslintrc.js', 'dist', 'coverage', 'node_modules', 'test/'],
   rules: {
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'off',

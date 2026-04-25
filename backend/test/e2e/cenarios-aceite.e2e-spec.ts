@@ -145,9 +145,10 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         veiculoId: await getVeiculoId(),
       });
 
-      expect(ticket.id).toBeDefined();
+      expect(typeof ticket.id).toBe('string');
+      expect(ticket.id.length).toBeGreaterThan(0);
       expect(ticket.statusOperacional).toBe(StatusOperacional.ABERTO);
-      expect(ticket.taraCadastradaSnapshot).toBeDefined();
+      expect(Number(ticket.taraCadastradaSnapshot)).toBeGreaterThan(0);
       expect(ticket.taraReferenciaTipo).toBe(TaraReferenciaTipo.CADASTRADA);
 
       // 2. Registrar passagem BRUTO_OFICIAL
@@ -171,9 +172,9 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       // Evidencias
       // - ticket fechado
       expect(ticketFechado.statusOperacional).toBe(StatusOperacional.FECHADO);
-      expect(ticketFechado.pesoBrutoApurado).toBeDefined();
-      expect(ticketFechado.pesoTaraApurada).toBeDefined();
-      expect(ticketFechado.pesoLiquidoFinal).toBeDefined();
+      expect(Number(ticketFechado.pesoBrutoApurado)).toBeGreaterThan(0);
+      expect(Number(ticketFechado.pesoTaraApurada)).toBeGreaterThan(0);
+      expect(Number(ticketFechado.pesoLiquidoFinal)).toBeGreaterThan(0);
 
       // - snapshot de tara (taraCadastradaSnapshot usada)
       expect(Number(ticketFechado.pesoTaraApurada)).toBe(Number(ticket.taraCadastradaSnapshot));
@@ -188,7 +189,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         where: { entidade: 'ticket_pesagem', entidadeId: ticket.id, evento: 'ticket.fechado' },
         orderBy: { dataHora: 'desc' },
       });
-      expect(auditoria).toBeDefined();
+      expect(auditoria).not.toBeNull();
+      expect(auditoria?.entidadeId).toBe(ticket.id);
       expect(auditoria?.evento).toBe('ticket.fechado');
     });
   });
@@ -312,7 +314,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       const auditoriaControle = await prisma.auditoria.findFirst({
         where: { entidade: 'ticket_pesagem', entidadeId: ticket.id },
       });
-      expect(auditoriaControle).toBeDefined();
+      expect(auditoriaControle).not.toBeNull();
+      expect(auditoriaControle?.entidadeId).toBe(ticket.id);
     });
   });
 
@@ -338,7 +341,9 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         where: { entidade: 'passagem_pesagem', entidadeId: passagem.id },
       });
       // Nota: a auditoria de passagem eh criada pelo interceptor
-      expect(passagem.id).toBeDefined();
+      expect(typeof passagem.id).toBe('string');
+      expect(passagem.id.length).toBeGreaterThan(0);
+      expect(auditoria === null || auditoria.entidadeId === passagem.id).toBe(true);
     });
   });
 
@@ -471,7 +476,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       const licenca = await prisma.licencaInstalacao.findFirst({
         where: { unidadeId },
       });
-      expect(licenca).toBeDefined();
+      expect(licenca).not.toBeNull();
+      expect(licenca?.unidadeId).toBe(unidadeId);
       expect(licenca?.statusLicenca).toBe(StatusLicenca.TRIAL);
 
       // Verificar que a licenca existe e tem limite
@@ -524,7 +530,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       const licenca = await prisma.licencaInstalacao.findFirst({
         where: { unidadeId },
       });
-      expect(licenca).toBeDefined();
+      expect(licenca).not.toBeNull();
+      expect(licenca?.unidadeId).toBe(unidadeId);
 
       // Simular estado BLOQUEADA
       await prisma.licencaInstalacao.update({
@@ -538,7 +545,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(chaveValidacao.status).toBe(200);
-      expect(chaveValidacao.body.chave).toBeDefined();
+      expect(typeof chaveValidacao.body.chave).toBe('string');
+      expect(chaveValidacao.body.chave.length).toBeGreaterThan(0);
 
       // Ativar com chave
       const ativacao = await request(app.getHttpServer())
