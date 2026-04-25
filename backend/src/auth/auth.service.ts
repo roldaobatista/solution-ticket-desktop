@@ -6,6 +6,14 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
 
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+  nome?: string;
+  tenantId?: string | null;
+  perfis?: Array<{ perfil: { nome: string } }>;
+}
+
 function hashResetToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -60,7 +68,7 @@ export class AuthService {
     return result;
   }
 
-  async login(user: any) {
+  async login(user: AuthenticatedUser) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -75,7 +83,7 @@ export class AuthService {
         nome: user.nome,
         email: user.email,
         tenantId: user.tenantId,
-        perfis: user.perfis?.map((up: any) => up.perfil.nome) || [],
+        perfis: user.perfis?.map((up) => up.perfil.nome) ?? [],
       },
     };
   }

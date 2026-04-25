@@ -15,7 +15,7 @@ export class FilaController {
 
   @Post()
   @ApiOperation({ summary: 'Adicionar veículo à fila' })
-  create(@Body() dto: any) {
+  create(@Body() dto: Record<string, unknown>) {
     return this.service.create(dto);
   }
 

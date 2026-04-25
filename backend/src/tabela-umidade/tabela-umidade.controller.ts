@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Prisma } from '@prisma/client';
 import { TabelaUmidadeService } from './tabela-umidade.service';
 
 @ApiTags('Tabela de Umidade')
@@ -15,13 +16,13 @@ export class TabelaUmidadeController {
 
   @Post()
   @ApiOperation({ summary: 'Criar faixa de umidade' })
-  create(@Body() dto: any) {
+  create(@Body() dto: Prisma.TabelaUmidadeUncheckedCreateInput) {
     return this.service.create(dto);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Atualizar faixa' })
-  update(@Param('id') id: string, @Body() dto: any) {
+  update(@Param('id') id: string, @Body() dto: Prisma.TabelaUmidadeUncheckedUpdateInput) {
     return this.service.update(id, dto);
   }
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -12,11 +13,11 @@ export class TabelaUmidadeService {
     });
   }
 
-  async create(dto: any) {
+  async create(dto: Prisma.TabelaUmidadeUncheckedCreateInput) {
     return this.prisma.tabelaUmidade.create({ data: dto });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: Prisma.TabelaUmidadeUncheckedUpdateInput) {
     return this.prisma.tabelaUmidade.update({ where: { id }, data: dto });
   }
 

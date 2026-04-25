@@ -12,7 +12,7 @@ export class FilaService {
     return [];
   }
 
-  async create(dto: any) {
+  async create(dto: Record<string, unknown>) {
     return { id: null, ...dto, ordemChegada: 1, status: 'AGUARDANDO' };
   }
 

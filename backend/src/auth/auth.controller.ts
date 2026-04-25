@@ -17,9 +17,12 @@ import { Public } from '../common/decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 
 interface AuthUser {
-  id?: string;
+  id: string;
   sub?: string;
-  email?: string;
+  email: string;
+  nome?: string;
+  tenantId?: string | null;
+  perfis?: Array<{ perfil: { nome: string } }>;
   perfil?: string;
 }
 type AuthRequest = ExpressRequest & { user: AuthUser };
