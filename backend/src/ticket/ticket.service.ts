@@ -17,87 +17,45 @@ import {
   ModoComercial,
 } from '../constants/enums';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
-import {
-  TicketCriadoEvent,
-  TicketFechadoEvent,
-  StatusComercialAlteradoEvent,
-} from './events/ticket.events';
 import { TicketFilterDto } from './dto/ticket-filter.dto';
 import { RegistrarPassagemDto } from './dto/registrar-passagem.dto';
 import { FecharTicketDto } from './dto/fechar-ticket.dto';
 import { CancelarTicketDto } from './dto/cancelar-ticket.dto';
-
-// ============================================================
-// STATE MACHINE - Transicoes permitidas por estado atual
-// ============================================================
-const TRANSICOES_PERMITIDAS: Record<string, string[]> = {
-  [StatusOperacional.RASCUNHO]: [StatusOperacional.ABERTO, StatusOperacional.CANCELADO],
-  [StatusOperacional.ABERTO]: [StatusOperacional.EM_PESAGEM, StatusOperacional.CANCELADO],
-  [StatusOperacional.EM_PESAGEM]: [
-    StatusOperacional.AGUARDANDO_PASSAGEM,
-    StatusOperacional.FECHADO,
-    StatusOperacional.CANCELADO,
-  ],
-  [StatusOperacional.AGUARDANDO_PASSAGEM]: [
-    StatusOperacional.EM_PESAGEM,
-    StatusOperacional.FECHADO,
-    StatusOperacional.CANCELADO,
-  ],
-  [StatusOperacional.FECHADO]: [StatusOperacional.EM_MANUTENCAO, StatusOperacional.CANCELADO],
-  [StatusOperacional.EM_MANUTENCAO]: [StatusOperacional.FECHADO],
-  [StatusOperacional.CANCELADO]: [], // Terminal
-};
+import { TicketStateMachine } from './ticket-state-machine';
+import { TicketCalculator } from './ticket-calculator';
+import { TicketLicenseGuard } from './ticket-license-guard';
+import { TicketEventPublisher } from './ticket-event-publisher';
 
 @Injectable()
 export class TicketService {
+  private readonly licenseGuard: TicketLicenseGuard;
+  private readonly eventPublisher: TicketEventPublisher;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) {
+    this.licenseGuard = new TicketLicenseGuard(prisma);
+    this.eventPublisher = new TicketEventPublisher(eventEmitter);
+  }
 
   // ============================================================
   // CRUD Básico
   // ============================================================
 
   async create(dto: CreateTicketDto) {
-    // Verificar licenciamento da unidade antes de criar ticket
-    const licenca = await this.prisma.licencaInstalacao.findFirst({
-      where: { unidadeId: dto.unidadeId },
-    });
+    await this.licenseGuard.verificarLicenca(dto.unidadeId);
 
-    if (licenca) {
-      const statusBloqueantes = ['EXPIRADA', 'BLOQUEADA', 'INVALIDA'];
-      if (statusBloqueantes.includes(licenca.statusLicenca)) {
-        throw new ForbiddenException(
-          `Operação bloqueada: licença da unidade está ${licenca.statusLicenca}. Entre em contato com o suporte.`,
-        );
-      }
-
-      if (
-        licenca.statusLicenca === 'TRIAL' &&
-        licenca.pesagensRestantesTrial !== null &&
-        licenca.pesagensRestantesTrial <= 0
-      ) {
-        throw new ForbiddenException(
-          'Periodo de trial expirado (limite de pesagens atingido). Ative sua licença para continuar.',
-        );
-      }
-    }
-
-    // Se veiculo informado, captura tara cadastrada
     let taraSnapshot: number | undefined;
     let taraTipo = dto.taraReferenciaTipo;
     if (dto.veiculoId) {
-      const veiculo = await this.prisma.veiculo.findUnique({
-        where: { id: dto.veiculoId },
-      });
+      const veiculo = await this.prisma.veiculo.findUnique({ where: { id: dto.veiculoId } });
       if (veiculo?.taraCadastrada) {
         taraSnapshot = Number(veiculo.taraCadastrada);
         if (!taraTipo) taraTipo = 'CADASTRADA';
       }
     }
 
-    // Determina total de passagens previstas pelo fluxo
     const passagensPrevistas =
       dto.fluxoPesagem === FluxoPesagem.PF1_TARA_REFERENCIADA
         ? 1
@@ -105,9 +63,6 @@ export class TicketService {
           ? 3
           : 2;
 
-    // B9: PF1 (TARA REFERENCIADA) exige tara conhecida no momento de criar.
-    // Sem isto, ticket abriria com tara=0 e o calculo do peso liquido na
-    // primeira passagem ficaria incorreto silenciosamente.
     if (dto.fluxoPesagem === FluxoPesagem.PF1_TARA_REFERENCIADA) {
       const taraValida = (taraSnapshot && taraSnapshot > 0) || taraTipo === 'MANUAL';
       if (!taraValida) {
@@ -118,17 +73,12 @@ export class TicketService {
       }
     }
 
-    // A3.2: count + create em transação única — em SQLite, write lock
-    // garante que dois creates concorrentes não reusem o mesmo numero.
     const ticket = await this.prisma.$transaction(async (tx) => {
       const year = new Date().getFullYear();
       const count = await tx.ticketPesagem.count({
         where: {
           unidadeId: dto.unidadeId,
-          criadoEm: {
-            gte: new Date(year, 0, 1),
-            lte: new Date(year, 11, 31, 23, 59, 59),
-          },
+          criadoEm: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31, 23, 59, 59) },
         },
       });
       const numero = `TK-${year}-${String(count + 1).padStart(4, '0')}`;
@@ -180,7 +130,6 @@ export class TicketService {
 
   async findAll(filter: TicketFilterDto) {
     const where: Prisma.TicketPesagemWhereInput = {};
-
     if (filter.unidadeId) where.unidadeId = filter.unidadeId;
     if (filter.tenantId) where.tenantId = filter.tenantId;
     if (filter.clienteId) where.clienteId = filter.clienteId;
@@ -242,15 +191,12 @@ export class TicketService {
         snapshotsComercial: { orderBy: { versaoSnapshot: 'desc' } },
       },
     });
-
     if (!ticket) throw new NotFoundException('Ticket nao encontrado');
     return ticket;
   }
 
   async update(id: string, dto: UpdateTicketDto) {
     const ticket = await this.findOne(id);
-
-    // Nao permite editar ticket FECHADO ou CANCELADO diretamente
     if (
       ticket.statusOperacional === StatusOperacional.FECHADO ||
       ticket.statusOperacional === StatusOperacional.CANCELADO
@@ -258,7 +204,7 @@ export class TicketService {
       throw new ForbiddenException('Ticket fechado ou cancelado nao pode ser editado diretamente');
     }
 
-    return this.prisma.ticketPesagem.update({
+    const updated = await this.prisma.ticketPesagem.update({
       where: { id },
       data: { ...dto },
       include: {
@@ -271,13 +217,12 @@ export class TicketService {
         armazem: true,
       },
     });
-    this.eventEmitter.emit('ticket.criado', new TicketCriadoEvent(ticket.id, ticket.tenantId));
-    this.eventEmitter.emit('ticket.criado', new TicketCriadoEvent(ticket.id, ticket.tenantId));
-    return ticket;
+    this.eventPublisher.emitTicketAtualizado(updated.id, updated.tenantId);
+    return updated;
   }
 
   // ============================================================
-  // STATE MACHINE - Transicao de estados
+  // STATE MACHINE
   // ============================================================
 
   async transicionarEstado(
@@ -287,28 +232,12 @@ export class TicketService {
     motivo?: string,
   ) {
     const ticket = await this.findOne(ticketId);
-    const estadoAtual = ticket.statusOperacional;
+    TicketStateMachine.validarTransicao(ticket.statusOperacional, novoEstado);
 
-    // Verifica se a transicao e permitida
-    const permitidas = TRANSICOES_PERMITIDAS[estadoAtual] || [];
-    if (!permitidas.includes(novoEstado)) {
-      throw new BadRequestException(`Transicao de ${estadoAtual} para ${novoEstado} nao permitida`);
-    }
-
-    const updateData: Prisma.TicketPesagemUpdateInput = { statusOperacional: novoEstado };
-
-    // Side effects por transicao
-    if (novoEstado === StatusOperacional.FECHADO) {
-      updateData.fechadoEm = new Date();
-    }
-    if (novoEstado === StatusOperacional.CANCELADO) {
-      updateData.canceladoEm = new Date();
-      updateData.motivoCancelamento = motivo || 'Cancelado pelo operador';
-    }
-
+    const sideEffects = TicketStateMachine.getSideEffects(novoEstado);
     const updated = await this.prisma.ticketPesagem.update({
       where: { id: ticketId },
-      data: updateData,
+      data: { statusOperacional: novoEstado, ...sideEffects },
       include: {
         cliente: true,
         transportadora: true,
@@ -319,14 +248,12 @@ export class TicketService {
       },
     });
 
-    // Registra auditoria da transicao
-    const evento = new StatusComercialAlteradoEvent(
+    this.eventPublisher.emitStatusComercialAlterado(
       ticketId,
       ticket.tenantId,
       ticket.statusComercial,
       ticket.statusComercial,
     );
-    this.eventEmitter.emit('ticket.status_comercial_alterado', evento);
 
     await this.prisma.auditoria.create({
       data: {
@@ -334,7 +261,7 @@ export class TicketService {
         entidade: 'ticket_pesagem',
         entidadeId: ticketId,
         evento: 'ticket.transicao_estado',
-        estadoAnterior: JSON.stringify({ statusOperacional: estadoAtual }),
+        estadoAnterior: JSON.stringify({ statusOperacional: ticket.statusOperacional }),
         estadoNovo: JSON.stringify({ statusOperacional: novoEstado }),
         usuarioId: usuarioId || null,
         motivo: motivo || null,
@@ -345,25 +272,17 @@ export class TicketService {
   }
 
   // ============================================================
-  // REGISTRO DE PASSAGEM
+  // PASSAGEM
   // ============================================================
 
   async registrarPassagem(ticketId: string, dto: RegistrarPassagemDto) {
     const ticket = await this.findOne(ticketId);
 
-    // Guardas: ticket deve estar em estado que permite passagem
-    const estadosPermitidos: string[] = [
-      StatusOperacional.ABERTO,
-      StatusOperacional.EM_PESAGEM,
-      StatusOperacional.AGUARDANDO_PASSAGEM,
-    ];
-    if (!estadosPermitidos.includes(ticket.statusOperacional)) {
+    if (!TicketStateMachine.podeRegistrarPassagem(ticket.statusOperacional)) {
       throw new BadRequestException(
         `Nao e permitido registrar passagem no estado ${ticket.statusOperacional}`,
       );
     }
-
-    // CANCELADO nao pode receber passagens
     if (ticket.statusOperacional === StatusOperacional.CANCELADO) {
       throw new ForbiddenException('Ticket cancelado nao pode receber passagens');
     }
@@ -374,18 +293,11 @@ export class TicketService {
       totalPassagensRealizadas: totalPassagens,
       ultimaPassagemEm: new Date(),
     };
-
-    if (!ticket.primeiraPassagemEm) {
-      updateData.primeiraPassagemEm = new Date();
-    }
+    if (!ticket.primeiraPassagemEm) updateData.primeiraPassagemEm = new Date();
     if (ticket.statusOperacional === StatusOperacional.ABERTO) {
       updateData.statusOperacional = StatusOperacional.EM_PESAGEM;
     }
 
-    // B4: cria a passagem e atualiza contadores+estado do ticket atomicamente.
-    // Sem isto, falha no update do ticket deixava passagem orfa contabilizada
-    // sem refletir nos contadores (causa de "ticket parece em ABERTO mas tem
-    // passagem registrada").
     const [passagem] = await this.prisma.$transaction([
       this.prisma.passagemPesagem.create({
         data: {
@@ -407,34 +319,25 @@ export class TicketService {
           observacao: dto.observacao || null,
         },
       }),
-      this.prisma.ticketPesagem.update({
-        where: { id: ticketId },
-        data: updateData,
-      }),
+      this.prisma.ticketPesagem.update({ where: { id: ticketId }, data: updateData }),
     ]);
 
     return passagem;
   }
 
   // ============================================================
-  // FECHAMENTO DO TICKET - Algoritmo oficial de calculo
+  // FECHAMENTO
   // ============================================================
 
   async fecharTicket(ticketId: string, dto: FecharTicketDto) {
     const ticket = await this.findOne(ticketId);
 
-    // Guardas: so pode fechar de EM_PESAGEM ou AGUARDANDO_PASSAGEM
-    const estadosFechaveis: string[] = [
-      StatusOperacional.EM_PESAGEM,
-      StatusOperacional.AGUARDANDO_PASSAGEM,
-    ];
-    if (!estadosFechaveis.includes(ticket.statusOperacional)) {
+    if (!TicketStateMachine.podeFechar(ticket.statusOperacional)) {
       throw new BadRequestException(
         `Ticket nao pode ser fechado no estado ${ticket.statusOperacional}`,
       );
     }
 
-    // 1. Carrega apenas passagens VALIDAS
     const passagens = await this.prisma.passagemPesagem.findMany({
       where: { ticketId, statusPassagem: StatusPassagem.VALIDA },
     });
@@ -443,74 +346,32 @@ export class TicketService {
       throw new BadRequestException('Ticket nao possui passagens validas para fechamento');
     }
 
-    // 2. Localiza passagem BRUTO_OFICIAL
-    const passagemBruto = passagens.find((p) => p.papelCalculo === PapelCalculo.BRUTO_OFICIAL);
-    if (!passagemBruto) {
-      throw new BadRequestException('Nao existe passagem BRUTO_OFICIAL valida');
-    }
+    const calculo = TicketCalculator.calcularFechamento({
+      passagensValidas: passagens.map((p) => ({
+        papelCalculo: p.papelCalculo,
+        pesoCapturado: p.pesoCapturado,
+      })),
+      taraCadastradaSnapshot: ticket.taraCadastradaSnapshot,
+      descontos: await this.prisma.descontoPesagem
+        .findMany({ where: { ticketId } })
+        .then((ds) => ds.map((d) => ({ valor: d.valor }))),
+    });
 
-    // 3. Localiza passagem TARA_OFICIAL
-    const passagemTara = passagens.find((p) => p.papelCalculo === PapelCalculo.TARA_OFICIAL);
-
-    // 4. Se nao existir TARA_OFICIAL, usar tara_cadastrada_snapshot
-    let pesoTaraApurada: number;
-    if (!passagemTara) {
-      if (!ticket.taraCadastradaSnapshot) {
-        throw new BadRequestException(
-          'Nao existe passagem TARA_OFICIAL nem tara cadastrada de referencia',
-        );
-      }
-      pesoTaraApurada = Number(ticket.taraCadastradaSnapshot);
-    } else {
-      pesoTaraApurada = Number(passagemTara.pesoCapturado);
-    }
-
-    const pesoBrutoApurado = Number(passagemBruto.pesoCapturado);
-
-    // Valida: bruto deve ser maior que tara
-    if (pesoBrutoApurado < pesoTaraApurada) {
-      throw new BadRequestException(
-        `Peso bruto (${pesoBrutoApurado}) nao pode ser menor que a tara (${pesoTaraApurada})`,
-      );
-    }
-
-    // 5-6. Calculos
-    const pesoLiquidoBruto = pesoBrutoApurado - pesoTaraApurada;
-    const pesoLiquidoSemDesconto = pesoLiquidoBruto;
-
-    // 7. Aplica descontos
-    const descontos = await this.prisma.descontoPesagem.findMany({ where: { ticketId } });
-    const totalDescontos = descontos.reduce((sum, d) => sum + Number(d.valor), 0);
-
-    // 8. Peso liquido final
-    const pesoLiquidoFinal = pesoLiquidoSemDesconto - totalDescontos;
-
-    if (pesoLiquidoFinal < 0) {
-      throw new BadRequestException('Peso liquido final nao pode ser negativo');
-    }
-
-    // Atualiza ticket com os calculos
     await this.prisma.ticketPesagem.update({
       where: { id: ticketId },
       data: {
         statusOperacional: StatusOperacional.FECHADO,
-        pesoBrutoApurado,
-        pesoTaraApurada,
-        pesoLiquidoSemDesconto,
-        totalDescontos,
-        pesoLiquidoFinal,
+        ...calculo,
         fechadoEm: new Date(),
         observacao: dto.observacao || ticket.observacao,
       },
     });
 
-    // Cria snapshot comercial se necessario
     if (ticket.modoComercial !== ModoComercial.DESABILITADO) {
       await this.criarSnapshotComercial(ticketId);
     }
 
-    // Auditoria de fechamento
-    this.eventEmitter.emit('ticket.fechado', new TicketFechadoEvent(ticketId, ticket.tenantId));
+    this.eventPublisher.emitTicketFechado(ticketId, ticket.tenantId);
 
     await this.prisma.auditoria.create({
       data: {
@@ -526,20 +387,12 @@ export class TicketService {
             peso: p.pesoCapturado,
           })),
         }),
-        estadoNovo: JSON.stringify({
-          statusOperacional: StatusOperacional.FECHADO,
-          pesoBrutoApurado,
-          pesoTaraApurada,
-          pesoLiquidoFinal,
-          totalDescontos,
-        }),
+        estadoNovo: JSON.stringify({ statusOperacional: StatusOperacional.FECHADO, ...calculo }),
         usuarioId: dto.usuarioId || null,
       },
     });
 
-    // Decrementar contador de pesagens do trial (se aplicável)
-    await this.decrementarPesagemTrial(ticket.unidadeId);
-
+    await this.licenseGuard.decrementarPesagemTrial(ticket.unidadeId);
     return this.findOne(ticketId);
   }
 
@@ -550,39 +403,31 @@ export class TicketService {
   async cancelarTicket(ticketId: string, dto: CancelarTicketDto) {
     const ticket = await this.findOne(ticketId);
 
-    // CANCELADO eh terminal
     if (ticket.statusOperacional === StatusOperacional.CANCELADO) {
       throw new BadRequestException('Ticket ja esta cancelado');
     }
-
-    // FECHADO precisa de solicitacao de excecao aprovada
     if (ticket.statusOperacional === StatusOperacional.FECHADO) {
       throw new ForbiddenException(
         'Cancelamento de ticket fechado exige solicitacao de excecao aprovada',
       );
     }
-
-    // EM_MANUTENCAO so pode ser cancelado pela propria manutencao
     if (ticket.statusOperacional === StatusOperacional.EM_MANUTENCAO) {
       throw new ForbiddenException(
         'Ticket em manutencao so pode ser cancelado pela propria manutencao',
       );
     }
 
-    // Invalida logicamente as passagens pendentes
     await this.prisma.passagemPesagem.updateMany({
       where: { ticketId, statusPassagem: StatusPassagem.PENDENTE },
       data: { statusPassagem: StatusPassagem.INVALIDADA },
     });
 
-    const updated = await this.transicionarEstado(
+    return this.transicionarEstado(
       ticketId,
       StatusOperacional.CANCELADO,
       dto.usuarioId,
       dto.motivo,
     );
-
-    return updated;
   }
 
   // ============================================================
@@ -591,12 +436,9 @@ export class TicketService {
 
   async solicitarManutencao(ticketId: string, motivo: string, usuarioId: string) {
     const ticket = await this.findOne(ticketId);
-
     if (ticket.statusOperacional !== StatusOperacional.FECHADO) {
       throw new BadRequestException('Manutencao so pode ser solicitada para ticket FECHADO');
     }
-
-    // Verifica vinculo comercial
     if (
       ticket.statusComercial === StatusComercial.FATURADO ||
       ticket.statusComercial === StatusComercial.PARCIALMENTE_BAIXADO ||
@@ -606,17 +448,14 @@ export class TicketService {
         'Ticket com vinculo comercial avancado nao pode sofrer manutencao sem compensacao',
       );
     }
-
     return this.transicionarEstado(ticketId, StatusOperacional.EM_MANUTENCAO, usuarioId, motivo);
   }
 
   async concluirManutencao(ticketId: string, usuarioId: string) {
     const ticket = await this.findOne(ticketId);
-
     if (ticket.statusOperacional !== StatusOperacional.EM_MANUTENCAO) {
       throw new BadRequestException('Ticket nao esta em manutencao');
     }
-
     return this.transicionarEstado(
       ticketId,
       StatusOperacional.FECHADO,
@@ -637,7 +476,6 @@ export class TicketService {
     let valorTotal: number | null = null;
 
     if (ticket.pesoLiquidoFinal && ticket.modoComercial !== ModoComercial.DESABILITADO) {
-      // Busca preco por produto + cliente
       const precoCliente = await this.prisma.tabelaPrecoProdutoCliente.findFirst({
         where: {
           produtoId: ticket.produtoId,
@@ -652,7 +490,6 @@ export class TicketService {
       if (precoCliente) {
         valorUnitario = Number(precoCliente.valor);
       } else {
-        // Fallback: preco por produto
         const precoProduto = await this.prisma.tabelaPrecoProduto.findFirst({
           where: {
             produtoId: ticket.produtoId,
@@ -662,9 +499,7 @@ export class TicketService {
           },
           orderBy: { prioridadeResolucao: 'desc' },
         });
-        if (precoProduto) {
-          valorUnitario = Number(precoProduto.valor);
-        }
+        if (precoProduto) valorUnitario = Number(precoProduto.valor);
       }
 
       if (valorUnitario && ticket.pesoLiquidoFinal) {
@@ -689,46 +524,23 @@ export class TicketService {
     if (valorUnitario) {
       await this.prisma.ticketPesagem.update({
         where: { id: ticketId },
-        data: {
-          snapshotComercialVersao: versao,
-          valorUnitario,
-          valorTotal,
-        },
+        data: { snapshotComercialVersao: versao, valorUnitario, valorTotal },
       });
     }
   }
 
   // ============================================================
-  // HELPERS
+  // REIMPRESSAO / HISTORICO / ESTATISTICAS
   // ============================================================
-
-  private async decrementarPesagemTrial(unidadeId: string) {
-    const licenca = await this.prisma.licencaInstalacao.findFirst({
-      where: { unidadeId },
-    });
-    if (!licenca) return;
-    if (licenca.statusLicenca !== 'TRIAL') return;
-    if (licenca.pesagensRestantesTrial === null || licenca.pesagensRestantesTrial === undefined)
-      return;
-    if (licenca.pesagensRestantesTrial <= 0) return;
-    await this.prisma.licencaInstalacao.update({
-      where: { id: licenca.id },
-      data: { pesagensRestantesTrial: licenca.pesagensRestantesTrial - 1 },
-    });
-  }
 
   async reimprimir(ticketId: string, usuarioId?: string) {
     const ticket = await this.findOne(ticketId);
-
-    // Apenas tickets FECHADOS podem ser reimpressos
     if (ticket.statusOperacional !== StatusOperacional.FECHADO) {
       throw new BadRequestException('Apenas tickets fechados podem ser reimpressos');
     }
-
-    // Auditoria de reimpressao
     await this.prisma.auditoria.create({
       data: {
-        tenantId: ticket.tenantId, // RD5
+        tenantId: ticket.tenantId,
         entidade: 'ticket_pesagem',
         entidadeId: ticketId,
         evento: 'ticket.reimprimir',
@@ -737,13 +549,7 @@ export class TicketService {
         usuarioId: usuarioId || null,
       },
     });
-
-    return {
-      sucesso: true,
-      ticketId,
-      numero: ticket.numero,
-      mensagem: 'Reimpressao registrada',
-    };
+    return { sucesso: true, ticketId, numero: ticket.numero, mensagem: 'Reimpressao registrada' };
   }
 
   async getHistorico(ticketId: string) {
@@ -757,7 +563,6 @@ export class TicketService {
   async getEstatisticas(unidadeId: string) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-
     const [totalHoje, abertos, emPesagem, aguardando, fechadosHoje, canceladosHoje] =
       await Promise.all([
         this.prisma.ticketPesagem.count({ where: { unidadeId, criadoEm: { gte: hoje } } }),
@@ -785,7 +590,6 @@ export class TicketService {
           },
         }),
       ]);
-
     return { totalHoje, abertos, emPesagem, aguardando, fechadosHoje, canceladosHoje };
   }
 }
