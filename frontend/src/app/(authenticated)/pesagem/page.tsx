@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useTicketStore } from '@/stores/ticket.store';
@@ -247,18 +247,30 @@ export default function PesagemPage() {
     setPassages([]);
   };
 
+  const simulateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const simulateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (simulateIntervalRef.current) clearInterval(simulateIntervalRef.current);
+      if (simulateTimeoutRef.current) clearTimeout(simulateTimeoutRef.current);
+    };
+  }, []);
+
   const simulateWeightReading = () => {
+    if (simulateIntervalRef.current) clearInterval(simulateIntervalRef.current);
     setIsSimulating(true);
     let current = 0;
     const target = Math.floor(Math.random() * (55000 - 12000) + 12000);
 
-    const interval = setInterval(() => {
+    simulateIntervalRef.current = setInterval(() => {
       current += Math.floor((target - current) * 0.15) + Math.floor(Math.random() * 200 - 100);
       if (Math.abs(target - current) < 100) current = target;
       setSimulatedWeight(current);
       if (current === target) {
-        clearInterval(interval);
-        setTimeout(() => setIsSimulating(false), 500);
+        if (simulateIntervalRef.current) clearInterval(simulateIntervalRef.current);
+        simulateIntervalRef.current = null;
+        simulateTimeoutRef.current = setTimeout(() => setIsSimulating(false), 500);
       }
     }, 50);
   };
