@@ -42,18 +42,6 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
-  @Public()
-  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
-  @Post('login-direct')
-  @ApiOperation({ summary: 'Login direto (sem LocalAuthGuard)' })
-  async loginDirect(@Body() dto: LoginDto) {
-    const user = await this.authService.validateUser(dto.email, dto.senha);
-    if (!user) {
-      throw new UnauthorizedException('Credenciais inválidas');
-    }
-    return this.authService.login(user);
-  }
-
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiBearerAuth()

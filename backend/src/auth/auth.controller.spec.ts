@@ -42,33 +42,6 @@ describe('AuthController', () => {
     });
   });
 
-  describe('loginDirect', () => {
-    it('deve fazer login direto com credenciais válidas', async () => {
-      const dto = { email: 'a@b.com', senha: '123' };
-      const user = { id: 'u1', email: 'a@b.com' };
-      const token = {
-        accessToken: 'tok',
-        usuario: { id: 'u1', email: 'a@b.com', tenantId: null, perfis: [] },
-      };
-      authService.validateUser.mockResolvedValue(user as any);
-      authService.login.mockResolvedValue(token as any);
-
-      const result = await controller.loginDirect(dto);
-
-      expect(authService.validateUser).toHaveBeenCalledWith(dto.email, dto.senha);
-      expect(authService.login).toHaveBeenCalledWith(user);
-      expect(result).toEqual(token);
-    });
-
-    it('deve lançar UnauthorizedException se credenciais inválidas', async () => {
-      authService.validateUser.mockResolvedValue(null as any);
-
-      await expect(controller.loginDirect({ email: 'x', senha: 'y' })).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-  });
-
   describe('me', () => {
     it('deve retornar usuário do request', async () => {
       const user = { id: 'u1', email: 'a@b.com' };
