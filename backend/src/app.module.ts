@@ -39,10 +39,14 @@ import { AppController } from './app.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([
-      { name: 'short', ttl: 60_000, limit: 60 },
-      { name: 'auth', ttl: 60_000, limit: 5 },
-    ]),
+    ...(process.env.NODE_ENV !== 'test'
+      ? [
+          ThrottlerModule.forRoot([
+            { name: 'short', ttl: 60_000, limit: 60 },
+            { name: 'auth', ttl: 60_000, limit: 5 },
+          ]),
+        ]
+      : []),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     PrismaModule,
@@ -77,7 +81,7 @@ import { AppController } from './app.controller';
   ],
   controllers: [AppController],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    ...(process.env.NODE_ENV !== 'test' ? [{ provide: APP_GUARD, useClass: ThrottlerGuard }] : []),
     { provide: APP_GUARD, useClass: TenantGuard },
   ],
 })

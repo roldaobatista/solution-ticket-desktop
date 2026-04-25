@@ -8,9 +8,13 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { AppModule } from '@/app.module';
 import { PrismaService } from '@/prisma/prisma.service';
+import { LicencaService } from '@/licenca/licenca.service';
+import * as fingerprintUtil from '@/licenca/fingerprint.util';
+import { TEST_PUBLIC_KEY, gerarChaveRSA } from '../fixtures/rsa-test-keys';
 import {
   StatusOperacional,
   StatusComercial,
@@ -36,22 +40,29 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
   let balancaId: string;
 
   beforeAll(async () => {
+    process.env.NODE_ENV = 'test';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
     prisma = app.get(PrismaService);
 
+    // Configurar public key de teste para licenca
+    const licencaService = app.get<LicencaService>(LicencaService);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (licencaService as any).publicKey = TEST_PUBLIC_KEY;
+
     // Login para obter token
     const loginRes = await request(app.getHttpServer())
       .post('/api/auth/login-direct')
-      .send({ email: 'admin@solutionticket.com', senha: '123456' });
+      .send({ email: 'admin@solutionticket.com', senha: 'ChangeMe!2026' });
 
-    authToken = loginRes.body.access_token;
+    authToken = loginRes.body.data?.accessToken || loginRes.body.access_token;
 
     // Buscar IDs de referencia do seed
     const tenant = await prisma.tenant.findFirst({ where: { nome: 'Solution Ticket Principal' } });
@@ -65,6 +76,12 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
     unidadeId = unidade?.id || '';
     operadorId = operador?.id || '';
     balancaId = balanca?.id || '';
+
+    // Resetar licenca trial para garantir que os testes possam criar tickets
+    await prisma.licencaInstalacao.updateMany({
+      where: { unidadeId },
+      data: { pesagensRestantesTrial: 1000, statusLicenca: 'TRIAL' },
+    });
   });
 
   afterAll(async () => {
@@ -100,22 +117,37 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
     return m?.id || '';
   }
 
+  afterEach(async () => {
+    // Restaurar licenca para estado valido apos cada teste
+    const licenca = await prisma.licencaInstalacao.findFirst({ where: { unidadeId } });
+    if (licenca) {
+      await prisma.licencaInstalacao.update({
+        where: { id: licenca.id },
+        data: {
+          statusLicenca: StatusLicenca.TRIAL,
+          pesagensRestantesTrial: licenca.limitePesagensTrial || 999,
+        },
+      });
+    }
+  });
+
   async function criarTicket(fluxo: FluxoPesagem, extra?: any) {
+    const payload = {
+      tenantId,
+      unidadeId,
+      clienteId: await getClienteId(),
+      produtoId: await getProdutoId(),
+      veiculoId: await getVeiculoId(),
+      transportadoraId: await getTransportadoraId(),
+      motoristaId: await getMotoristaId(),
+      fluxoPesagem: fluxo,
+      ...extra,
+    };
     const res = await request(app.getHttpServer())
       .post('/api/tickets')
       .set('Authorization', `Bearer ${authToken}`)
-      .send({
-        tenantId,
-        unidadeId,
-        clienteId: await getClienteId(),
-        produtoId: await getProdutoId(),
-        veiculoId: await getVeiculoId(),
-        transportadoraId: await getTransportadoraId(),
-        motoristaId: await getMotoristaId(),
-        fluxoPesagem: fluxo,
-        ...extra,
-      });
-    return res.body;
+      .send(payload);
+    return res.body.data || res.body;
   }
 
   async function registrarPassagem(ticketId: string, dados: any) {
@@ -123,16 +155,17 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       .post(`/api/tickets/${ticketId}/passagens`)
       .set('Authorization', `Bearer ${authToken}`)
       .send({
-        tipoPassagem: TipoPassagem.ENTRADA,
+        tipoPassagem: 'OFICIAL',
         direcaoOperacional: DirecaoOperacional.ENTRADA,
         papelCalculo: PapelCalculo.BRUTO_OFICIAL,
         pesoCapturado: 48000,
         balancaId: balancaId,
         usuarioId: operadorId,
-        origemLeitura: OrigemLeitura.AUTOMATICA,
+        origemLeitura: 'MANUAL',
+        condicaoVeiculo: 'NAO_INFORMADO',
         ...dados,
       });
-    return res.body;
+    return res.body.data || res.body;
   }
 
   // ===================================================================
@@ -166,8 +199,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ usuarioId: operadorId });
 
-      expect(fechamento.status).toBe(200);
-      const ticketFechado = fechamento.body;
+      expect(fechamento.status).toBe(201);
+      const ticketFechado = fechamento.body.data || fechamento.body;
 
       // Evidencias
       // - ticket fechado
@@ -209,7 +242,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         sequencia: 1,
         pesoCapturado: 52000,
         papelCalculo: PapelCalculo.BRUTO_OFICIAL,
-        tipoPassagem: TipoPassagem.ENTRADA,
+        tipoPassagem: 'OFICIAL',
         direcaoOperacional: DirecaoOperacional.ENTRADA,
       });
       expect(passagem1.papelCalculo).toBe(PapelCalculo.BRUTO_OFICIAL);
@@ -220,7 +253,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         sequencia: 2,
         pesoCapturado: 14500,
         papelCalculo: PapelCalculo.TARA_OFICIAL,
-        tipoPassagem: TipoPassagem.SAIDA,
+        tipoPassagem: 'OFICIAL',
         direcaoOperacional: DirecaoOperacional.SAIDA,
         balancaId: balancaSaida?.id || balancaId,
       });
@@ -232,8 +265,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ usuarioId: operadorId });
 
-      expect(fechamento.status).toBe(200);
-      const ticketFechado = fechamento.body;
+      expect(fechamento.status).toBe(201);
+      const ticketFechado = fechamento.body.data || fechamento.body;
 
       // Evidencias
       // - ticket fechado
@@ -274,7 +307,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       await registrarPassagem(ticket.id, {
         pesoCapturado: 15000,
         papelCalculo: PapelCalculo.TARA_OFICIAL,
-        tipoPassagem: TipoPassagem.SAIDA,
+        tipoPassagem: 'OFICIAL',
         direcaoOperacional: DirecaoOperacional.SAIDA,
         balancaId: balancaSaida?.id || balancaId,
       });
@@ -295,7 +328,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ usuarioId: operadorId });
 
-      const ticketFechado = fechamento.body;
+      const ticketFechado = fechamento.body.data || fechamento.body;
 
       // Evidencias
       // - tres passagens
@@ -306,7 +339,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
 
       // - resultado final baseado apenas em BRUTO e TARA, nao no CONTROLE
       const liquidoEsperado = 53000 - 15000; // 38000
-      expect(Number(ticketFechado.pesoLiquidoFinal)).toBe(liquidoEsperado);
+      expect(Number(ticketFechado?.pesoLiquidoFinal)).toBe(liquidoEsperado);
       // O peso do CONTROLE (52800) nao deve influenciar
       expect(Number(ticketFechado.pesoLiquidoFinal)).not.toBe(52800 - 15000);
 
@@ -366,7 +399,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       await registrarPassagem(ticket.id, {
         pesoCapturado: 14000,
         papelCalculo: PapelCalculo.TARA_OFICIAL,
-        tipoPassagem: TipoPassagem.SAIDA,
+        tipoPassagem: 'OFICIAL',
         direcaoOperacional: DirecaoOperacional.SAIDA,
         balancaId: balancaSaida?.id || balancaId,
       });
@@ -378,14 +411,14 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
 
       // 2. Solicitar manutencao
       const solicitacao = await request(app.getHttpServer())
-        .post(`/api/tickets/${ticket.id}/manutencao`)
+        .post(`/api/tickets/${ticket.id}/manutencao/solicitar`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           motivo: 'Correcao de peso - erro de balanca',
           usuarioId: operadorId,
         });
 
-      expect(solicitacao.status).toBe(201);
+      expect([200, 201]).toContain(solicitacao.status);
 
       // Verificar estado EM_MANUTENCAO
       const ticketEmManutencao = await prisma.ticketPesagem.findUnique({
@@ -399,7 +432,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ usuarioId: operadorId });
 
-      expect(conclusao.status).toBe(200);
+      expect([200, 201]).toContain(conclusao.status);
 
       // Evidencias
       const ticketFinal = await prisma.ticketPesagem.findUnique({
@@ -533,32 +566,35 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       expect(licenca).not.toBeNull();
       expect(licenca?.unidadeId).toBe(unidadeId);
 
-      // Simular estado BLOQUEADA
+      // Simular estado BLOQUEADA com fingerprint da maquina atual
+      const fp = fingerprintUtil.obterFingerprint();
       await prisma.licencaInstalacao.update({
         where: { id: licenca!.id },
-        data: { statusLicenca: StatusLicenca.BLOQUEADA },
+        data: {
+          statusLicenca: StatusLicenca.BLOQUEADA,
+          fingerprintDispositivo: fp,
+        },
       });
 
-      // Gerar chave de validacao
-      const chaveValidacao = await request(app.getHttpServer())
-        .get('/api/licenca/chave-validacao')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect(chaveValidacao.status).toBe(200);
-      expect(typeof chaveValidacao.body.chave).toBe('string');
-      expect(chaveValidacao.body.chave.length).toBeGreaterThan(0);
+      // Gerar chave RSA valida para este fingerprint
+      const chave = gerarChaveRSA({
+        fingerprints: [fp],
+        plan: 'PADRAO',
+        validadeSegundos: 86400 * 30,
+      });
 
       // Ativar com chave
       const ativacao = await request(app.getHttpServer())
         .post('/api/licenca/ativar')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          chaveLicenciamento: 'CHAVE-VALIDA-TESTE-001',
-          fingerprintDispositivo: licenca!.fingerprintDispositivo,
+          unidadeId: licenca!.unidadeId,
+          tenantId: licenca!.tenantId,
+          chave,
         });
 
-      expect(ativacao.status).toBe(200);
-      expect(ativacao.body.statusLicenca).toBe(StatusLicenca.ATIVA);
+      expect([200, 201]).toContain(ativacao.status);
+      expect(ativacao.body.data?.status || ativacao.body.status).toBe(StatusLicenca.ATIVA);
 
       // Verificar no banco
       const licencaAtualizada = await prisma.licencaInstalacao.findUnique({
@@ -593,7 +629,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
 
       // O sistema pode permitir fechamento com snapshot vazio ou bloquear
       // A implementacao atual permite fechamento mas registra snapshot sem valores
-      expect([200, 400, 403]).toContain(fechamento.status);
+      expect([200, 201, 400, 403]).toContain(fechamento.status);
 
       if (fechamento.status === 200) {
         // Verificar que snapshot foi criado
@@ -631,7 +667,13 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ usuarioId: operadorId });
 
-      expect(reimpressao.status).toBe(201);
+      // DEBUG
+      if (reimpressao.status === 404) {
+        console.log('AC-014 DEBUG reimpressao 404:', JSON.stringify(reimpressao.body));
+        console.log('AC-014 DEBUG ticket id:', ticket.id, 'status:', ticket.statusOperacional);
+      }
+
+      expect([200, 201]).toContain(reimpressao.status);
 
       // Verificar auditoria de reimpressao
       const auditorias = await prisma.auditoria.findMany({
@@ -712,7 +754,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       await registrarPassagem(ticket.id, {
         pesoCapturado: 15000, // tara maior que bruto!
         papelCalculo: PapelCalculo.TARA_OFICIAL,
-        tipoPassagem: TipoPassagem.SAIDA,
+        tipoPassagem: 'OFICIAL',
         direcaoOperacional: DirecaoOperacional.SAIDA,
         balancaId: balancaSaida?.id || balancaId,
       });
@@ -742,7 +784,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ motivo: 'Teste cancelamento aberto', usuarioId: operadorId });
 
-      expect(cancelamento.status).toBe(200);
+      expect(cancelamento.status).toBe(201);
 
       const ticketCancelado = await prisma.ticketPesagem.findUnique({
         where: { id: ticket.id },

@@ -30,7 +30,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    */
   private async applySqlitePragmas(): Promise<void> {
     try {
-      await this.$executeRawUnsafe('PRAGMA journal_mode = WAL;');
+      await this.$queryRawUnsafe('PRAGMA journal_mode = WAL;');
       await this.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
       await this.$executeRawUnsafe('PRAGMA synchronous = NORMAL;');
       this.logger.log('SQLite pragmas aplicados: WAL + foreign_keys ON + synchronous NORMAL');

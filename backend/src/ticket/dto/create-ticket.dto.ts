@@ -8,7 +8,7 @@ const FLUXO_PESAGEM_VALUES = [
 ] as const;
 type FluxoPesagem = (typeof FLUXO_PESAGEM_VALUES)[number];
 
-const MODO_COMERCIAL_VALUES = ['DESABILITADO', 'HABILITADO'] as const;
+const MODO_COMERCIAL_VALUES = ['DESABILITADO', 'HABILITADO', 'INFORMATIVO', 'OBRIGATORIO'] as const;
 type ModoComercial = (typeof MODO_COMERCIAL_VALUES)[number];
 
 export class CreateTicketDto {

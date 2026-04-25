@@ -12,7 +12,7 @@ export class IndicadoresService extends GenericCrudService<
   UpdateIndicadorDto
 > {
   protected config = {
-    prismaModel: 'indicador' as const,
+    prismaModel: 'indicadorPesagem' as const,
     searchFields: ['descricao'],
     orderByField: 'descricao',
     notFoundMessage: 'Indicador não encontrado',
