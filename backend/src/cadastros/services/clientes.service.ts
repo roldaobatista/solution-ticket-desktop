@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateClienteDto } from '../dto/create-cliente.dto';
 import { UpdateClienteDto } from '../dto/update-cliente.dto';
@@ -26,12 +27,12 @@ export class ClientesService {
   }
 
   async findAll(filter: BaseFilterDto) {
-    const where: any = {};
+    const where: Prisma.ClienteWhereInput = {};
     if (filter.tenantId) where.tenantId = filter.tenantId;
     if (filter.search) {
       where.OR = [
-        { razaoSocial: { contains: filter.search, mode: 'insensitive' } },
-        { documento: { contains: filter.search, mode: 'insensitive' } },
+        { razaoSocial: { contains: filter.search } },
+        { documento: { contains: filter.search } },
       ];
     }
     where.ativo = filter.ativo !== undefined ? filter.ativo : true;

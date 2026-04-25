@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProdutoDto } from '../dto/create-produto.dto';
 import { UpdateProdutoDto } from '../dto/update-produto.dto';
@@ -13,12 +14,12 @@ export class ProdutosService {
   }
 
   async findAll(filter: BaseFilterDto) {
-    const where: any = {};
+    const where: Prisma.ProdutoWhereInput = {};
     if (filter.tenantId) where.tenantId = filter.tenantId;
     if (filter.search) {
       where.OR = [
-        { descricao: { contains: filter.search, mode: 'insensitive' } },
-        { codigoInterno: { contains: filter.search, mode: 'insensitive' } },
+        { descricao: { contains: filter.search } },
+        { codigoInterno: { contains: filter.search } },
       ];
     }
     where.ativo = filter.ativo !== undefined ? filter.ativo : true;

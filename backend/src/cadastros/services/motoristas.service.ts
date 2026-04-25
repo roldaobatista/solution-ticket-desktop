@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMotoristaDto } from '../dto/create-motorista.dto';
 import { UpdateMotoristaDto } from '../dto/update-motorista.dto';
@@ -16,9 +17,9 @@ export class MotoristasService {
   }
 
   async findAll(filter: BaseFilterDto) {
-    const where: any = {};
+    const where: Prisma.MotoristaWhereInput = {};
     if (filter.tenantId) where.tenantId = filter.tenantId;
-    if (filter.search) where.nome = { contains: filter.search, mode: 'insensitive' };
+    if (filter.search) where.nome = { contains: filter.search };
     if (filter.transportadoraId) where.transportadoraId = filter.transportadoraId;
     where.ativo = filter.ativo !== undefined ? filter.ativo : true;
 

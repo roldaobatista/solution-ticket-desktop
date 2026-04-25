@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrigemDto } from '../dto/create-origem.dto';
 import { UpdateOrigemDto } from '../dto/update-origem.dto';
@@ -13,9 +14,9 @@ export class OrigensService {
   }
 
   async findAll(filter: BaseFilterDto) {
-    const where: any = {};
+    const where: Prisma.OrigemWhereInput = {};
     if (filter.tenantId) where.tenantId = filter.tenantId;
-    if (filter.search) where.descricao = { contains: filter.search, mode: 'insensitive' };
+    if (filter.search) where.descricao = { contains: filter.search };
     where.ativo = filter.ativo !== undefined ? filter.ativo : true;
 
     const page = filter.page || 1;
