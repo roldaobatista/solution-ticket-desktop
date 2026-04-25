@@ -1,17 +1,47 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  CreateTabelaPrecoProdutoDto,
+  UpdateTabelaPrecoProdutoDto,
+} from './dto/create-tabela-preco-produto.dto';
+import {
+  CreateTabelaPrecoClienteDto,
+  UpdateTabelaPrecoClienteDto,
+} from './dto/create-tabela-preco-cliente.dto';
+import { CreateTabelaFreteDto, UpdateTabelaFreteDto } from './dto/create-tabela-frete.dto';
+import { CreateTabelaUmidadeDto, UpdateTabelaUmidadeDto } from './dto/create-tabela-umidade.dto';
+
+interface ExtratoMovimento {
+  tipo: 'FATURA' | 'PAGAMENTO';
+  data: Date;
+  descricao: string;
+  valor: number;
+  documento: string | null;
+}
 
 @Injectable()
 export class ComercialService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Tabelas de Preco por Produto
-  async createTabelaPrecoProduto(data: any) {
-    return this.prisma.tabelaPrecoProduto.create({ data });
+  async createTabelaPrecoProduto(dto: CreateTabelaPrecoProdutoDto) {
+    return this.prisma.tabelaPrecoProduto.create({
+      data: {
+        tenantId: dto.tenantId,
+        produtoId: dto.produtoId,
+        valor: dto.valor,
+        unidade: dto.unidade,
+        vigenciaInicio: new Date(dto.vigenciaInicio),
+        vigenciaFim: dto.vigenciaFim ? new Date(dto.vigenciaFim) : null,
+        prioridadeResolucao: dto.prioridadeResolucao ?? 0,
+        ativo: dto.ativo ?? true,
+      },
+    });
   }
 
   async findAllTabelaPrecoProduto(tenantId: string, produtoId?: string) {
-    const where: any = { tenantId };
+    const where: Prisma.TabelaPrecoProdutoWhereInput = { tenantId };
     if (produtoId) where.produtoId = produtoId;
     return this.prisma.tabelaPrecoProduto.findMany({
       where,
@@ -20,18 +50,27 @@ export class ComercialService {
     });
   }
 
-  async updateTabelaPrecoProduto(id: string, data: any) {
+  async updateTabelaPrecoProduto(id: string, dto: UpdateTabelaPrecoProdutoDto) {
     const atual = await this.prisma.tabelaPrecoProduto.findUnique({ where: { id } });
+    const data: Prisma.TabelaPrecoProdutoUpdateInput = {};
+    if (dto.valor !== undefined) data.valor = dto.valor;
+    if (dto.unidade !== undefined) data.unidade = dto.unidade;
+    if (dto.vigenciaInicio !== undefined) data.vigenciaInicio = new Date(dto.vigenciaInicio);
+    if (dto.vigenciaFim !== undefined)
+      data.vigenciaFim = dto.vigenciaFim ? new Date(dto.vigenciaFim) : null;
+    if (dto.prioridadeResolucao !== undefined) data.prioridadeResolucao = dto.prioridadeResolucao;
+    if (dto.ativo !== undefined) data.ativo = dto.ativo;
+
     const result = await this.prisma.tabelaPrecoProduto.update({ where: { id }, data });
-    if (atual && data.valor !== undefined && Number(atual.valor) !== Number(data.valor)) {
+    if (atual && dto.valor !== undefined && Number(atual.valor) !== Number(dto.valor)) {
       await this.prisma.historicoPreco.create({
         data: {
           tenantId: atual.tenantId,
           produtoId: atual.produtoId,
           tipo: 'PRODUTO',
           valorAntigo: atual.valor,
-          valorNovo: data.valor,
-          usuarioId: data.usuarioId || null,
+          valorNovo: dto.valor,
+          usuarioId: dto.usuarioId ?? null,
         },
       });
     }
@@ -43,12 +82,25 @@ export class ComercialService {
   }
 
   // Tabelas de Preco por Produto + Cliente
-  async createTabelaPrecoCliente(data: any) {
-    return this.prisma.tabelaPrecoProdutoCliente.create({ data });
+  async createTabelaPrecoCliente(dto: CreateTabelaPrecoClienteDto) {
+    return this.prisma.tabelaPrecoProdutoCliente.create({
+      data: {
+        tenantId: dto.tenantId,
+        produtoId: dto.produtoId,
+        clienteId: dto.clienteId,
+        destinoId: dto.destinoId ?? null,
+        valor: dto.valor,
+        unidade: dto.unidade,
+        vigenciaInicio: new Date(dto.vigenciaInicio),
+        vigenciaFim: dto.vigenciaFim ? new Date(dto.vigenciaFim) : null,
+        prioridadeResolucao: dto.prioridadeResolucao ?? 0,
+        ativo: dto.ativo ?? true,
+      },
+    });
   }
 
   async findAllTabelaPrecoCliente(tenantId: string, clienteId?: string, produtoId?: string) {
-    const where: any = { tenantId };
+    const where: Prisma.TabelaPrecoProdutoClienteWhereInput = { tenantId };
     if (clienteId) where.clienteId = clienteId;
     if (produtoId) where.produtoId = produtoId;
     return this.prisma.tabelaPrecoProdutoCliente.findMany({
@@ -61,10 +113,19 @@ export class ComercialService {
     });
   }
 
-  async updateTabelaPrecoCliente(id: string, data: any) {
+  async updateTabelaPrecoCliente(id: string, dto: UpdateTabelaPrecoClienteDto) {
     const atual = await this.prisma.tabelaPrecoProdutoCliente.findUnique({ where: { id } });
+    const data: Prisma.TabelaPrecoProdutoClienteUpdateInput = {};
+    if (dto.valor !== undefined) data.valor = dto.valor;
+    if (dto.unidade !== undefined) data.unidade = dto.unidade;
+    if (dto.vigenciaInicio !== undefined) data.vigenciaInicio = new Date(dto.vigenciaInicio);
+    if (dto.vigenciaFim !== undefined)
+      data.vigenciaFim = dto.vigenciaFim ? new Date(dto.vigenciaFim) : null;
+    if (dto.prioridadeResolucao !== undefined) data.prioridadeResolucao = dto.prioridadeResolucao;
+    if (dto.ativo !== undefined) data.ativo = dto.ativo;
+
     const result = await this.prisma.tabelaPrecoProdutoCliente.update({ where: { id }, data });
-    if (atual && data.valor !== undefined && Number(atual.valor) !== Number(data.valor)) {
+    if (atual && dto.valor !== undefined && Number(atual.valor) !== Number(dto.valor)) {
       await this.prisma.historicoPreco.create({
         data: {
           tenantId: atual.tenantId,
@@ -72,8 +133,8 @@ export class ComercialService {
           clienteId: atual.clienteId,
           tipo: 'PRODUTO_CLIENTE',
           valorAntigo: atual.valor,
-          valorNovo: data.valor,
-          usuarioId: data.usuarioId || null,
+          valorNovo: dto.valor,
+          usuarioId: dto.usuarioId ?? null,
         },
       });
     }
@@ -81,7 +142,7 @@ export class ComercialService {
   }
 
   async getSaldos(tenantId?: string, clienteId?: string) {
-    const where: any = {};
+    const where: Prisma.FaturaWhereInput = {};
     if (tenantId) where.tenantId = tenantId;
     if (clienteId) where.clienteId = clienteId;
 
@@ -105,9 +166,9 @@ export class ComercialService {
     >();
     for (const f of faturas) {
       const cid = f.clienteId;
-      const nome = (f as any).cliente?.razaoSocial || '';
+      const nome = f.cliente?.razaoSocial ?? '';
       const totalPago = f.pagamentos.reduce((s, p) => s + Number(p.valor || 0), 0);
-      const prev = mapa.get(cid) || {
+      const prev = mapa.get(cid) ?? {
         clienteId: cid,
         clienteNome: nome,
         totalFaturado: 0,
@@ -123,7 +184,7 @@ export class ComercialService {
   }
 
   async getExtrato(clienteId: string, inicio?: string, fim?: string) {
-    const where: any = { clienteId };
+    const where: Prisma.FaturaWhereInput = { clienteId };
     if (inicio || fim) {
       where.dataEmissao = {};
       if (inicio) where.dataEmissao.gte = new Date(inicio);
@@ -136,7 +197,7 @@ export class ComercialService {
       orderBy: { dataEmissao: 'asc' },
     });
 
-    const movimentos: any[] = [];
+    const movimentos: ExtratoMovimento[] = [];
     for (const f of faturas) {
       movimentos.push({
         tipo: 'FATURA',
@@ -149,9 +210,9 @@ export class ComercialService {
         movimentos.push({
           tipo: 'PAGAMENTO',
           data: p.dataEmissao,
-          descricao: `Pagamento - ${(p as any).formaPagamento?.descricao || ''}`,
+          descricao: `Pagamento - ${p.formaPagamento?.descricao ?? ''}`,
           valor: -Number(p.valor || 0),
-          documento: p.numeroDocumento,
+          documento: p.numeroDocumento ?? null,
         });
       }
     }
@@ -166,7 +227,7 @@ export class ComercialService {
   }
 
   async getHistoricoPreco(produtoId?: string, clienteId?: string) {
-    const where: any = {};
+    const where: Prisma.HistoricoPrecoWhereInput = {};
     if (produtoId) where.produtoId = produtoId;
     if (clienteId) where.clienteId = clienteId;
 
@@ -177,8 +238,22 @@ export class ComercialService {
   }
 
   // Tabelas de Frete
-  async createTabelaFrete(data: any) {
-    return this.prisma.tabelaFrete.create({ data });
+  async createTabelaFrete(dto: CreateTabelaFreteDto) {
+    return this.prisma.tabelaFrete.create({
+      data: {
+        tenantId: dto.tenantId,
+        produtoId: dto.produtoId ?? null,
+        clienteId: dto.clienteId ?? null,
+        destinoId: dto.destinoId ?? null,
+        faixaPesoInicial: dto.faixaPesoInicial ?? null,
+        faixaPesoFinal: dto.faixaPesoFinal ?? null,
+        valor: dto.valor,
+        vigenciaInicio: new Date(dto.vigenciaInicio),
+        vigenciaFim: dto.vigenciaFim ? new Date(dto.vigenciaFim) : null,
+        prioridadeResolucao: dto.prioridadeResolucao ?? 0,
+        ativo: dto.ativo ?? true,
+      },
+    });
   }
 
   async findAllTabelaFrete(tenantId: string) {
@@ -192,17 +267,37 @@ export class ComercialService {
     });
   }
 
-  async updateTabelaFrete(id: string, data: any) {
+  async updateTabelaFrete(id: string, dto: UpdateTabelaFreteDto) {
+    const data: Prisma.TabelaFreteUpdateInput = {};
+    if (dto.faixaPesoInicial !== undefined) data.faixaPesoInicial = dto.faixaPesoInicial;
+    if (dto.faixaPesoFinal !== undefined) data.faixaPesoFinal = dto.faixaPesoFinal;
+    if (dto.valor !== undefined) data.valor = dto.valor;
+    if (dto.vigenciaInicio !== undefined) data.vigenciaInicio = new Date(dto.vigenciaInicio);
+    if (dto.vigenciaFim !== undefined)
+      data.vigenciaFim = dto.vigenciaFim ? new Date(dto.vigenciaFim) : null;
+    if (dto.prioridadeResolucao !== undefined) data.prioridadeResolucao = dto.prioridadeResolucao;
+    if (dto.ativo !== undefined) data.ativo = dto.ativo;
     return this.prisma.tabelaFrete.update({ where: { id }, data });
   }
 
   // Tabelas de Umidade
-  async createTabelaUmidade(data: any) {
-    return this.prisma.tabelaUmidade.create({ data });
+  async createTabelaUmidade(dto: CreateTabelaUmidadeDto) {
+    return this.prisma.tabelaUmidade.create({
+      data: {
+        tenantId: dto.tenantId,
+        produtoId: dto.produtoId,
+        faixaInicial: dto.faixaInicial,
+        faixaFinal: dto.faixaFinal,
+        descontoPercentual: dto.descontoPercentual,
+        vigenciaInicio: new Date(dto.vigenciaInicio),
+        vigenciaFim: dto.vigenciaFim ? new Date(dto.vigenciaFim) : null,
+        ativo: dto.ativo ?? true,
+      },
+    });
   }
 
   async findAllTabelaUmidade(tenantId: string, produtoId?: string) {
-    const where: any = { tenantId };
+    const where: Prisma.TabelaUmidadeWhereInput = { tenantId };
     if (produtoId) where.produtoId = produtoId;
     return this.prisma.tabelaUmidade.findMany({
       where,
@@ -211,7 +306,15 @@ export class ComercialService {
     });
   }
 
-  async updateTabelaUmidade(id: string, data: any) {
+  async updateTabelaUmidade(id: string, dto: UpdateTabelaUmidadeDto) {
+    const data: Prisma.TabelaUmidadeUpdateInput = {};
+    if (dto.faixaInicial !== undefined) data.faixaInicial = dto.faixaInicial;
+    if (dto.faixaFinal !== undefined) data.faixaFinal = dto.faixaFinal;
+    if (dto.descontoPercentual !== undefined) data.descontoPercentual = dto.descontoPercentual;
+    if (dto.vigenciaInicio !== undefined) data.vigenciaInicio = new Date(dto.vigenciaInicio);
+    if (dto.vigenciaFim !== undefined)
+      data.vigenciaFim = dto.vigenciaFim ? new Date(dto.vigenciaFim) : null;
+    if (dto.ativo !== undefined) data.ativo = dto.ativo;
     return this.prisma.tabelaUmidade.update({ where: { id }, data });
   }
 

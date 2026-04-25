@@ -2,6 +2,16 @@ import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@ne
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ComercialService } from './comercial.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  CreateTabelaPrecoProdutoDto,
+  UpdateTabelaPrecoProdutoDto,
+} from './dto/create-tabela-preco-produto.dto';
+import {
+  CreateTabelaPrecoClienteDto,
+  UpdateTabelaPrecoClienteDto,
+} from './dto/create-tabela-preco-cliente.dto';
+import { CreateTabelaFreteDto, UpdateTabelaFreteDto } from './dto/create-tabela-frete.dto';
+import { CreateTabelaUmidadeDto, UpdateTabelaUmidadeDto } from './dto/create-tabela-umidade.dto';
 
 @ApiTags('Comercial - Tabelas e Snapshot')
 @ApiBearerAuth()
@@ -13,8 +23,8 @@ export class ComercialController {
   // Preco Produto
   @Post('preco-produto')
   @ApiOperation({ summary: 'Criar tabela de preco por produto' })
-  createPrecoProduto(@Body() data: any) {
-    return this.comercialService.createTabelaPrecoProduto(data);
+  createPrecoProduto(@Body() dto: CreateTabelaPrecoProdutoDto) {
+    return this.comercialService.createTabelaPrecoProduto(dto);
   }
 
   @Get('preco-produto')
@@ -25,15 +35,15 @@ export class ComercialController {
 
   @Patch('preco-produto/:id')
   @ApiOperation({ summary: 'Atualizar tabela de preco' })
-  updatePrecoProduto(@Param('id') id: string, @Body() data: any) {
-    return this.comercialService.updateTabelaPrecoProduto(id, data);
+  updatePrecoProduto(@Param('id') id: string, @Body() dto: UpdateTabelaPrecoProdutoDto) {
+    return this.comercialService.updateTabelaPrecoProduto(id, dto);
   }
 
   // Preco Cliente
   @Post('preco-cliente')
   @ApiOperation({ summary: 'Criar tabela de preco por cliente' })
-  createPrecoCliente(@Body() data: any) {
-    return this.comercialService.createTabelaPrecoCliente(data);
+  createPrecoCliente(@Body() dto: CreateTabelaPrecoClienteDto) {
+    return this.comercialService.createTabelaPrecoCliente(dto);
   }
 
   @Get('preco-cliente')
@@ -44,15 +54,15 @@ export class ComercialController {
 
   @Patch('preco-cliente/:id')
   @ApiOperation({ summary: 'Atualizar tabela de preco cliente' })
-  updatePrecoCliente(@Param('id') id: string, @Body() data: any) {
-    return this.comercialService.updateTabelaPrecoCliente(id, data);
+  updatePrecoCliente(@Param('id') id: string, @Body() dto: UpdateTabelaPrecoClienteDto) {
+    return this.comercialService.updateTabelaPrecoCliente(id, dto);
   }
 
   // Frete
   @Post('frete')
   @ApiOperation({ summary: 'Criar tabela de frete' })
-  createFrete(@Body() data: any) {
-    return this.comercialService.createTabelaFrete(data);
+  createFrete(@Body() dto: CreateTabelaFreteDto) {
+    return this.comercialService.createTabelaFrete(dto);
   }
 
   @Get('frete')
@@ -63,15 +73,15 @@ export class ComercialController {
 
   @Patch('frete/:id')
   @ApiOperation({ summary: 'Atualizar tabela de frete' })
-  updateFrete(@Param('id') id: string, @Body() data: any) {
-    return this.comercialService.updateTabelaFrete(id, data);
+  updateFrete(@Param('id') id: string, @Body() dto: UpdateTabelaFreteDto) {
+    return this.comercialService.updateTabelaFrete(id, dto);
   }
 
   // Umidade
   @Post('umidade')
   @ApiOperation({ summary: 'Criar tabela de umidade' })
-  createUmidade(@Body() data: any) {
-    return this.comercialService.createTabelaUmidade(data);
+  createUmidade(@Body() dto: CreateTabelaUmidadeDto) {
+    return this.comercialService.createTabelaUmidade(dto);
   }
 
   @Get('umidade')
@@ -82,8 +92,8 @@ export class ComercialController {
 
   @Patch('umidade/:id')
   @ApiOperation({ summary: 'Atualizar tabela de umidade' })
-  updateUmidade(@Param('id') id: string, @Body() data: any) {
-    return this.comercialService.updateTabelaUmidade(id, data);
+  updateUmidade(@Param('id') id: string, @Body() dto: UpdateTabelaUmidadeDto) {
+    return this.comercialService.updateTabelaUmidade(id, dto);
   }
 
   // Saldos por cliente (credito - debito agregando faturas)
