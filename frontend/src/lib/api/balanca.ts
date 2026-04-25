@@ -98,7 +98,14 @@ export async function capturarPeso(id: string): Promise<LeituraPeso> {
 
 export function getBalancaStreamUrl(id: string): string {
   const base = process.env.NEXT_PUBLIC_API_URL || '/api';
-  return `${base}/balancas/${id}/stream`;
+  // RS3: EventSource nao suporta header Authorization — token vai na query.
+  // Backend (JwtStrategy) aceita ambas (header ou ?access_token=).
+  let token = '';
+  if (typeof window !== 'undefined') {
+    token = sessionStorage.getItem('access_token') || '';
+  }
+  const qs = token ? `?access_token=${encodeURIComponent(token)}` : '';
+  return `${base}/balancas/${id}/stream${qs}`;
 }
 
 export async function calibrarBalanca(

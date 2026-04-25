@@ -8,7 +8,12 @@ import { requireJwtSecret } from '../jwt-secret';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private readonly prisma: PrismaService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // RS3: aceita Bearer header (default) OU ?access_token=... (necessario para
+      // SSE/EventSource que nao suporta headers customizados).
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        ExtractJwt.fromUrlQueryParameter('access_token'),
+      ]),
       ignoreExpiration: false,
       secretOrKey: requireJwtSecret(),
     });

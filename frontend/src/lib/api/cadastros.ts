@@ -194,12 +194,20 @@ const INDICADORES_MOCK: IndicadorPesagem[] = [
   },
 ];
 
+/**
+ * Lista plana de indicadores (read-only, com fallback para presets em USE_MOCK).
+ * Use este para popular dropdowns/selects.
+ *
+ * Para CRUD completo (criar, editar, calibrar, anotar bytes) e tipo
+ * `IndicadorBalanca`, ver `frontend/src/lib/api/indicador.ts`.
+ */
 export async function getIndicadores(): Promise<IndicadorPesagem[]> {
   if (USE_MOCK) return INDICADORES_MOCK;
   const res = await apiClient.get('/indicadores');
   return res.data?.data || res.data;
 }
 
+/** @deprecated Alias historico — prefira `getIndicadores`. */
 export async function getIndicadoresList(): Promise<IndicadorPesagem[]> {
   if (USE_MOCK) return INDICADORES_MOCK;
   const res = await apiClient.get('/indicadores');
