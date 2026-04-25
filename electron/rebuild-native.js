@@ -24,9 +24,14 @@ async function main() {
     ).version;
   }
 
-  console.log(`[rebuild-native] Electron ${electronVersion}`);
+  // Q6: diagnostico para detectar ABI mismatch (causa raiz #1 de "driver nao carrega")
+  console.log(`[rebuild-native] Electron   ${electronVersion}`);
+  console.log(`[rebuild-native] Node.js    ${process.versions.node}`);
+  console.log(`[rebuild-native] ABI module ${process.versions.modules}`);
+  console.log(`[rebuild-native] Platform   ${process.platform}-${process.arch}`);
   console.log(`[rebuild-native] Rebuild em ${backendDir} para: serialport, modbus-serial`);
 
+  const strictMode = process.env.CI === 'true' || process.env.REBUILD_STRICT === 'true';
   try {
     await rebuild({
       buildPath: backendDir,
@@ -36,11 +41,24 @@ async function main() {
     });
     console.log('[rebuild-native] OK');
   } catch (err) {
-    console.warn('[rebuild-native] FALHOU (build do instalador continuara):', err.message);
+    // Q6: em CI, falhar ruidoso; em desenvolvimento local, continuar com aviso.
+    if (strictMode) {
+      console.error('[rebuild-native] FALHOU (modo estrito):', err.message);
+      throw err;
+    }
+    console.warn(
+      '[rebuild-native] FALHOU (build continuara — use REBUILD_STRICT=true para abortar):',
+      err.message,
+    );
   }
 }
 
 main().catch((err) => {
-  console.warn('[rebuild-native] erro fatal ignorado:', err.message);
+  const strictMode = process.env.CI === 'true' || process.env.REBUILD_STRICT === 'true';
+  if (strictMode) {
+    console.error('[rebuild-native] erro fatal:', err.message);
+    process.exit(1);
+  }
+  console.warn('[rebuild-native] erro fatal ignorado (use REBUILD_STRICT=true):', err.message);
   process.exit(0);
 });
