@@ -22,7 +22,7 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
       throw new Error('Porta serial nao configurada');
     }
 
-    let SerialPort: any;
+    let SerialPort: typeof import('serialport').SerialPort;
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       SerialPort = require('serialport').SerialPort;
@@ -75,6 +75,6 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
   }
 
   isOpen(): boolean {
-    return !!this.port && (this.port as any).isOpen === true;
+    return !!this.port && this.port.isOpen === true;
   }
 }

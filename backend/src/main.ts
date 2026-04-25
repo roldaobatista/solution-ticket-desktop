@@ -5,8 +5,13 @@ import helmet from 'helmet';
 import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
 import { AppModule } from './app.module';
+import type { Request, Response, NextFunction } from 'express';
 import { ensureUserDataDir, getDatabaseUrl } from './common/desktop-paths';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+
+interface RequestWithId extends Request {
+  requestId?: string;
+}
 
 function initSentry(logger: Logger) {
   const dsn = process.env.SENTRY_DSN;
@@ -42,8 +47,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // Request-id para correlação em logs (header X-Request-Id)
-  app.use((req: any, res: any, next: any) => {
-    const id = req.headers['x-request-id'] || randomUUID();
+  app.use((req: RequestWithId, res: Response, next: NextFunction) => {
+    const headerId = req.headers['x-request-id'];
+    const id = (Array.isArray(headerId) ? headerId[0] : headerId) || randomUUID();
     req.requestId = id;
     res.setHeader('X-Request-Id', id);
     next();
@@ -73,7 +79,7 @@ async function bootstrap() {
   );
 
   // RS5: Permissions-Policy minima — desabilita APIs que o backend nao usa
-  app.use((_req: any, res: any, next: any) => {
+  app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader(
       'Permissions-Policy',
       'camera=(), microphone=(), geolocation=(), payment=(), usb=()',

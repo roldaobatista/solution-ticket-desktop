@@ -6,8 +6,18 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import * as Sentry from '@sentry/node';
+
+interface RequestWithId extends Request {
+  requestId?: string;
+}
+
+interface HttpExceptionResponseBody {
+  message?: string | string[];
+  code?: string;
+  [key: string]: unknown;
+}
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -16,7 +26,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<any>();
+    const request = ctx.getRequest<RequestWithId>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Erro interno do servidor';
@@ -24,8 +34,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const exceptionResponse = exception.getResponse() as any;
-      message = exceptionResponse.message || exception.message;
+      const raw = exception.getResponse();
+      const exceptionResponse: HttpExceptionResponseBody =
+        typeof raw === 'object' && raw !== null ? (raw as HttpExceptionResponseBody) : {};
+      message =
+        (Array.isArray(exceptionResponse.message)
+          ? exceptionResponse.message[0]
+          : exceptionResponse.message) || exception.message;
       code = exceptionResponse.code || this.getCodeFromStatus(status);
     } else if (exception instanceof Error) {
       message = exception.message;
@@ -49,7 +64,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     });
   }
 
-  private reportToSentry(exception: unknown, request: any): void {
+  private reportToSentry(exception: unknown, request: RequestWithId): void {
     try {
       Sentry.withScope((scope) => {
         if (request?.requestId) scope.setTag('request_id', request.requestId);

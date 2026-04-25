@@ -7,20 +7,24 @@ import { AuditoriaService } from '../../auditoria/auditoria.service';
 export class AuditInterceptor implements NestInterceptor {
   constructor(private readonly auditoriaService: AuditoriaService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest();
     const method = request.method;
     const url = request.url;
     const user = request.user;
 
     return next.handle().pipe(
-      tap(async (response) => {
+      tap(async (response: unknown) => {
         // Only audit mutation methods
         if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
           try {
+            const respData =
+              typeof response === 'object' && response !== null && 'data' in response
+                ? (response as { data?: { id?: string } }).data
+                : undefined;
             await this.auditoriaService.registrar({
               entidade: this.extractEntity(url),
-              entidadeId: request.params?.id || response?.data?.id || 'unknown',
+              entidadeId: request.params?.id || respData?.id || 'unknown',
               evento: `${method.toLowerCase()}.${this.extractAction(url)}`,
               usuarioId: user?.id,
               estadoNovo: JSON.stringify({
