@@ -2,6 +2,9 @@ import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@ne
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { RomaneioService } from './romaneio.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateRomaneioDto } from './dto/create-romaneio.dto';
+import { UpdateRomaneioDto } from './dto/update-romaneio.dto';
+import { VincularTicketsDto } from './dto/vincular-tickets.dto';
 
 @ApiTags('Romaneios')
 @ApiBearerAuth()
@@ -12,8 +15,8 @@ export class RomaneioController {
 
   @Post()
   @ApiOperation({ summary: 'Criar romaneio' })
-  create(@Body() data: any) {
-    return this.romaneioService.create(data);
+  create(@Body() dto: CreateRomaneioDto) {
+    return this.romaneioService.create(dto);
   }
 
   @Get()
@@ -38,13 +41,13 @@ export class RomaneioController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar romaneio' })
-  update(@Param('id') id: string, @Body() data: any) {
-    return this.romaneioService.update(id, data);
+  update(@Param('id') id: string, @Body() dto: UpdateRomaneioDto) {
+    return this.romaneioService.update(id, dto);
   }
 
   @Post(':id/vincular-tickets')
   @ApiOperation({ summary: 'Vincular tickets ao romaneio' })
-  vincularTickets(@Param('id') id: string, @Body('ticketIds') ticketIds: string[]) {
-    return this.romaneioService.vincularTickets(id, ticketIds);
+  vincularTickets(@Param('id') id: string, @Body() dto: VincularTicketsDto) {
+    return this.romaneioService.vincularTickets(id, dto.ticketIds);
   }
 }

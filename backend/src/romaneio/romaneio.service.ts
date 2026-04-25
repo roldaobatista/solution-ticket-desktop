@@ -1,36 +1,39 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StatusComercial } from '../constants/enums';
 import { buildPaginated, resolvePaging } from '../common/dto/pagination.dto';
+import { CreateRomaneioDto } from './dto/create-romaneio.dto';
+import { UpdateRomaneioDto } from './dto/update-romaneio.dto';
 
 @Injectable()
 export class RomaneioService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: any) {
-    const numero = await this.gerarNumero(data.tenantId);
+  async create(dto: CreateRomaneioDto) {
+    const numero = await this.gerarNumero(dto.tenantId);
 
     const romaneio = await this.prisma.romaneio.create({
       data: {
         numero,
-        tenantId: data.tenantId,
-        clienteId: data.clienteId,
-        periodoInicio: new Date(data.periodoInicio),
-        periodoFim: new Date(data.periodoFim),
-        observacao: data.observacao || null,
+        tenantId: dto.tenantId,
+        clienteId: dto.clienteId,
+        periodoInicio: new Date(dto.periodoInicio),
+        periodoFim: new Date(dto.periodoFim),
+        observacao: dto.observacao ?? null,
       },
     });
 
     // Vincular tickets
-    if (data.ticketIds?.length) {
-      await this.vincularTickets(romaneio.id, data.ticketIds);
+    if (dto.ticketIds?.length) {
+      await this.vincularTickets(romaneio.id, dto.ticketIds);
     }
 
     return this.findOne(romaneio.id);
   }
 
   async findAll(tenantId: string, clienteId?: string, paging?: { page?: number; limit?: number }) {
-    const where: any = { tenantId };
+    const where: Prisma.RomaneioWhereInput = { tenantId };
     if (clienteId) where.clienteId = clienteId;
     const { page, limit, skip } = resolvePaging(paging ?? {});
 
@@ -79,12 +82,13 @@ export class RomaneioService {
     return romaneio;
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, dto: UpdateRomaneioDto) {
     await this.findOne(id);
-    return this.prisma.romaneio.update({
-      where: { id },
-      data: { ...data },
-    });
+    const data: Prisma.RomaneioUpdateInput = {};
+    if (dto.observacao !== undefined) data.observacao = dto.observacao;
+    if (dto.periodoInicio !== undefined) data.periodoInicio = new Date(dto.periodoInicio);
+    if (dto.periodoFim !== undefined) data.periodoFim = new Date(dto.periodoFim);
+    return this.prisma.romaneio.update({ where: { id }, data });
   }
 
   async vincularTickets(romaneioId: string, ticketIds: string[]) {
