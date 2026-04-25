@@ -1,7 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+
+async function fileExists(p: string): Promise<boolean> {
+  try {
+    await fsp.access(p, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function getBasePath(): string {
   const appdata =
@@ -33,11 +43,11 @@ export class DocumentosService {
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
 
     const dir = path.join(getBasePath(), ticketId);
-    fs.mkdirSync(dir, { recursive: true });
+    await fsp.mkdir(dir, { recursive: true });
 
     const safeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const destPath = path.join(dir, safeName);
-    fs.writeFileSync(destPath, file.buffer);
+    await fsp.writeFile(destPath, file.buffer);
 
     return this.prisma.documentoPesagem.create({
       data: {
@@ -53,9 +63,9 @@ export class DocumentosService {
   async remover(id: string) {
     const doc = await this.prisma.documentoPesagem.findUnique({ where: { id } });
     if (!doc) throw new NotFoundException('Documento não encontrado');
-    if (doc.arquivoUrl && fs.existsSync(doc.arquivoUrl)) {
+    if (doc.arquivoUrl && (await fileExists(doc.arquivoUrl))) {
       try {
-        fs.unlinkSync(doc.arquivoUrl);
+        await fsp.unlink(doc.arquivoUrl);
       } catch {
         /* ignore */
       }
@@ -67,7 +77,7 @@ export class DocumentosService {
   async download(id: string): Promise<{ path: string; nome: string; mime: string }> {
     const doc = await this.prisma.documentoPesagem.findUnique({ where: { id } });
     if (!doc || !doc.arquivoUrl) throw new NotFoundException('Documento não encontrado');
-    if (!fs.existsSync(doc.arquivoUrl))
+    if (!(await fileExists(doc.arquivoUrl)))
       throw new NotFoundException('Arquivo físico não encontrado');
     const nome = path.basename(doc.arquivoUrl);
     const ext = path.extname(nome).toLowerCase();
