@@ -30,6 +30,7 @@ import { UtilitariosModule } from './utilitarios/utilitarios.module';
 import { RelatoriosSalvosModule } from './relatorios-salvos/relatorios-salvos.module';
 import { BackupModule } from './backup/backup.module';
 import { CameraModule } from './camera/camera.module';
+import { HealthModule } from './health/health.module';
 import { AutomacaoModule } from './automacao/automacao.module';
 import { IndicadorModule } from './indicadores/indicador.module';
 import { AppController } from './app.controller';
@@ -69,6 +70,7 @@ import { AppController } from './app.controller';
     RelatoriosSalvosModule,
     BackupModule,
     CameraModule,
+    HealthModule,
     AutomacaoModule,
     IndicadorModule,
   ],

@@ -17,78 +17,156 @@ env:
   DATABASE_URL: file:./test.db
 
 jobs:
-  ci:
-    name: Lint, Typecheck, Test, Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v3
         with:
           version: 8.15.0
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint:check
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level critical
+      - run: pnpm audit --prod --audit-level high
 
-      - name: Generate Prisma client
-        run: pnpm db:generate
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm typecheck:all
 
-      - name: Format check
-        run: pnpm format:check
-
-      - name: Lint
-        run: pnpm lint:check
-
-      - name: Typecheck (backend + frontend)
-        run: pnpm typecheck:all
-
-      # S2.5: gate de auditoria.
-      # TODO: tornar bloqueante após bumps planejados — Electron (1 critical),
-      # Next 14→15 (12 high). Por ora, falha CI é informativa.
-      - name: Audit (production)
-        run: pnpm audit --prod --audit-level critical
-        continue-on-error: true
-      - name: Audit (production) — HIGH informativo
-        run: pnpm audit --prod --audit-level high
-        continue-on-error: true
-
-      # RD4: gate de seed — falha CI se schema atual nao for compativel com seed.
-      - name: Seed sanity check
-        run: pnpm --filter ./backend db:seed
+  seed:
+    name: Seed Sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter ./backend db:seed
         env:
           DATABASE_URL: file:./ci-seed-test.db
 
-      - name: Test (unit)
-        run: pnpm --filter ./backend test
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter ./backend test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/coverage/
 
-      - name: Test (e2e)
-        run: pnpm --filter ./backend test:e2e
+  test-e2e-backend:
+    name: Backend E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter ./backend test:e2e
 
-      - name: Build backend
-        run: pnpm build:backend
-
-      - name: Build frontend
-        run: pnpm build:frontend
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test-unit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm build:backend
+      - run: pnpm build:frontend
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3001/api
           NEXT_PUBLIC_USE_MOCK: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs
+          path: |
+            backend/dist/
+            frontend/.next/
 
-      # RQ1: Playwright e2e (smoke). Browsers cached entre runs.
-      - name: Install Playwright browsers
-        if: matrix.os == 'ubuntu-latest'
-        run: pnpm --filter ./frontend exec playwright install --with-deps chromium
-      - name: Playwright smoke
-        if: matrix.os == 'ubuntu-latest'
-        run: pnpm --filter ./frontend test:e2e
+  test-e2e-frontend:
+    name: Frontend E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./frontend exec playwright install --with-deps chromium
+      - run: pnpm --filter ./frontend test:e2e
         env:
           NEXT_PUBLIC_USE_MOCK: 'true'
-        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
