@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { gerarPdf } from '../impressao/templates';
@@ -158,7 +159,7 @@ export class TicketService {
   }
 
   async findAll(filter: TicketFilterDto) {
-    const where: any = {};
+    const where: Prisma.TicketPesagemWhereInput = {};
 
     if (filter.unidadeId) where.unidadeId = filter.unidadeId;
     if (filter.tenantId) where.tenantId = filter.tenantId;
@@ -167,8 +168,8 @@ export class TicketService {
     if (filter.statusOperacional) where.statusOperacional = filter.statusOperacional;
     if (filter.statusComercial) where.statusComercial = filter.statusComercial;
     if (filter.fluxoPesagem) where.fluxoPesagem = filter.fluxoPesagem;
-    if (filter.placa) where.veiculoPlaca = { contains: filter.placa, mode: 'insensitive' };
-    if (filter.numero) where.numero = { contains: filter.numero, mode: 'insensitive' };
+    if (filter.placa) where.veiculoPlaca = { contains: filter.placa };
+    if (filter.numero) where.numero = { contains: filter.numero };
     if (filter.dataInicio || filter.dataFim) {
       where.criadoEm = {};
       if (filter.dataInicio) where.criadoEm.gte = new Date(filter.dataInicio);
@@ -271,7 +272,7 @@ export class TicketService {
       throw new BadRequestException(`Transicao de ${estadoAtual} para ${novoEstado} nao permitida`);
     }
 
-    const updateData: any = { statusOperacional: novoEstado };
+    const updateData: Prisma.TicketPesagemUpdateInput = { statusOperacional: novoEstado };
 
     // Side effects por transicao
     if (novoEstado === StatusOperacional.FECHADO) {
@@ -338,7 +339,7 @@ export class TicketService {
 
     const proximaSequencia = ticket.passagens.length + 1;
     const totalPassagens = ticket.passagens.length + 1;
-    const updateData: any = {
+    const updateData: Prisma.TicketPesagemUpdateInput = {
       totalPassagensRealizadas: totalPassagens,
       ultimaPassagemEm: new Date(),
     };
