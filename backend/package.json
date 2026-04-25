@@ -40,10 +40,10 @@
     "coverageDirectory": "../coverage",
     "coverageThreshold": {
       "global": {
-        "statements": 22,
+        "statements": 25,
         "branches": 27,
-        "functions": 19,
-        "lines": 22
+        "functions": 22,
+        "lines": 26
       }
     },
     "testEnvironment": "node",
