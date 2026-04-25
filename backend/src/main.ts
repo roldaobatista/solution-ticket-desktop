@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
 import { AppModule } from './app.module';
 import { ensureUserDataDir, getDatabaseUrl } from './common/desktop-paths';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 function initSentry(logger: Logger) {
   const dsn = process.env.SENTRY_DSN;
@@ -95,6 +96,10 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+
+  // S6: logging com PII scrubbing — todo request/response passa por
+  // scrubPii() antes de ser logado/relatado.
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   if (!isProd) {
     const config = new DocumentBuilder()

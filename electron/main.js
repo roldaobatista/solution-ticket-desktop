@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -410,8 +410,38 @@ function buildMenu() {
 
 // ---------- Lifecycle ----------
 
+// S4: Content-Security-Policy estrita injetada em todas as respostas do
+// renderer. Bloqueia scripts/imagens/conexoes fora do app local. Mesmo com
+// contextIsolation+sandbox, isto e segunda linha de defesa contra qualquer
+// HTML/JS injetado via formulario, XSS em pacote de terceiros, etc.
+function applyCspHeaders() {
+  const directives = [
+    "default-src 'self' http://127.0.0.1:3000 http://localhost:3000",
+    "connect-src 'self' http://127.0.0.1:3000 http://localhost:3000 http://127.0.0.1:3001 http://localhost:3001 ws://127.0.0.1:3000 ws://localhost:3000",
+    "img-src 'self' data: blob: http://127.0.0.1:3001 http://localhost:3001",
+    "style-src 'self' 'unsafe-inline'", // Tailwind injeta inline + Next styled-jsx
+    // 'unsafe-eval' apenas em dev (Next.js HMR usa eval); em prod removivel
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [directives],
+      },
+    });
+  });
+}
+
 app.on('ready', async () => {
   logLine('boot', `Solution Ticket ${app.getVersion()} starting (dev=${isDev})`);
+  applyCspHeaders();
   buildMenu();
   createSplash();
 
