@@ -19,6 +19,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       this.applyMigrationsOnBoot();
     }
     await this.$connect();
+    await this.applySqlitePragmas();
+  }
+
+  /**
+   * D3: pragmas de integridade/performance em SQLite.
+   *  - journal_mode=WAL:  concorrência de leitura sem bloquear escrita.
+   *  - foreign_keys=ON:   enforcement de FKs (SQLite tem OFF por default).
+   *  - synchronous=NORMAL: balanceia durabilidade vs. performance no desktop.
+   */
+  private async applySqlitePragmas(): Promise<void> {
+    try {
+      await this.$executeRawUnsafe('PRAGMA journal_mode = WAL;');
+      await this.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
+      await this.$executeRawUnsafe('PRAGMA synchronous = NORMAL;');
+      this.logger.log('SQLite pragmas aplicados: WAL + foreign_keys ON + synchronous NORMAL');
+    } catch (err) {
+      this.logger.warn(`Falha ao aplicar pragmas SQLite: ${(err as Error).message}`);
+    }
   }
 
   async onModuleDestroy() {

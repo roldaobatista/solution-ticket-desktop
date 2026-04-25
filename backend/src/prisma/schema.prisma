@@ -16,68 +16,71 @@ datasource db {
 // ============================================================
 
 model Tenant {
-  id          String   @id @default(uuid()) @map("id")
-  nome        String   @map("nome")
-  documento   String?  @map("documento")
-  ativo       Boolean  @default(true) @map("ativo")
-  criadoEm    DateTime @default(now()) @map("criado_em")
+  id           String   @id @default(uuid()) @map("id")
+  nome         String   @map("nome")
+  documento    String?  @map("documento")
+  ativo        Boolean  @default(true) @map("ativo")
+  criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  empresas  Empresa[]
-  perfis    Perfil[]
-  usuarios  Usuario[]
+  empresas Empresa[]
+  perfis   Perfil[]
+  usuarios Usuario[]
 
   @@map("tenant")
 }
 
 model Empresa {
-  id              String  @id @default(uuid()) @map("id")
-  tenantId        String  @map("tenant_id")
-  nomeEmpresarial String  @map("nome_empresarial")
-  nomeFantasia    String? @map("nome_fantasia")
-  documento       String? @map("documento")
-  endereco        String? @map("endereco")
-  cidade          String? @map("cidade")
-  uf              String? @map("uf")
-  telefone        String? @map("telefone")
-  email           String? @map("email")
-  site            String? @map("site")
-  logoPrincipal   String? @map("logo_principal")
-  logoRelatorios  String? @map("logo_relatorios")
-  ativo           Boolean @default(true) @map("ativo")
+  id              String   @id @default(uuid()) @map("id")
+  tenantId        String   @map("tenant_id")
+  nomeEmpresarial String   @map("nome_empresarial")
+  nomeFantasia    String?  @map("nome_fantasia")
+  documento       String?  @map("documento")
+  endereco        String?  @map("endereco")
+  cidade          String?  @map("cidade")
+  uf              String?  @map("uf")
+  telefone        String?  @map("telefone")
+  email           String?  @map("email")
+  site            String?  @map("site")
+  logoPrincipal   String?  @map("logo_principal")
+  logoRelatorios  String?  @map("logo_relatorios")
+  ativo           Boolean  @default(true) @map("ativo")
   criadoEm        DateTime @default(now()) @map("criado_em")
   atualizadoEm    DateTime @updatedAt @map("atualizado_em")
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  unidades  Unidade[]
-  balancas  Balanca[]
-  veiculos  Veiculo[]
-  motoristas Motorista[]
-  configuracoes ConfiguracaoOperacionalUnidade[]
+  tenant             Tenant                           @relation(fields: [tenantId], references: [id])
+  unidades           Unidade[]
+  balancas           Balanca[]
+  veiculos           Veiculo[]
+  motoristas         Motorista[]
+  configuracoes      ConfiguracaoOperacionalUnidade[]
   regrasOperacionais MatrizRegraOperacional[]
 
+  @@unique([tenantId, documento])
+  @@index([tenantId])
   @@map("empresa")
 }
 
 model Unidade {
-  id           String  @id @default(uuid()) @map("id")
-  empresaId    String  @map("empresa_id")
-  nome         String  @map("nome")
-  endereco     String? @map("endereco")
-  cidade       String? @map("cidade")
-  uf           String? @map("uf")
-  telefone     String? @map("telefone")
-  ativo        Boolean @default(true) @map("ativo")
+  id           String   @id @default(uuid()) @map("id")
+  empresaId    String   @map("empresa_id")
+  nome         String   @map("nome")
+  endereco     String?  @map("endereco")
+  cidade       String?  @map("cidade")
+  uf           String?  @map("uf")
+  telefone     String?  @map("telefone")
+  ativo        Boolean  @default(true) @map("ativo")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  empresa Empresa @relation(fields: [empresaId], references: [id])
-  balancas Balanca[]
-  tickets TicketPesagem[]
-  configuracoes ConfiguracaoOperacionalUnidade[]
+  empresa            Empresa                          @relation(fields: [empresaId], references: [id])
+  balancas           Balanca[]
+  tickets            TicketPesagem[]
+  configuracoes      ConfiguracaoOperacionalUnidade[]
   regrasOperacionais MatrizRegraOperacional[]
-  licencas LicencaInstalacao[]
+  licencas           LicencaInstalacao[]
 
+  @@index([empresaId])
   @@map("unidade")
 }
 
@@ -86,12 +89,12 @@ model Unidade {
 // ============================================================
 
 model Perfil {
-  id          String   @id @default(uuid()) @map("id")
-  tenantId    String   @map("tenant_id")
-  nome        String   @map("nome")
-  descricao   String?  @map("descricao")
-  ativo       Boolean  @default(true) @map("ativo")
-  criadoEm    DateTime @default(now()) @map("criado_em")
+  id           String   @id @default(uuid()) @map("id")
+  tenantId     String   @map("tenant_id")
+  nome         String   @map("nome")
+  descricao    String?  @map("descricao")
+  ativo        Boolean  @default(true) @map("ativo")
+  criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
   tenant     Tenant          @relation(fields: [tenantId], references: [id])
@@ -102,11 +105,11 @@ model Perfil {
 }
 
 model Permissao {
-  id        String @id @default(uuid()) @map("id")
-  perfilId  String @map("perfil_id")
-  modulo    String @map("modulo")
-  acao      String @map("acao")
-  concedido Boolean @default(true) @map("concedido")
+  id        String   @id @default(uuid()) @map("id")
+  perfilId  String   @map("perfil_id")
+  modulo    String   @map("modulo")
+  acao      String   @map("acao")
+  concedido Boolean  @default(true) @map("concedido")
   criadoEm  DateTime @default(now()) @map("criado_em")
 
   perfil Perfil @relation(fields: [perfilId], references: [id])
@@ -115,10 +118,10 @@ model Permissao {
 }
 
 model UsuarioPerfil {
-  id         String @id @default(uuid()) @map("id")
-  usuarioId  String @map("usuario_id")
-  perfilId   String @map("perfil_id")
-  criadoEm   DateTime @default(now()) @map("criado_em")
+  id        String   @id @default(uuid()) @map("id")
+  usuarioId String   @map("usuario_id")
+  perfilId  String   @map("perfil_id")
+  criadoEm  DateTime @default(now()) @map("criado_em")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])
   perfil  Perfil  @relation(fields: [perfilId], references: [id])
@@ -127,22 +130,23 @@ model UsuarioPerfil {
 }
 
 model Usuario {
-  id           String   @id @default(uuid()) @map("id")
-  tenantId     String   @map("tenant_id")
-  nome         String   @map("nome")
-  email        String   @unique @map("email")
-  senhaHash    String   @map("senha_hash")
-  ativo        Boolean  @default(true) @map("ativo")
-  ultimoAcesso DateTime? @map("ultimo_acesso")
-  tentativasLogin Int @default(0) @map("tentativas_login")
-  bloqueadoAte DateTime? @map("bloqueado_ate")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id              String    @id @default(uuid()) @map("id")
+  tenantId        String    @map("tenant_id")
+  nome            String    @map("nome")
+  email           String    @unique @map("email")
+  senhaHash       String    @map("senha_hash")
+  ativo           Boolean   @default(true) @map("ativo")
+  ultimoAcesso    DateTime? @map("ultimo_acesso")
+  tentativasLogin Int       @default(0) @map("tentativas_login")
+  bloqueadoAte    DateTime? @map("bloqueado_ate")
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em")
 
-  tenant   Tenant          @relation(fields: [tenantId], references: [id])
-  perfis   UsuarioPerfil[]
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  perfis    UsuarioPerfil[]
   passagens PassagemPesagem[]
 
+  @@index([tenantId])
   @@map("usuario")
 }
 
@@ -151,136 +155,145 @@ model Usuario {
 // ============================================================
 
 model Cliente {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  razaoSocial  String  @map("razao_social")
-  documento    String? @map("documento")
-  endereco     String? @map("endereco")
-  cidade       String? @map("cidade")
-  uf           String? @map("uf")
-  telefone     String? @map("telefone")
-  email        String? @map("email")
-  codigoIntegracao String? @map("codigo_integracao")
-  saldoFinanceiro Decimal? @default(0) @map("saldo_financeiro")
-  ativo        Boolean @default(true) @map("ativo")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id               String   @id @default(uuid()) @map("id")
+  tenantId         String   @map("tenant_id")
+  razaoSocial      String   @map("razao_social")
+  documento        String?  @map("documento")
+  endereco         String?  @map("endereco")
+  cidade           String?  @map("cidade")
+  uf               String?  @map("uf")
+  telefone         String?  @map("telefone")
+  email            String?  @map("email")
+  codigoIntegracao String?  @map("codigo_integracao")
+  saldoFinanceiro  Decimal? @default(0) @map("saldo_financeiro")
+  ativo            Boolean  @default(true) @map("ativo")
+  criadoEm         DateTime @default(now()) @map("criado_em")
+  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
 
   tabelasPrecoCliente TabelaPrecoProdutoCliente[]
-  tickets TicketPesagem[]
-  romaneios Romaneio[]
-  faturas Fatura[]
+  tickets             TicketPesagem[]
+  romaneios           Romaneio[]
+  faturas             Fatura[]
 
+  @@index([tenantId])
   @@map("cliente")
 }
 
 model Transportadora {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  nome         String  @map("nome")
-  documento    String? @map("documento")
-  contatos     String? @map("contatos")
-  observacoes  String? @map("observacoes")
-  ativo        Boolean @default(true) @map("ativo")
+  id           String   @id @default(uuid()) @map("id")
+  tenantId     String   @map("tenant_id")
+  nome         String   @map("nome")
+  documento    String?  @map("documento")
+  contatos     String?  @map("contatos")
+  observacoes  String?  @map("observacoes")
+  ativo        Boolean  @default(true) @map("ativo")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  veiculos  Veiculo[]
+  veiculos   Veiculo[]
   motoristas Motorista[]
-  tickets   TicketPesagem[]
+  tickets    TicketPesagem[]
 
+  @@index([tenantId])
   @@map("transportadora")
 }
 
 model Motorista {
-  id                 String  @id @default(uuid()) @map("id")
-  tenantId           String  @map("tenant_id")
-  empresaId          String? @map("empresa_id")
-  nome               String  @map("nome")
-  documento          String? @map("documento")
-  cnh                String? @map("cnh")
-  telefone           String? @map("telefone")
-  transportadoraId   String? @map("transportadora_id")
-  ativo              Boolean @default(true) @map("ativo")
-  criadoEm           DateTime @default(now()) @map("criado_em")
-  atualizadoEm       DateTime @updatedAt @map("atualizado_em")
+  id               String   @id @default(uuid()) @map("id")
+  tenantId         String   @map("tenant_id")
+  empresaId        String?  @map("empresa_id")
+  nome             String   @map("nome")
+  documento        String?  @map("documento")
+  cnh              String?  @map("cnh")
+  telefone         String?  @map("telefone")
+  transportadoraId String?  @map("transportadora_id")
+  ativo            Boolean  @default(true) @map("ativo")
+  criadoEm         DateTime @default(now()) @map("criado_em")
+  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
 
-  empresa       Empresa?       @relation(fields: [empresaId], references: [id])
+  empresa        Empresa?        @relation(fields: [empresaId], references: [id])
   transportadora Transportadora? @relation(fields: [transportadoraId], references: [id])
-  tickets       TicketPesagem[]
+  tickets        TicketPesagem[]
 
+  @@index([tenantId])
+  @@index([empresaId])
+  @@index([transportadoraId])
   @@map("motorista")
 }
 
 model Produto {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  descricao    String  @map("descricao")
-  codigoInterno String? @map("codigo_interno")
-  unidade      String  @map("unidade")
-  densidade    Decimal? @map("densidade")
-  tipoOperacao String? @map("tipo_operacao")
-  permiteFracionado Boolean @default(false) @map("permite_fracionado")
-  armazemPadraoId String? @map("armazem_padrao_id")
-  ativo        Boolean @default(true) @map("ativo")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id                String   @id @default(uuid()) @map("id")
+  tenantId          String   @map("tenant_id")
+  descricao         String   @map("descricao")
+  codigoInterno     String?  @map("codigo_interno")
+  unidade           String   @map("unidade")
+  densidade         Decimal? @map("densidade")
+  tipoOperacao      String?  @map("tipo_operacao")
+  permiteFracionado Boolean  @default(false) @map("permite_fracionado")
+  armazemPadraoId   String?  @map("armazem_padrao_id")
+  ativo             Boolean  @default(true) @map("ativo")
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
 
-  tickets TicketPesagem[]
-  tabelasUmidade TabelaUmidade[]
-  tabelasPreco TabelaPrecoProduto[]
+  tickets             TicketPesagem[]
+  tabelasUmidade      TabelaUmidade[]
+  tabelasPreco        TabelaPrecoProduto[]
   tabelasPrecoCliente TabelaPrecoProdutoCliente[]
-  tabelasFrete TabelaFrete[]
+  tabelasFrete        TabelaFrete[]
 
+  @@index([tenantId])
   @@map("produto")
 }
 
 model Veiculo {
-  id               String  @id @default(uuid()) @map("id")
-  tenantId         String  @map("tenant_id")
-  empresaId        String? @map("empresa_id")
-  placa            String  @map("placa")
-  transportadoraId String? @map("transportadora_id")
+  id               String   @id @default(uuid()) @map("id")
+  tenantId         String   @map("tenant_id")
+  empresaId        String?  @map("empresa_id")
+  placa            String   @map("placa")
+  transportadoraId String?  @map("transportadora_id")
   taraCadastrada   Decimal? @map("tara_cadastrada")
-  observacoes      String? @map("observacoes")
-  ativo            Boolean @default(true) @map("ativo")
+  observacoes      String?  @map("observacoes")
+  ativo            Boolean  @default(true) @map("ativo")
   criadoEm         DateTime @default(now()) @map("criado_em")
   atualizadoEm     DateTime @updatedAt @map("atualizado_em")
 
-  empresa       Empresa?       @relation(fields: [empresaId], references: [id])
+  empresa        Empresa?        @relation(fields: [empresaId], references: [id])
   transportadora Transportadora? @relation(fields: [transportadoraId], references: [id])
-  tickets       TicketPesagem[]
+  tickets        TicketPesagem[]
 
+  @@unique([tenantId, placa])
+  @@index([empresaId])
+  @@index([transportadoraId])
   @@map("veiculo")
 }
 
 model Destino {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  descricao    String  @map("descricao")
-  clienteId    String? @map("cliente_id")
-  endereco     String? @map("endereco")
-  cidade       String? @map("cidade")
-  uf           String? @map("uf")
-  ativo        Boolean @default(true) @map("ativo")
+  id           String   @id @default(uuid()) @map("id")
+  tenantId     String   @map("tenant_id")
+  descricao    String   @map("descricao")
+  clienteId    String?  @map("cliente_id")
+  endereco     String?  @map("endereco")
+  cidade       String?  @map("cidade")
+  uf           String?  @map("uf")
+  ativo        Boolean  @default(true) @map("ativo")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  tickets TicketPesagem[]
+  tickets      TicketPesagem[]
   tabelasFrete TabelaFrete[]
 
   @@map("destino")
 }
 
 model Origem {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  descricao    String  @map("descricao")
-  clienteId    String? @map("cliente_id")
-  endereco     String? @map("endereco")
-  cidade       String? @map("cidade")
-  uf           String? @map("uf")
-  ativo        Boolean @default(true) @map("ativo")
+  id           String   @id @default(uuid()) @map("id")
+  tenantId     String   @map("tenant_id")
+  descricao    String   @map("descricao")
+  clienteId    String?  @map("cliente_id")
+  endereco     String?  @map("endereco")
+  cidade       String?  @map("cidade")
+  uf           String?  @map("uf")
+  ativo        Boolean  @default(true) @map("ativo")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -290,12 +303,12 @@ model Origem {
 }
 
 model Armazem {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  descricao    String  @map("descricao")
-  localizacao  String? @map("localizacao")
+  id           String   @id @default(uuid()) @map("id")
+  tenantId     String   @map("tenant_id")
+  descricao    String   @map("descricao")
+  localizacao  String?  @map("localizacao")
   capacidadeKg Decimal? @map("capacidade_kg")
-  ativo        Boolean @default(true) @map("ativo")
+  ativo        Boolean  @default(true) @map("ativo")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -305,11 +318,11 @@ model Armazem {
 }
 
 model IndicadorPesagem {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  descricao    String  @map("descricao")
-  cor          String? @map("cor")
-  ativo        Boolean @default(true) @map("ativo")
+  id           String   @id @default(uuid()) @map("id")
+  tenantId     String   @map("tenant_id")
+  descricao    String   @map("descricao")
+  cor          String?  @map("cor")
+  ativo        Boolean  @default(true) @map("ativo")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -317,24 +330,24 @@ model IndicadorPesagem {
   fabricante   String? @map("fabricante")
   modelo       String? @map("modelo")
   protocolo    String  @default("serial") @map("protocolo") // serial | tcp | modbus
-  builtin      Boolean @default(false) @map("builtin")      // seed presets — não-deletáveis na UI
+  builtin      Boolean @default(false) @map("builtin") // seed presets — não-deletáveis na UI
   exemploTrama String? @map("exemplo_trama")
   notas        String? @map("notas")
 
   // Parametros de hardware/protocolo de pesagem (extraidos do PesoLog)
-  parserTipo     String? @map("parser_tipo")     // generic | toledo | toledo-c | filizola | sics | modbus...
-  baudrate       Int?    @map("baudrate")
-  databits       Int?    @map("databits")
-  stopbits       Int?    @map("stopbits")
-  parity         String? @map("parity")          // N | E | O (ou none/even/odd legado)
-  flowControl    String? @map("flow_control")    // NONE | XON_XOFF | RTS_CTS | DTR_DSR
-  inicioPeso     Int?    @map("inicio_peso")     // 1-indexed
-  tamanhoPeso    Int?    @map("tamanho_peso")
-  tamanhoString  Int?    @map("tamanho_string")
-  marcador       Int?    @map("marcador")        // byte terminador (ex: 13 = CR)
-  fator          Int?    @map("fator")           // divisor do peso (1, 10, 100)
-  invertePeso    Boolean @default(false) @map("inverte_peso")
-  atraso         Int?    @map("atraso")          // ms entre leituras
+  parserTipo    String? @map("parser_tipo") // generic | toledo | toledo-c | filizola | sics | modbus...
+  baudrate      Int?    @map("baudrate")
+  databits      Int?    @map("databits")
+  stopbits      Int?    @map("stopbits")
+  parity        String? @map("parity") // N | E | O (ou none/even/odd legado)
+  flowControl   String? @map("flow_control") // NONE | XON_XOFF | RTS_CTS | DTR_DSR
+  inicioPeso    Int?    @map("inicio_peso") // 1-indexed
+  tamanhoPeso   Int?    @map("tamanho_peso")
+  tamanhoString Int?    @map("tamanho_string")
+  marcador      Int?    @map("marcador") // byte terminador (ex: 13 = CR)
+  fator         Int?    @map("fator") // divisor do peso (1, 10, 100)
+  invertePeso   Boolean @default(false) @map("inverte_peso")
+  atraso        Int?    @map("atraso") // ms entre leituras
 
   tickets  TicketPesagem[]
   balancas Balanca[]
@@ -343,11 +356,11 @@ model IndicadorPesagem {
 }
 
 model FormaPagamento {
-  id           String  @id @default(uuid()) @map("id")
-  tenantId     String  @map("tenant_id")
-  descricao    String  @map("descricao")
-  tipo         String  @map("tipo")
-  ativo        Boolean @default(true) @map("ativo")
+  id           String   @id @default(uuid()) @map("id")
+  tenantId     String   @map("tenant_id")
+  descricao    String   @map("descricao")
+  tipo         String   @map("tipo")
+  ativo        Boolean  @default(true) @map("ativo")
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
@@ -361,48 +374,50 @@ model FormaPagamento {
 // ============================================================
 
 model Balanca {
-  id           String   @id @default(uuid()) @map("id")
-  empresaId    String   @map("empresa_id")
-  unidadeId    String   @map("unidade_id")
-  nome         String   @map("nome")
-  marca        String?  @map("marca")
-  modelo       String?  @map("modelo")
-  protocolo    String   @default("serial") @map("protocolo")
-  porta        String?  @map("porta")
-  baudRate     Int?     @map("baud_rate")
-  enderecoIp   String?  @map("endereco_ip")
-  portaTcp     Int?     @map("porta_tcp")
-  statusOnline Boolean  @default(true) @map("status_online")
+  id               String  @id @default(uuid()) @map("id")
+  empresaId        String  @map("empresa_id")
+  unidadeId        String  @map("unidade_id")
+  nome             String  @map("nome")
+  marca            String? @map("marca")
+  modelo           String? @map("modelo")
+  protocolo        String  @default("serial") @map("protocolo")
+  porta            String? @map("porta")
+  baudRate         Int?    @map("baud_rate")
+  enderecoIp       String? @map("endereco_ip")
+  portaTcp         Int?    @map("porta_tcp")
+  statusOnline     Boolean @default(true) @map("status_online")
   tipoEntradaSaida String? @map("tipo_entrada_saida")
-  indicadorId  String?  @map("indicador_id")
-  ativo        Boolean  @default(true) @map("ativo")
+  indicadorId      String? @map("indicador_id")
+  ativo            Boolean @default(true) @map("ativo")
 
   // Override por equipamento (S6.2) — se preenchidos, sobrescrevem o indicador
-  ovrDataBits     Int?    @map("ovr_data_bits")
-  ovrParity       String? @map("ovr_parity")
-  ovrStopBits     Int?    @map("ovr_stop_bits")
-  ovrFlowControl  String? @map("ovr_flow_control")
-  ovrInicioPeso   Int?    @map("ovr_inicio_peso")
-  ovrTamanhoPeso  Int?    @map("ovr_tamanho_peso")
-  ovrTamanhoString Int?   @map("ovr_tamanho_string")
-  ovrMarcador     Int?    @map("ovr_marcador")
-  ovrFator        Int?    @map("ovr_fator")
-  ovrInvertePeso  Boolean? @map("ovr_inverte_peso")
-  ovrAtraso       Int?    @map("ovr_atraso")
-  ovrParserTipo   String? @map("ovr_parser_tipo")
+  ovrDataBits      Int?     @map("ovr_data_bits")
+  ovrParity        String?  @map("ovr_parity")
+  ovrStopBits      Int?     @map("ovr_stop_bits")
+  ovrFlowControl   String?  @map("ovr_flow_control")
+  ovrInicioPeso    Int?     @map("ovr_inicio_peso")
+  ovrTamanhoPeso   Int?     @map("ovr_tamanho_peso")
+  ovrTamanhoString Int?     @map("ovr_tamanho_string")
+  ovrMarcador      Int?     @map("ovr_marcador")
+  ovrFator         Int?     @map("ovr_fator")
+  ovrInvertePeso   Boolean? @map("ovr_inverte_peso")
+  ovrAtraso        Int?     @map("ovr_atraso")
+  ovrParserTipo    String?  @map("ovr_parser_tipo")
 
   // Telemetria de conexão (S6.6)
-  ultimaConexao   DateTime? @map("ultima_conexao")
-  ultimaLeitura   DateTime? @map("ultima_leitura")
+  ultimaConexao DateTime? @map("ultima_conexao")
+  ultimaLeitura DateTime? @map("ultima_leitura")
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  empresa   Empresa @relation(fields: [empresaId], references: [id])
-  unidade   Unidade @relation(fields: [unidadeId], references: [id])
+  empresa   Empresa           @relation(fields: [empresaId], references: [id])
+  unidade   Unidade           @relation(fields: [unidadeId], references: [id])
   indicador IndicadorPesagem? @relation(fields: [indicadorId], references: [id])
   passagens PassagemPesagem[]
 
+  @@index([empresaId, unidadeId])
+  @@index([indicadorId])
   @@map("balanca")
 }
 
@@ -411,49 +426,49 @@ model Balanca {
 // ============================================================
 
 model ConfiguracaoOperacionalUnidade {
-  id              String  @id @default(uuid()) @map("id")
-  empresaId       String  @map("empresa_id")
-  unidadeId       String  @map("unidade_id")
+  id        String @id @default(uuid()) @map("id")
+  empresaId String @map("empresa_id")
+  unidadeId String @map("unidade_id")
 
   // Balanças padrão (S6.7) — equivalente ao [BALANCA] PADRAO_ENTRADA/SAIDA do PesoLog
   balancaPadraoEntrada String? @map("balanca_padrao_entrada")
   balancaPadraoSaida   String? @map("balanca_padrao_saida")
 
   // Feature flags
-  pesagemComTara    Boolean @default(true) @map("pesagem_com_tara")
-  pesagemEntrada    Boolean @default(true) @map("pesagem_entrada")
-  pesagemSaida      Boolean @default(true) @map("pesagem_saida")
-  financeiro        Boolean @default(false) @map("financeiro")
-  cameras           Boolean @default(false) @map("cameras")
+  pesagemComTara           Boolean @default(true) @map("pesagem_com_tara")
+  pesagemEntrada           Boolean @default(true) @map("pesagem_entrada")
+  pesagemSaida             Boolean @default(true) @map("pesagem_saida")
+  financeiro               Boolean @default(false) @map("financeiro")
+  cameras                  Boolean @default(false) @map("cameras")
   transportadoraHabilitada Boolean @default(true) @map("transportadora_habilitada")
-  motoristaHabilitado Boolean @default(true) @map("motorista_habilitado")
-  armazemHabilitado Boolean @default(false) @map("armazem_habilitado")
-  manutencaoTicket  Boolean @default(true) @map("manutencao_ticket")
-  conversaoUnidade  Boolean @default(false) @map("conversao_unidade")
-  precoVenda        Boolean @default(false) @map("preco_venda")
-  bilhetagem        Boolean @default(false) @map("bilhetagem")
-  origemDestino     Boolean @default(false) @map("origem_destino")
-  calculoFrete      Boolean @default(false) @map("calculo_frete")
-  tabelaUmidade     Boolean @default(false) @map("tabela_umidade")
-  descontos         Boolean @default(false) @map("descontos")
-  emissaoRomaneio   Boolean @default(false) @map("emissao_romaneio")
-  edicaoRomaneio    Boolean @default(false) @map("edicao_romaneio")
-  habilitaBaixa     Boolean @default(false) @map("habilita_baixa")
-  listaDocumentos   Boolean @default(false) @map("lista_documentos")
+  motoristaHabilitado      Boolean @default(true) @map("motorista_habilitado")
+  armazemHabilitado        Boolean @default(false) @map("armazem_habilitado")
+  manutencaoTicket         Boolean @default(true) @map("manutencao_ticket")
+  conversaoUnidade         Boolean @default(false) @map("conversao_unidade")
+  precoVenda               Boolean @default(false) @map("preco_venda")
+  bilhetagem               Boolean @default(false) @map("bilhetagem")
+  origemDestino            Boolean @default(false) @map("origem_destino")
+  calculoFrete             Boolean @default(false) @map("calculo_frete")
+  tabelaUmidade            Boolean @default(false) @map("tabela_umidade")
+  descontos                Boolean @default(false) @map("descontos")
+  emissaoRomaneio          Boolean @default(false) @map("emissao_romaneio")
+  edicaoRomaneio           Boolean @default(false) @map("edicao_romaneio")
+  habilitaBaixa            Boolean @default(false) @map("habilita_baixa")
+  listaDocumentos          Boolean @default(false) @map("lista_documentos")
 
   // Configuracoes de impressao
-  previewImpressao  Boolean @default(true) @map("preview_impressao")
-  numeroCopias      Int     @default(1) @map("numero_copias")
+  previewImpressao    Boolean @default(true) @map("preview_impressao")
+  numeroCopias        Int     @default(1) @map("numero_copias")
   manterPreviewAberto Boolean @default(false) @map("manter_preview_aberto")
-  modeloTicketPadrao String? @map("modelo_ticket_padrao")
-  logomarcaPadrao   String? @map("logomarca_padrao")
-  logomarcaRelatorio String? @map("logomarca_relatorio")
+  modeloTicketPadrao  String? @map("modelo_ticket_padrao")
+  logomarcaPadrao     String? @map("logomarca_padrao")
+  logomarcaRelatorio  String? @map("logomarca_relatorio")
 
   // Campos adicionais
-  labelAdicional1    String? @map("label_adicional_1")
-  labelAdicional2    String? @map("label_adicional_2")
+  labelAdicional1      String? @map("label_adicional_1")
+  labelAdicional2      String? @map("label_adicional_2")
   observacaoHabilitada Boolean @default(true) @map("observacao_habilitada")
-  rodapeTexto        String? @map("rodape_texto")
+  rodapeTexto          String? @map("rodape_texto")
   manterTaraCadastrada Boolean @default(true) @map("manter_tara_cadastrada")
 
   criadoEm     DateTime @default(now()) @map("criado_em")
@@ -466,22 +481,22 @@ model ConfiguracaoOperacionalUnidade {
 }
 
 model MatrizRegraOperacional {
-  id                String  @id @default(uuid()) @map("id")
-  tenantId          String? @map("tenant_id")
-  empresaId         String? @map("empresa_id")
-  unidadeId         String? @map("unidade_id")
-  tipoOperacao      String? @map("tipo_operacao")
-  clienteId         String? @map("cliente_id")
-  produtoId         String? @map("produto_id")
-  campoAlvo         String  @map("campo_alvo")
-  visivel           Boolean @default(true) @map("visivel")
-  obrigatorio       Boolean @default(false) @map("obrigatorio")
-  editavel          Boolean @default(true) @map("editavel")
-  valorPadrao       String? @map("valor_padrao")
-  ordemExibicao     Int?    @map("ordem_exibicao")
-  prioridadeResolucao Int @default(0) @map("prioridade_resolucao")
-  criadoEm          DateTime @default(now()) @map("criado_em")
-  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
+  id                  String   @id @default(uuid()) @map("id")
+  tenantId            String?  @map("tenant_id")
+  empresaId           String?  @map("empresa_id")
+  unidadeId           String?  @map("unidade_id")
+  tipoOperacao        String?  @map("tipo_operacao")
+  clienteId           String?  @map("cliente_id")
+  produtoId           String?  @map("produto_id")
+  campoAlvo           String   @map("campo_alvo")
+  visivel             Boolean  @default(true) @map("visivel")
+  obrigatorio         Boolean  @default(false) @map("obrigatorio")
+  editavel            Boolean  @default(true) @map("editavel")
+  valorPadrao         String?  @map("valor_padrao")
+  ordemExibicao       Int?     @map("ordem_exibicao")
+  prioridadeResolucao Int      @default(0) @map("prioridade_resolucao")
+  criadoEm            DateTime @default(now()) @map("criado_em")
+  atualizadoEm        DateTime @updatedAt @map("atualizado_em")
 
   empresa Empresa? @relation(fields: [empresaId], references: [id])
   unidade Unidade? @relation(fields: [unidadeId], references: [id])
@@ -494,48 +509,48 @@ model MatrizRegraOperacional {
 // ============================================================
 
 model TicketPesagem {
-  id             String @id @default(uuid()) @map("id")
-  numero         String @map("numero")
-  unidadeId      String @map("unidade_id")
-  tenantId       String @map("tenant_id")
-  statusOperacional String @map("status_operacional")
-  statusComercial  String @default("NAO_ROMANEADO") @map("status_comercial")
-  fluxoPesagem   String @map("fluxo_pesagem")
-  totalPassagensPrevistas Int @default(2) @map("total_passagens_previstas")
-  totalPassagensRealizadas Int @default(0) @map("total_passagens_realizadas")
+  id                       String @id @default(uuid()) @map("id")
+  numero                   String @map("numero")
+  unidadeId                String @map("unidade_id")
+  tenantId                 String @map("tenant_id")
+  statusOperacional        String @map("status_operacional")
+  statusComercial          String @default("NAO_ROMANEADO") @map("status_comercial")
+  fluxoPesagem             String @map("fluxo_pesagem")
+  totalPassagensPrevistas  Int    @default(2) @map("total_passagens_previstas")
+  totalPassagensRealizadas Int    @default(0) @map("total_passagens_realizadas")
 
   // Entidades relacionadas
-  clienteId      String @map("cliente_id")
-  transportadoraId String? @map("transportadora_id")
-  motoristaId    String? @map("motorista_id")
-  veiculoId      String? @map("veiculo_id")
-  veiculoPlaca   String? @map("veiculo_placa")
-  produtoId      String @map("produto_id")
-  origemId       String? @map("origem_id")
-  destinoId      String? @map("destino_id")
-  armazemId      String? @map("armazem_id")
+  clienteId          String  @map("cliente_id")
+  transportadoraId   String? @map("transportadora_id")
+  motoristaId        String? @map("motorista_id")
+  veiculoId          String? @map("veiculo_id")
+  veiculoPlaca       String? @map("veiculo_placa")
+  produtoId          String  @map("produto_id")
+  origemId           String? @map("origem_id")
+  destinoId          String? @map("destino_id")
+  armazemId          String? @map("armazem_id")
   indicadorPesagemId String? @map("indicador_pesagem_id")
 
   // Documentos e nota
-  notaFiscal     String? @map("nota_fiscal")
-  pesoNf         Decimal? @map("peso_nf")
+  notaFiscal String?  @map("nota_fiscal")
+  pesoNf     Decimal? @map("peso_nf")
 
   // Peso apurado
-  pesoBrutoApurado   Decimal? @map("peso_bruto_apurado")
-  pesoTaraApurada    Decimal? @map("peso_tara_apurada")
+  pesoBrutoApurado       Decimal? @map("peso_bruto_apurado")
+  pesoTaraApurada        Decimal? @map("peso_tara_apurada")
   pesoLiquidoSemDesconto Decimal? @map("peso_liquido_sem_desconto")
-  totalDescontos     Decimal? @default(0) @map("total_descontos")
-  pesoLiquidoFinal   Decimal? @map("peso_liquido_final")
+  totalDescontos         Decimal? @default(0) @map("total_descontos")
+  pesoLiquidoFinal       Decimal? @map("peso_liquido_final")
 
   // Tara referenciada
   taraCadastradaSnapshot Decimal? @map("tara_cadastrada_snapshot")
-  taraReferenciaTipo String? @map("tara_referencia_tipo")
+  taraReferenciaTipo     String?  @map("tara_referencia_tipo")
 
   // Snapshot comercial
-  snapshotComercialVersao Int? @map("snapshot_comercial_versao")
-  modoComercial String @default("DESABILITADO") @map("modo_comercial")
-  valorUnitario Decimal? @map("valor_unitario")
-  valorTotal    Decimal? @map("valor_total")
+  snapshotComercialVersao Int?     @map("snapshot_comercial_versao")
+  modoComercial           String   @default("DESABILITADO") @map("modo_comercial")
+  valorUnitario           Decimal? @map("valor_unitario")
+  valorTotal              Decimal? @map("valor_total")
 
   // Datas
   primeiraPassagemEm DateTime? @map("primeira_passagem_em")
@@ -543,121 +558,134 @@ model TicketPesagem {
   abertoEm           DateTime? @map("aberto_em")
   fechadoEm          DateTime? @map("fechado_em")
   canceladoEm        DateTime? @map("cancelado_em")
-  motivoCancelamento String? @map("motivo_cancelamento")
+  motivoCancelamento String?   @map("motivo_cancelamento")
 
   // Campos adicionais
-  observacao        String? @map("observacao")
-  campo1            String? @map("campo_1")
-  campo2            String? @map("campo_2")
+  observacao              String? @map("observacao")
+  campo1                  String? @map("campo_1")
+  campo2                  String? @map("campo_2")
   payloadCamposAdicionais String? @map("payload_campos_adicionais")
 
-  criadoEm          DateTime @default(now()) @map("criado_em")
-  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  unidade           Unidade @relation(fields: [unidadeId], references: [id])
-  cliente           Cliente @relation(fields: [clienteId], references: [id])
-  transportadora    Transportadora? @relation(fields: [transportadoraId], references: [id])
-  motorista         Motorista? @relation(fields: [motoristaId], references: [id])
-  veiculo           Veiculo? @relation(fields: [veiculoId], references: [id])
-  produto           Produto @relation(fields: [produtoId], references: [id])
-  origem            Origem? @relation(fields: [origemId], references: [id])
-  destino           Destino? @relation(fields: [destinoId], references: [id])
-  armazem           Armazem? @relation(fields: [armazemId], references: [id])
-  indicadorPesagem  IndicadorPesagem? @relation(fields: [indicadorPesagemId], references: [id])
-  passagens         PassagemPesagem[]
-  descontos         DescontoPesagem[]
-  documentos        DocumentoPesagem[]
+  unidade            Unidade                   @relation(fields: [unidadeId], references: [id])
+  cliente            Cliente                   @relation(fields: [clienteId], references: [id])
+  transportadora     Transportadora?           @relation(fields: [transportadoraId], references: [id])
+  motorista          Motorista?                @relation(fields: [motoristaId], references: [id])
+  veiculo            Veiculo?                  @relation(fields: [veiculoId], references: [id])
+  produto            Produto                   @relation(fields: [produtoId], references: [id])
+  origem             Origem?                   @relation(fields: [origemId], references: [id])
+  destino            Destino?                  @relation(fields: [destinoId], references: [id])
+  armazem            Armazem?                  @relation(fields: [armazemId], references: [id])
+  indicadorPesagem   IndicadorPesagem?         @relation(fields: [indicadorPesagemId], references: [id])
+  passagens          PassagemPesagem[]
+  descontos          DescontoPesagem[]
+  documentos         DocumentoPesagem[]
   snapshotsComercial SnapshotComercialTicket[]
-  romaneios         ItemRomaneio[]
+  romaneios          ItemRomaneio[]
 
+  @@index([tenantId])
+  @@index([unidadeId])
+  @@index([clienteId])
+  @@index([veiculoId])
+  @@index([criadoEm])
+  @@index([statusOperacional])
   @@map("ticket_pesagem")
 }
 
 model PassagemPesagem {
-  id                String @id @default(uuid()) @map("id")
-  ticketId          String @map("ticket_id")
-  sequencia         Int    @map("sequencia")
-  tipoPassagem      String @map("tipo_passagem")
-  direcaoOperacional String @map("direcao_operacional")
-  papelCalculo      String @map("papel_calculo")
-  condicaoVeiculo   String @default("NAO_INFORMADO") @map("condicao_veiculo")
-  statusPassagem    String @map("status_passagem")
-  pesoCapturado     Decimal @map("peso_capturado")
-  dataHora          DateTime @map("data_hora")
-  capturedAtLocal   DateTime? @map("captured_at_local")
-  receivedAtBackend DateTime @default(now()) @map("received_at_backend")
+  id                 String    @id @default(uuid()) @map("id")
+  ticketId           String    @map("ticket_id")
+  sequencia          Int       @map("sequencia")
+  tipoPassagem       String    @map("tipo_passagem")
+  direcaoOperacional String    @map("direcao_operacional")
+  papelCalculo       String    @map("papel_calculo")
+  condicaoVeiculo    String    @default("NAO_INFORMADO") @map("condicao_veiculo")
+  statusPassagem     String    @map("status_passagem")
+  pesoCapturado      Decimal   @map("peso_capturado")
+  dataHora           DateTime  @map("data_hora")
+  capturedAtLocal    DateTime? @map("captured_at_local")
+  receivedAtBackend  DateTime  @default(now()) @map("received_at_backend")
 
   // Balanca e operador
-  balancaId         String @map("balanca_id")
-  usuarioId         String @map("usuario_id")
-  origemLeitura     String @map("origem_leitura")
+  balancaId             String   @map("balanca_id")
+  usuarioId             String   @map("usuario_id")
+  origemLeitura         String   @map("origem_leitura")
   indicadorEstabilidade Decimal? @map("indicador_estabilidade")
 
   // Sincronizacao
-  sequenceNoDispositivo Int? @map("sequence_no_dispositivo")
-  eventIdOrigem   String? @map("event_id_origem")
-  observacao      String? @map("observacao")
-  motivoInvalidacao String? @map("motivo_invalidacao")
+  sequenceNoDispositivo Int?    @map("sequence_no_dispositivo")
+  eventIdOrigem         String? @map("event_id_origem")
+  observacao            String? @map("observacao")
+  motivoInvalidacao     String? @map("motivo_invalidacao")
 
-  criadoEm        DateTime @default(now()) @map("criado_em")
-  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
   ticket  TicketPesagem @relation(fields: [ticketId], references: [id])
-  balanca Balanca @relation(fields: [balancaId], references: [id])
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  balanca Balanca       @relation(fields: [balancaId], references: [id])
+  usuario Usuario       @relation(fields: [usuarioId], references: [id])
 
+  @@index([ticketId])
+  @@index([balancaId])
+  @@index([usuarioId])
+  @@index([dataHora])
   @@map("passagem_pesagem")
 }
 
 model DescontoPesagem {
-  id           String @id @default(uuid()) @map("id")
-  ticketId     String @map("ticket_id")
-  tipo         String @map("tipo")
-  descricao    String? @map("descricao")
-  valor        Decimal @map("valor")
-  percentual   Decimal? @map("percentual")
-  origem       String @default("manual") @map("origem")
-  criadoEm     DateTime @default(now()) @map("criado_em")
+  id         String   @id @default(uuid()) @map("id")
+  ticketId   String   @map("ticket_id")
+  tipo       String   @map("tipo")
+  descricao  String?  @map("descricao")
+  valor      Decimal  @map("valor")
+  percentual Decimal? @map("percentual")
+  origem     String   @default("manual") @map("origem")
+  criadoEm   DateTime @default(now()) @map("criado_em")
 
   ticket TicketPesagem @relation(fields: [ticketId], references: [id])
 
+  @@index([ticketId])
   @@map("desconto_pesagem")
 }
 
 model DocumentoPesagem {
-  id           String @id @default(uuid()) @map("id")
-  ticketId     String @map("ticket_id")
-  tipo         String @map("tipo")
-  numero       String? @map("numero")
-  arquivoUrl   String? @map("arquivo_url")
-  observacao   String? @map("observacao")
-  criadoEm     DateTime @default(now()) @map("criado_em")
+  id         String   @id @default(uuid()) @map("id")
+  ticketId   String   @map("ticket_id")
+  tipo       String   @map("tipo")
+  numero     String?  @map("numero")
+  arquivoUrl String?  @map("arquivo_url")
+  observacao String?  @map("observacao")
+  criadoEm   DateTime @default(now()) @map("criado_em")
 
   ticket TicketPesagem @relation(fields: [ticketId], references: [id])
 
+  @@index([ticketId])
   @@map("documento_pesagem")
 }
 
 model SnapshotComercialTicket {
-  id                String @id @default(uuid()) @map("id")
-  ticketId          String @map("ticket_id")
-  modoComercialTicket String @map("modo_comercial_ticket")
-  precoOrigem       String? @map("preco_origem")
-  freteOrigem       String? @map("frete_origem")
-  descontoOrigem    String? @map("desconto_origem")
-  umidadeOrigem     String? @map("umidade_origem")
-  vigenciaAplicada  DateTime? @map("vigencia_aplicada")
-  valorUnitario     Decimal? @map("valor_unitario")
-  valorFrete        Decimal? @map("valor_frete")
-  valorTotalBruto   Decimal? @map("valor_total_bruto")
-  valorTotalLiquido Decimal? @map("valor_total_liquido")
-  pesoBaseComercial Decimal? @map("peso_base_comercial")
-  versaoSnapshot    Int @map("versao_snapshot")
-  geradoEm          DateTime @default(now()) @map("gerado_em")
-  geradoPor         String? @map("gerado_por")
+  id                  String    @id @default(uuid()) @map("id")
+  ticketId            String    @map("ticket_id")
+  modoComercialTicket String    @map("modo_comercial_ticket")
+  precoOrigem         String?   @map("preco_origem")
+  freteOrigem         String?   @map("frete_origem")
+  descontoOrigem      String?   @map("desconto_origem")
+  umidadeOrigem       String?   @map("umidade_origem")
+  vigenciaAplicada    DateTime? @map("vigencia_aplicada")
+  valorUnitario       Decimal?  @map("valor_unitario")
+  valorFrete          Decimal?  @map("valor_frete")
+  valorTotalBruto     Decimal?  @map("valor_total_bruto")
+  valorTotalLiquido   Decimal?  @map("valor_total_liquido")
+  pesoBaseComercial   Decimal?  @map("peso_base_comercial")
+  versaoSnapshot      Int       @map("versao_snapshot")
+  geradoEm            DateTime  @default(now()) @map("gerado_em")
+  geradoPor           String?   @map("gerado_por")
 
   ticket TicketPesagem @relation(fields: [ticketId], references: [id])
 
+  @@index([ticketId])
   @@map("snapshot_comercial_ticket")
 }
 
@@ -666,17 +694,17 @@ model SnapshotComercialTicket {
 // ============================================================
 
 model TabelaUmidade {
-  id           String @id @default(uuid()) @map("id")
-  tenantId     String @map("tenant_id")
-  produtoId    String @map("produto_id")
-  faixaInicial Decimal @map("faixa_inicial")
-  faixaFinal   Decimal @map("faixa_final")
-  descontoPercentual Decimal @map("desconto_percentual")
-  vigenciaInicio DateTime @map("vigencia_inicio")
-  vigenciaFim    DateTime? @map("vigencia_fim")
-  ativo        Boolean @default(true) @map("ativo")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id                 String    @id @default(uuid()) @map("id")
+  tenantId           String    @map("tenant_id")
+  produtoId          String    @map("produto_id")
+  faixaInicial       Decimal   @map("faixa_inicial")
+  faixaFinal         Decimal   @map("faixa_final")
+  descontoPercentual Decimal   @map("desconto_percentual")
+  vigenciaInicio     DateTime  @map("vigencia_inicio")
+  vigenciaFim        DateTime? @map("vigencia_fim")
+  ativo              Boolean   @default(true) @map("ativo")
+  criadoEm           DateTime  @default(now()) @map("criado_em")
+  atualizadoEm       DateTime  @updatedAt @map("atualizado_em")
 
   produto Produto @relation(fields: [produtoId], references: [id])
 
@@ -684,17 +712,17 @@ model TabelaUmidade {
 }
 
 model TabelaPrecoProduto {
-  id           String @id @default(uuid()) @map("id")
-  tenantId     String @map("tenant_id")
-  produtoId    String @map("produto_id")
-  valor        Decimal @map("valor")
-  unidade      String @map("unidade")
-  vigenciaInicio DateTime @map("vigencia_inicio")
-  vigenciaFim    DateTime? @map("vigencia_fim")
-  prioridadeResolucao Int @default(0) @map("prioridade_resolucao")
-  ativo        Boolean @default(true) @map("ativo")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id                  String    @id @default(uuid()) @map("id")
+  tenantId            String    @map("tenant_id")
+  produtoId           String    @map("produto_id")
+  valor               Decimal   @map("valor")
+  unidade             String    @map("unidade")
+  vigenciaInicio      DateTime  @map("vigencia_inicio")
+  vigenciaFim         DateTime? @map("vigencia_fim")
+  prioridadeResolucao Int       @default(0) @map("prioridade_resolucao")
+  ativo               Boolean   @default(true) @map("ativo")
+  criadoEm            DateTime  @default(now()) @map("criado_em")
+  atualizadoEm        DateTime  @updatedAt @map("atualizado_em")
 
   produto Produto @relation(fields: [produtoId], references: [id])
 
@@ -702,19 +730,19 @@ model TabelaPrecoProduto {
 }
 
 model TabelaPrecoProdutoCliente {
-  id           String @id @default(uuid()) @map("id")
-  tenantId     String @map("tenant_id")
-  produtoId    String @map("produto_id")
-  clienteId    String @map("cliente_id")
-  destinoId    String? @map("destino_id")
-  valor        Decimal @map("valor")
-  unidade      String @map("unidade")
-  vigenciaInicio DateTime @map("vigencia_inicio")
-  vigenciaFim    DateTime? @map("vigencia_fim")
-  prioridadeResolucao Int @default(0) @map("prioridade_resolucao")
-  ativo        Boolean @default(true) @map("ativo")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id                  String    @id @default(uuid()) @map("id")
+  tenantId            String    @map("tenant_id")
+  produtoId           String    @map("produto_id")
+  clienteId           String    @map("cliente_id")
+  destinoId           String?   @map("destino_id")
+  valor               Decimal   @map("valor")
+  unidade             String    @map("unidade")
+  vigenciaInicio      DateTime  @map("vigencia_inicio")
+  vigenciaFim         DateTime? @map("vigencia_fim")
+  prioridadeResolucao Int       @default(0) @map("prioridade_resolucao")
+  ativo               Boolean   @default(true) @map("ativo")
+  criadoEm            DateTime  @default(now()) @map("criado_em")
+  atualizadoEm        DateTime  @updatedAt @map("atualizado_em")
 
   produto Produto @relation(fields: [produtoId], references: [id])
   cliente Cliente @relation(fields: [clienteId], references: [id])
@@ -723,20 +751,20 @@ model TabelaPrecoProdutoCliente {
 }
 
 model TabelaFrete {
-  id           String @id @default(uuid()) @map("id")
-  tenantId     String @map("tenant_id")
-  produtoId    String? @map("produto_id")
-  clienteId    String? @map("cliente_id")
-  destinoId    String? @map("destino_id")
-  faixaPesoInicial Decimal? @map("faixa_peso_inicial")
-  faixaPesoFinal   Decimal? @map("faixa_peso_final")
-  valor        Decimal @map("valor")
-  vigenciaInicio DateTime @map("vigencia_inicio")
-  vigenciaFim    DateTime? @map("vigencia_fim")
-  prioridadeResolucao Int @default(0) @map("prioridade_resolucao")
-  ativo        Boolean @default(true) @map("ativo")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id                  String    @id @default(uuid()) @map("id")
+  tenantId            String    @map("tenant_id")
+  produtoId           String?   @map("produto_id")
+  clienteId           String?   @map("cliente_id")
+  destinoId           String?   @map("destino_id")
+  faixaPesoInicial    Decimal?  @map("faixa_peso_inicial")
+  faixaPesoFinal      Decimal?  @map("faixa_peso_final")
+  valor               Decimal   @map("valor")
+  vigenciaInicio      DateTime  @map("vigencia_inicio")
+  vigenciaFim         DateTime? @map("vigencia_fim")
+  prioridadeResolucao Int       @default(0) @map("prioridade_resolucao")
+  ativo               Boolean   @default(true) @map("ativo")
+  criadoEm            DateTime  @default(now()) @map("criado_em")
+  atualizadoEm        DateTime  @updatedAt @map("atualizado_em")
 
   produto Produto? @relation(fields: [produtoId], references: [id])
   destino Destino? @relation(fields: [destinoId], references: [id])
@@ -749,38 +777,43 @@ model TabelaFrete {
 // ============================================================
 
 model Romaneio {
-  id           String @id @default(uuid()) @map("id")
-  numero       String @map("numero")
-  tenantId     String @map("tenant_id")
-  clienteId    String @map("cliente_id")
+  id            String   @id @default(uuid()) @map("id")
+  numero        String   @map("numero")
+  tenantId      String   @map("tenant_id")
+  clienteId     String   @map("cliente_id")
   periodoInicio DateTime @map("periodo_inicio")
-  periodoFim   DateTime @map("periodo_fim")
-  pesoTotal    Decimal? @map("peso_total")
-  valorTotal   Decimal? @map("valor_total")
-  status       String @default("ABERTO") @map("status")
-  observacao   String? @map("observacao")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  periodoFim    DateTime @map("periodo_fim")
+  pesoTotal     Decimal? @map("peso_total")
+  valorTotal    Decimal? @map("valor_total")
+  status        String   @default("ABERTO") @map("status")
+  observacao    String?  @map("observacao")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
 
-  cliente Cliente @relation(fields: [clienteId], references: [id])
+  cliente Cliente        @relation(fields: [clienteId], references: [id])
   itens   ItemRomaneio[]
   faturas Fatura[]
 
+  @@index([tenantId])
+  @@index([clienteId])
+  @@index([status])
   @@map("romaneio")
 }
 
 model ItemRomaneio {
-  id           String @id @default(uuid()) @map("id")
-  romaneioId   String @map("romaneio_id")
-  ticketId     String @map("ticket_id")
-  sequencia    Int @map("sequencia")
-  peso         Decimal @map("peso")
-  valor        Decimal? @map("valor")
-  criadoEm     DateTime @default(now()) @map("criado_em")
+  id         String   @id @default(uuid()) @map("id")
+  romaneioId String   @map("romaneio_id")
+  ticketId   String   @map("ticket_id")
+  sequencia  Int      @map("sequencia")
+  peso       Decimal  @map("peso")
+  valor      Decimal? @map("valor")
+  criadoEm   DateTime @default(now()) @map("criado_em")
 
-  romaneio Romaneio @relation(fields: [romaneioId], references: [id])
+  romaneio Romaneio      @relation(fields: [romaneioId], references: [id])
   ticket   TicketPesagem @relation(fields: [ticketId], references: [id])
 
+  @@index([romaneioId])
+  @@index([ticketId])
   @@map("item_romaneio")
 }
 
@@ -789,46 +822,52 @@ model ItemRomaneio {
 // ============================================================
 
 model Fatura {
-  id           String @id @default(uuid()) @map("id")
-  numero       String @map("numero")
-  serie        String? @map("serie")
-  tipoFatura   String @default("NORMAL") @map("tipo_fatura")
-  tenantId     String @map("tenant_id")
-  romaneioId   String? @map("romaneio_id")
-  clienteId    String @map("cliente_id")
-  dataEmissao  DateTime @map("data_emissao")
-  notaFiscal   String? @map("nota_fiscal")
-  observacao   String? @map("observacao")
+  id            String   @id @default(uuid()) @map("id")
+  numero        String   @map("numero")
+  serie         String?  @map("serie")
+  tipoFatura    String   @default("NORMAL") @map("tipo_fatura")
+  tenantId      String   @map("tenant_id")
+  romaneioId    String?  @map("romaneio_id")
+  clienteId     String   @map("cliente_id")
+  dataEmissao   DateTime @map("data_emissao")
+  notaFiscal    String?  @map("nota_fiscal")
+  observacao    String?  @map("observacao")
   totalRomaneio Decimal? @map("total_romaneio")
-  totalGeral   Decimal @map("total_geral")
-  status       String @default("ABERTA") @map("status")
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  totalGeral    Decimal  @map("total_geral")
+  status        String   @default("ABERTA") @map("status")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
 
-  cliente   Cliente @relation(fields: [clienteId], references: [id])
-  romaneio  Romaneio? @relation(fields: [romaneioId], references: [id])
+  cliente    Cliente           @relation(fields: [clienteId], references: [id])
+  romaneio   Romaneio?         @relation(fields: [romaneioId], references: [id])
   pagamentos PagamentoFatura[]
 
+  @@index([tenantId])
+  @@index([clienteId])
+  @@index([status])
+  @@index([dataEmissao])
   @@map("fatura")
 }
 
 model PagamentoFatura {
-  id              String @id @default(uuid()) @map("id")
-  faturaId        String @map("fatura_id")
-  formaPagamentoId String @map("forma_pagamento_id")
-  valor           Decimal @map("valor")
-  dataEmissao     DateTime @map("data_emissao")
-  dataVencimento  DateTime? @map("data_vencimento")
-  numeroDocumento String? @map("numero_documento")
-  observacao      String? @map("observacao")
-  status          String  @default("PENDENTE") @map("status")
-  dataBaixa       DateTime? @map("data_baixa")
-  usuarioBaixa    String? @map("usuario_baixa")
-  criadoEm        DateTime @default(now()) @map("criado_em")
+  id               String    @id @default(uuid()) @map("id")
+  faturaId         String    @map("fatura_id")
+  formaPagamentoId String    @map("forma_pagamento_id")
+  valor            Decimal   @map("valor")
+  dataEmissao      DateTime  @map("data_emissao")
+  dataVencimento   DateTime? @map("data_vencimento")
+  numeroDocumento  String?   @map("numero_documento")
+  observacao       String?   @map("observacao")
+  status           String    @default("PENDENTE") @map("status")
+  dataBaixa        DateTime? @map("data_baixa")
+  usuarioBaixa     String?   @map("usuario_baixa")
+  criadoEm         DateTime  @default(now()) @map("criado_em")
 
-  fatura        Fatura @relation(fields: [faturaId], references: [id])
+  fatura         Fatura         @relation(fields: [faturaId], references: [id])
   formaPagamento FormaPagamento @relation(fields: [formaPagamentoId], references: [id])
 
+  @@index([faturaId])
+  @@index([status])
   @@map("pagamento_fatura")
 }
 
@@ -837,39 +876,41 @@ model PagamentoFatura {
 // ============================================================
 
 model LicencaInstalacao {
-  id                      String @id @default(uuid()) @map("id")
-  unidadeId               String @map("unidade_id")
-  tenantId                String? @map("tenant_id")
-  tipoLicenca             String @map("tipo_licenca")
-  statusLicenca           String @map("status_licenca")
-  fingerprintDispositivo  String? @map("fingerprint_dispositivo")
-  trialIniciadoEm         DateTime? @map("trial_iniciado_em")
-  trialExpiraEm           DateTime? @map("trial_expira_em")
-  limitePesagensTrial     Int? @map("limite_pesagens_trial")
-  pesagensRestantesTrial  Int? @map("pesagens_restantes_trial")
-  chaveValidacaoHash      String? @map("chave_validacao_hash")
-  chaveLicenciamentoHash  String? @map("chave_licenciamento_hash")
-  ativadoEm               DateTime? @map("ativado_em")
-  expiraEm                DateTime? @map("expira_em")
-  bloqueadoEm             DateTime? @map("bloqueado_em")
-  motivoBloqueio          String? @map("motivo_bloqueio")
-  criadoEm                DateTime @default(now()) @map("criado_em")
-  atualizadoEm            DateTime @updatedAt @map("atualizado_em")
+  id                     String    @id @default(uuid()) @map("id")
+  unidadeId              String    @map("unidade_id")
+  tenantId               String?   @map("tenant_id")
+  tipoLicenca            String    @map("tipo_licenca")
+  statusLicenca          String    @map("status_licenca")
+  fingerprintDispositivo String?   @map("fingerprint_dispositivo")
+  trialIniciadoEm        DateTime? @map("trial_iniciado_em")
+  trialExpiraEm          DateTime? @map("trial_expira_em")
+  limitePesagensTrial    Int?      @map("limite_pesagens_trial")
+  pesagensRestantesTrial Int?      @map("pesagens_restantes_trial")
+  chaveValidacaoHash     String?   @map("chave_validacao_hash")
+  chaveLicenciamentoHash String?   @map("chave_licenciamento_hash")
+  ativadoEm              DateTime? @map("ativado_em")
+  expiraEm               DateTime? @map("expira_em")
+  bloqueadoEm            DateTime? @map("bloqueado_em")
+  motivoBloqueio         String?   @map("motivo_bloqueio")
+  criadoEm               DateTime  @default(now()) @map("criado_em")
+  atualizadoEm           DateTime  @updatedAt @map("atualizado_em")
 
-  unidade Unidade @relation(fields: [unidadeId], references: [id])
+  unidade Unidade               @relation(fields: [unidadeId], references: [id])
   eventos EventoLicenciamento[]
 
+  @@index([unidadeId])
+  @@index([tenantId])
   @@map("licenca_instalacao")
 }
 
 model EventoLicenciamento {
-  id                  String @id @default(uuid()) @map("id")
-  licencaInstalacaoId String @map("licenca_instalacao_id")
-  tipoEvento          String @map("tipo_evento")
-  statusAnterior      String? @map("status_anterior")
-  statusNovo          String @map("status_novo")
-  payloadResumido     String? @map("payload_resumido")
-  usuarioResponsavel  String? @map("usuario_responsavel")
+  id                  String   @id @default(uuid()) @map("id")
+  licencaInstalacaoId String   @map("licenca_instalacao_id")
+  tipoEvento          String   @map("tipo_evento")
+  statusAnterior      String?  @map("status_anterior")
+  statusNovo          String   @map("status_novo")
+  payloadResumido     String?  @map("payload_resumido")
+  usuarioResponsavel  String?  @map("usuario_responsavel")
   ocorridoEm          DateTime @default(now()) @map("ocorrido_em")
 
   licenca LicencaInstalacao @relation(fields: [licencaInstalacaoId], references: [id])
@@ -882,20 +923,20 @@ model EventoLicenciamento {
 // ============================================================
 
 model SolicitacaoAprovacao {
-  id                String @id @default(uuid()) @map("id")
-  tipoSolicitacao   String @map("tipo_solicitacao")
-  entidadeAlvo      String @map("entidade_alvo")
-  entidadeId        String @map("entidade_id")
-  solicitanteId     String @map("solicitante_id")
-  motivo            String @map("motivo")
-  status            String @default("PENDENTE") @map("status")
-  aprovadorPrimarioId String? @map("aprovador_primario_id")
-  aprovadorSecundarioId String? @map("aprovador_secundario_id")
-  solicitadaEm      DateTime @default(now()) @map("solicitada_em")
-  decididaEm        DateTime? @map("decidida_em")
-  justificativaDecisao String? @map("justificativa_decisao")
-  criadoEm          DateTime @default(now()) @map("criado_em")
-  atualizadoEm      DateTime @updatedAt @map("atualizado_em")
+  id                    String    @id @default(uuid()) @map("id")
+  tipoSolicitacao       String    @map("tipo_solicitacao")
+  entidadeAlvo          String    @map("entidade_alvo")
+  entidadeId            String    @map("entidade_id")
+  solicitanteId         String    @map("solicitante_id")
+  motivo                String    @map("motivo")
+  status                String    @default("PENDENTE") @map("status")
+  aprovadorPrimarioId   String?   @map("aprovador_primario_id")
+  aprovadorSecundarioId String?   @map("aprovador_secundario_id")
+  solicitadaEm          DateTime  @default(now()) @map("solicitada_em")
+  decididaEm            DateTime? @map("decidida_em")
+  justificativaDecisao  String?   @map("justificativa_decisao")
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+  atualizadoEm          DateTime  @updatedAt @map("atualizado_em")
 
   @@map("solicitacao_aprovacao")
 }
@@ -905,17 +946,20 @@ model SolicitacaoAprovacao {
 // ============================================================
 
 model Auditoria {
-  id              String @id @default(uuid()) @map("id")
-  tenantId        String? @map("tenant_id")
-  entidade        String @map("entidade")
-  entidadeId      String @map("entidade_id")
-  evento          String @map("evento")
-  estadoAnterior  String? @map("estado_anterior")
-  estadoNovo      String? @map("estado_novo")
-  usuarioId       String? @map("usuario_id")
-  motivo          String? @map("motivo")
-  dataHora        DateTime @default(now()) @map("data_hora")
+  id             String   @id @default(uuid()) @map("id")
+  tenantId       String?  @map("tenant_id")
+  entidade       String   @map("entidade")
+  entidadeId     String   @map("entidade_id")
+  evento         String   @map("evento")
+  estadoAnterior String?  @map("estado_anterior")
+  estadoNovo     String?  @map("estado_novo")
+  usuarioId      String?  @map("usuario_id")
+  motivo         String?  @map("motivo")
+  dataHora       DateTime @default(now()) @map("data_hora")
 
+  @@index([tenantId])
+  @@index([dataHora])
+  @@index([entidade, entidadeId])
   @@map("auditoria")
 }
 
@@ -924,26 +968,26 @@ model Auditoria {
 // ============================================================
 
 model TipoVeiculo {
-  id            String  @id @default(uuid())
-  tenantId      String  @map("tenant_id")
-  descricao     String
-  precoPesagem  Decimal? @default(0) @map("preco_pesagem")
-  ativo         Boolean @default(true)
-  criadoEm      DateTime @default(now()) @map("criado_em")
-  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  descricao    String
+  precoPesagem Decimal? @default(0) @map("preco_pesagem")
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
   @@map("tipo_veiculo")
 }
 
 model HistoricoPreco {
-  id          String  @id @default(uuid())
-  tenantId    String  @map("tenant_id")
-  produtoId   String? @map("produto_id")
-  clienteId   String? @map("cliente_id")
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  produtoId   String?  @map("produto_id")
+  clienteId   String?  @map("cliente_id")
   tipo        String
   valorAntigo Decimal? @map("valor_antigo")
   valorNovo   Decimal  @map("valor_novo")
-  usuarioId   String? @map("usuario_id")
+  usuarioId   String?  @map("usuario_id")
   ocorridoEm  DateTime @default(now()) @map("ocorrido_em")
 
   @@map("historico_preco")
@@ -965,20 +1009,20 @@ model TipoFatura {
 // ============================================================
 
 model Recibo {
-  id            String   @id @default(uuid())
-  tenantId      String   @map("tenant_id")
-  data          DateTime @map("data")
-  cedente       String   @map("cedente")
-  sacado        String   @map("sacado")
-  valor         Decimal  @map("valor")
-  telefone      String?  @map("telefone")
-  celular       String?  @map("celular")
-  cpf           String?  @map("cpf")
-  endereco      String?  @map("endereco")
-  valorExtenso  String?  @map("valor_extenso")
-  referente     String?  @map("referente")
-  usuarioId     String?  @map("usuario_id")
-  criadoEm      DateTime @default(now()) @map("criado_em")
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  data         DateTime @map("data")
+  cedente      String   @map("cedente")
+  sacado       String   @map("sacado")
+  valor        Decimal  @map("valor")
+  telefone     String?  @map("telefone")
+  celular      String?  @map("celular")
+  cpf          String?  @map("cpf")
+  endereco     String?  @map("endereco")
+  valorExtenso String?  @map("valor_extenso")
+  referente    String?  @map("referente")
+  usuarioId    String?  @map("usuario_id")
+  criadoEm     DateTime @default(now()) @map("criado_em")
 
   @@map("recibo")
 }
@@ -988,24 +1032,24 @@ model Recibo {
 // ============================================================
 
 model TipoDesconto {
-  id                     String   @id @default(uuid())
-  tenantId               String   @map("tenant_id")
-  descricao              String   @map("descricao")
-  tipo                   String   @map("tipo")
-  teto                   Decimal? @map("teto")
-  carencia               Decimal? @map("carencia")
-  mantem                 Boolean  @default(false) @map("mantem")
-  calcula                Boolean  @default(true) @map("calcula")
-  visivelPE              Boolean  @default(true) @map("visivel_p_e")
-  visivelPS              Boolean  @default(true) @map("visivel_p_s")
-  visivelPortaria        Boolean  @default(false) @map("visivel_portaria")
-  visivelApontamento     Boolean  @default(false) @map("visivel_apontamento")
-  visivelPosApontamento  Boolean  @default(false) @map("visivel_pos_apontamento")
-  valor                  Decimal? @map("valor")
-  original               Boolean  @default(false) @map("original")
-  ativo                  Boolean  @default(true) @map("ativo")
-  criadoEm               DateTime @default(now()) @map("criado_em")
-  atualizadoEm           DateTime @updatedAt @map("atualizado_em")
+  id                    String   @id @default(uuid())
+  tenantId              String   @map("tenant_id")
+  descricao             String   @map("descricao")
+  tipo                  String   @map("tipo")
+  teto                  Decimal? @map("teto")
+  carencia              Decimal? @map("carencia")
+  mantem                Boolean  @default(false) @map("mantem")
+  calcula               Boolean  @default(true) @map("calcula")
+  visivelPE             Boolean  @default(true) @map("visivel_p_e")
+  visivelPS             Boolean  @default(true) @map("visivel_p_s")
+  visivelPortaria       Boolean  @default(false) @map("visivel_portaria")
+  visivelApontamento    Boolean  @default(false) @map("visivel_apontamento")
+  visivelPosApontamento Boolean  @default(false) @map("visivel_pos_apontamento")
+  valor                 Decimal? @map("valor")
+  original              Boolean  @default(false) @map("original")
+  ativo                 Boolean  @default(true) @map("ativo")
+  criadoEm              DateTime @default(now()) @map("criado_em")
+  atualizadoEm          DateTime @updatedAt @map("atualizado_em")
 
   @@map("tipo_desconto")
 }
@@ -1068,15 +1112,15 @@ model ErroImpressao {
 // ============================================================
 
 model FotoPesagem {
-  id           String   @id @default(uuid())
-  ticketId     String   @map("ticket_id")
-  passagemId   String?  @map("passagem_id")
-  caminhoArquivo String @map("caminho_arquivo")
-  origem       String   @default("WEBCAM") @map("origem") // WEBCAM | IP_CAMERA | OCR
-  placaDetectada String? @map("placa_detectada")
-  tamanhoBytes Int      @default(0) @map("tamanho_bytes")
-  sha256       String?  @map("sha256")
-  capturadoEm  DateTime @default(now()) @map("capturado_em")
+  id             String   @id @default(uuid())
+  ticketId       String   @map("ticket_id")
+  passagemId     String?  @map("passagem_id")
+  caminhoArquivo String   @map("caminho_arquivo")
+  origem         String   @default("WEBCAM") @map("origem") // WEBCAM | IP_CAMERA | OCR
+  placaDetectada String?  @map("placa_detectada")
+  tamanhoBytes   Int      @default(0) @map("tamanho_bytes")
+  sha256         String?  @map("sha256")
+  capturadoEm    DateTime @default(now()) @map("capturado_em")
 
   @@index([ticketId])
   @@index([passagemId])
@@ -1088,15 +1132,15 @@ model FotoPesagem {
 // ============================================================
 
 model EventoAutomacao {
-  id          String   @id @default(uuid())
-  unidadeId   String   @map("unidade_id")
-  dispositivo String   @map("dispositivo") // SEMAFORO | CANCELA
-  comando     String   @map("comando") // VERDE | VERMELHO | ABRIR | FECHAR
-  status      String   @default("PENDENTE") @map("status") // PENDENTE | EXECUTADO | FALHA
-  motivo      String?  @map("motivo")
-  ticketId    String?  @map("ticket_id")
-  usuarioId   String?  @map("usuario_id")
-  criadoEm    DateTime @default(now()) @map("criado_em")
+  id          String    @id @default(uuid())
+  unidadeId   String    @map("unidade_id")
+  dispositivo String    @map("dispositivo") // SEMAFORO | CANCELA
+  comando     String    @map("comando") // VERDE | VERMELHO | ABRIR | FECHAR
+  status      String    @default("PENDENTE") @map("status") // PENDENTE | EXECUTADO | FALHA
+  motivo      String?   @map("motivo")
+  ticketId    String?   @map("ticket_id")
+  usuarioId   String?   @map("usuario_id")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
   executadoEm DateTime? @map("executado_em")
 
   @@index([unidadeId])
@@ -1109,13 +1153,13 @@ model EventoAutomacao {
 // ============================================================
 
 model AssinaturaTicket {
-  id         String   @id @default(uuid())
-  ticketId   String   @unique @map("ticket_id")
-  papel      String   @map("papel") // OPERADOR | MOTORISTA | RESPONSAVEL
-  nome       String?  @map("nome")
-  documento  String?  @map("documento")
-  assinaturaPng String @map("assinatura_png") // base64 PNG
-  capturadoEm DateTime @default(now()) @map("capturado_em")
+  id            String   @id @default(uuid())
+  ticketId      String   @unique @map("ticket_id")
+  papel         String   @map("papel") // OPERADOR | MOTORISTA | RESPONSAVEL
+  nome          String?  @map("nome")
+  documento     String?  @map("documento")
+  assinaturaPng String   @map("assinatura_png") // base64 PNG
+  capturadoEm   DateTime @default(now()) @map("capturado_em")
 
   @@index([ticketId])
   @@map("assinatura_ticket")
