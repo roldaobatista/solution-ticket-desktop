@@ -323,29 +323,6 @@ export class TicketService {
     }
 
     const proximaSequencia = ticket.passagens.length + 1;
-
-    const passagem = await this.prisma.passagemPesagem.create({
-      data: {
-        ticketId,
-        sequencia: proximaSequencia,
-        tipoPassagem: dto.tipoPassagem,
-        direcaoOperacional: dto.direcaoOperacional,
-        papelCalculo: dto.papelCalculo,
-        condicaoVeiculo: dto.condicaoVeiculo,
-        statusPassagem: StatusPassagem.VALIDA,
-        pesoCapturado: dto.pesoCapturado,
-        dataHora: dto.dataHora || new Date(),
-        balancaId: dto.balancaId,
-        usuarioId: dto.usuarioId,
-        origemLeitura: dto.origemLeitura,
-        indicadorEstabilidade: dto.indicadorEstabilidade || null,
-        sequenceNoDispositivo: dto.sequenceNoDispositivo || null,
-        eventIdOrigem: dto.eventIdOrigem || null,
-        observacao: dto.observacao || null,
-      },
-    });
-
-    // Atualiza contador de passagens e timestamps do ticket
     const totalPassagens = ticket.passagens.length + 1;
     const updateData: any = {
       totalPassagensRealizadas: totalPassagens,
@@ -355,16 +332,40 @@ export class TicketService {
     if (!ticket.primeiraPassagemEm) {
       updateData.primeiraPassagemEm = new Date();
     }
-
-    // Transicao de estado automatica baseada na passagem
     if (ticket.statusOperacional === StatusOperacional.ABERTO) {
       updateData.statusOperacional = StatusOperacional.EM_PESAGEM;
     }
 
-    await this.prisma.ticketPesagem.update({
-      where: { id: ticketId },
-      data: updateData,
-    });
+    // B4: cria a passagem e atualiza contadores+estado do ticket atomicamente.
+    // Sem isto, falha no update do ticket deixava passagem orfa contabilizada
+    // sem refletir nos contadores (causa de "ticket parece em ABERTO mas tem
+    // passagem registrada").
+    const [passagem] = await this.prisma.$transaction([
+      this.prisma.passagemPesagem.create({
+        data: {
+          ticketId,
+          sequencia: proximaSequencia,
+          tipoPassagem: dto.tipoPassagem,
+          direcaoOperacional: dto.direcaoOperacional,
+          papelCalculo: dto.papelCalculo,
+          condicaoVeiculo: dto.condicaoVeiculo,
+          statusPassagem: StatusPassagem.VALIDA,
+          pesoCapturado: dto.pesoCapturado,
+          dataHora: dto.dataHora || new Date(),
+          balancaId: dto.balancaId,
+          usuarioId: dto.usuarioId,
+          origemLeitura: dto.origemLeitura,
+          indicadorEstabilidade: dto.indicadorEstabilidade || null,
+          sequenceNoDispositivo: dto.sequenceNoDispositivo || null,
+          eventIdOrigem: dto.eventIdOrigem || null,
+          observacao: dto.observacao || null,
+        },
+      }),
+      this.prisma.ticketPesagem.update({
+        where: { id: ticketId },
+        data: updateData,
+      }),
+    ]);
 
     return passagem;
   }

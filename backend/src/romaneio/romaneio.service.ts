@@ -88,47 +88,53 @@ export class RomaneioService {
   }
 
   async vincularTickets(romaneioId: string, ticketIds: string[]) {
-    const romaneio = await this.findOne(romaneioId);
+    // B4: vinculacao N tickets envolve N inserts (itemRomaneio) + N updates
+    // (ticket.statusComercial) + 1 update (romaneio.pesoTotal). Sem transacao
+    // uma falha no meio (ticket invalido, FK, deadlock) deixa romaneio
+    // inconsistente. Tudo numa interactive transaction.
+    return this.prisma
+      .$transaction(async (tx) => {
+        const romaneio = await tx.romaneio.findUnique({ where: { id: romaneioId } });
+        if (!romaneio) throw new NotFoundException('Romaneio nao encontrado');
 
-    let pesoTotal = 0;
+        let pesoTotal = 0;
 
-    for (let i = 0; i < ticketIds.length; i++) {
-      const ticketId = ticketIds[i];
-      const ticket = await this.prisma.ticketPesagem.findUnique({
-        where: { id: ticketId },
-      });
+        for (let i = 0; i < ticketIds.length; i++) {
+          const ticketId = ticketIds[i];
+          const ticket = await tx.ticketPesagem.findUnique({ where: { id: ticketId } });
 
-      if (!ticket) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
-      if (!ticket.pesoLiquidoFinal) {
-        throw new BadRequestException(`Ticket ${ticket.numero} nao possui peso liquido final`);
-      }
-      if (ticket.statusComercial === StatusComercial.ROMANEADO) {
-        throw new BadRequestException(`Ticket ${ticket.numero} ja esta romaneado`);
-      }
+          if (!ticket) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
+          if (!ticket.pesoLiquidoFinal) {
+            throw new BadRequestException(`Ticket ${ticket.numero} nao possui peso liquido final`);
+          }
+          if (ticket.statusComercial === StatusComercial.ROMANEADO) {
+            throw new BadRequestException(`Ticket ${ticket.numero} ja esta romaneado`);
+          }
 
-      pesoTotal += Number(ticket.pesoLiquidoFinal);
+          pesoTotal += Number(ticket.pesoLiquidoFinal);
 
-      await this.prisma.itemRomaneio.create({
-        data: {
-          romaneioId,
-          ticketId,
-          sequencia: i + 1,
-          peso: ticket.pesoLiquidoFinal,
-        },
-      });
+          await tx.itemRomaneio.create({
+            data: {
+              romaneioId,
+              ticketId,
+              sequencia: i + 1,
+              peso: ticket.pesoLiquidoFinal,
+            },
+          });
 
-      await this.prisma.ticketPesagem.update({
-        where: { id: ticketId },
-        data: { statusComercial: StatusComercial.ROMANEADO },
-      });
-    }
+          await tx.ticketPesagem.update({
+            where: { id: ticketId },
+            data: { statusComercial: StatusComercial.ROMANEADO },
+          });
+        }
 
-    await this.prisma.romaneio.update({
-      where: { id: romaneioId },
-      data: { pesoTotal },
-    });
+        await tx.romaneio.update({ where: { id: romaneioId }, data: { pesoTotal } });
 
-    return this.findOne(romaneioId);
+        // findOne fora da tx ja capta estado pos-commit; mantemos chamada externa
+        // para preservar shape de retorno com includes.
+        return romaneioId;
+      })
+      .then((id) => this.findOne(id));
   }
 
   private async gerarNumero(tenantId: string): Promise<string> {

@@ -68,42 +68,40 @@ export class FaturaService {
   }
 
   async registrarPagamento(faturaId: string, data: any) {
-    const fatura = await this.findOne(faturaId);
+    // B4: encapsula create-pagamento + recalculo-total + update-status numa
+    // unica transacao. Sem isto, dois pagamentos concorrentes podiam ler
+    // soma desatualizada e gravar status divergente do total real.
+    return this.prisma.$transaction(async (tx) => {
+      const fatura = await tx.fatura.findUnique({ where: { id: faturaId } });
+      if (!fatura) throw new NotFoundException('Fatura nao encontrada');
 
-    const pagamento = await this.prisma.pagamentoFatura.create({
-      data: {
-        faturaId,
-        formaPagamentoId: data.formaPagamentoId,
-        valor: data.valor,
-        dataEmissao: new Date(data.dataEmissao),
-        dataVencimento: data.dataVencimento ? new Date(data.dataVencimento) : null,
-        numeroDocumento: data.numeroDocumento || null,
-        observacao: data.observacao || null,
-      },
+      const pagamento = await tx.pagamentoFatura.create({
+        data: {
+          faturaId,
+          formaPagamentoId: data.formaPagamentoId,
+          valor: data.valor,
+          dataEmissao: new Date(data.dataEmissao),
+          dataVencimento: data.dataVencimento ? new Date(data.dataVencimento) : null,
+          numeroDocumento: data.numeroDocumento || null,
+          observacao: data.observacao || null,
+        },
+      });
+
+      const totalPagamentos = await tx.pagamentoFatura.aggregate({
+        where: { faturaId },
+        _sum: { valor: true },
+      });
+      const totalPago = Number(totalPagamentos._sum.valor || 0);
+      const totalFatura = Number(fatura.totalGeral);
+
+      let novoStatus = 'ABERTA';
+      if (totalPago >= totalFatura) novoStatus = 'BAIXADA';
+      else if (totalPago > 0) novoStatus = 'PARCIAL';
+
+      await tx.fatura.update({ where: { id: faturaId }, data: { status: novoStatus } });
+
+      return pagamento;
     });
-
-    // Atualiza status da fatura
-    const totalPagamentos = await this.prisma.pagamentoFatura.aggregate({
-      where: { faturaId },
-      _sum: { valor: true },
-    });
-
-    const totalPago = Number(totalPagamentos._sum.valor || 0);
-    const totalFatura = Number(fatura.totalGeral);
-
-    let novoStatus = 'ABERTA';
-    if (totalPago >= totalFatura) {
-      novoStatus = 'BAIXADA';
-    } else if (totalPago > 0) {
-      novoStatus = 'PARCIAL';
-    }
-
-    await this.prisma.fatura.update({
-      where: { id: faturaId },
-      data: { status: novoStatus },
-    });
-
-    return pagamento;
   }
 
   async listarTipos(tenantId?: string) {
