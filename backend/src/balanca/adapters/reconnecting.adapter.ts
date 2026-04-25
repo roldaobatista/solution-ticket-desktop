@@ -52,7 +52,7 @@ export class ReconnectingAdapter extends EventEmitter implements IBalancaAdapter
     await this.inner.connect();
     this.aberto = true;
     this.tentativa = 0;
-    this.falhasConsecutivas = 0;
+    this.falhasConsecutivas = 0; // primeiro connect: zera contador de sessao
   }
 
   async close(): Promise<void> {
@@ -95,7 +95,8 @@ export class ReconnectingAdapter extends EventEmitter implements IBalancaAdapter
         await this.inner.connect();
         this.aberto = true;
         this.tentativa = 0;
-        this.falhasConsecutivas = 0;
+        // RC2: NAO zerar falhasConsecutivas aqui — manter contador acumulado para alerta.
+        // O alerta dispara em "Mx N falhas" total na sessao, nao por janela curta.
         this.emit('reconectado');
       } catch (err: any) {
         this.emit('error', err);

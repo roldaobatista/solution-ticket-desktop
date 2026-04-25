@@ -14,6 +14,8 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
   private client: any = null;
   private conectado = false;
   private loopAtivo = false;
+  private sleepTimer: NodeJS.Timeout | null = null;
+  private sleepResolver: (() => void) | null = null;
 
   constructor(private config: AdapterConfig) {
     super();
@@ -84,22 +86,53 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
   }
 
   private ehErroFatal(err: any): boolean {
+    // RC3: prioriza err.code (estavel entre versoes) sobre string match
+    const code = err?.code ?? err?.errno;
+    if (typeof code === 'string') {
+      const fatais = new Set([
+        'ECONNRESET',
+        'ECONNREFUSED',
+        'EPIPE',
+        'ETIMEDOUT',
+        'EHOSTUNREACH',
+        'ENOTCONN',
+        'ENETDOWN',
+      ]);
+      if (fatais.has(code)) return true;
+    }
+    // Fallback string match para erros nao-Node (modbus-serial throws com mensagem)
     const msg = String(err?.message ?? err).toLowerCase();
     return (
       msg.includes('port is not open') ||
+      msg.includes('port closed') ||
       msg.includes('socket') ||
-      msg.includes('econn') ||
       msg.includes('timed out') ||
       msg.includes('timeout')
     );
   }
 
+  /** RC6: sleep cancelavel — close() interrompe sem esperar o tick. */
   private sleep(ms: number): Promise<void> {
-    return new Promise((r) => setTimeout(r, ms));
+    return new Promise((resolve) => {
+      this.sleepResolver = resolve;
+      this.sleepTimer = setTimeout(() => {
+        this.sleepTimer = null;
+        this.sleepResolver = null;
+        resolve();
+      }, ms);
+    });
   }
 
   async close(): Promise<void> {
     this.loopAtivo = false;
+    if (this.sleepTimer) {
+      clearTimeout(this.sleepTimer);
+      this.sleepTimer = null;
+    }
+    if (this.sleepResolver) {
+      this.sleepResolver();
+      this.sleepResolver = null;
+    }
     if (this.client) {
       try {
         await new Promise<void>((r) => this.client.close(() => r()));

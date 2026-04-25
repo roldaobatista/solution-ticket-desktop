@@ -71,6 +71,15 @@ async function bootstrap() {
     }),
   );
 
+  // RS5: Permissions-Policy minima — desabilita APIs que o backend nao usa
+  app.use((_req: any, res: any, next: any) => {
+    res.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    );
+    next();
+  });
+
   // CORS apenas para origens conhecidas (Next dev + Electron app://)
   app.enableCors({
     origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'app://./'],

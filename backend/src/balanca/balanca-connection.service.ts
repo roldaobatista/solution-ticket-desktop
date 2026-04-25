@@ -159,6 +159,8 @@ export class BalancaConnectionService implements OnModuleDestroy {
     const c = this.conexoes.get(id);
     if (!c) return;
     await c.adapter.close().catch(() => undefined);
+    // RC1: limpa listeners do adapter alem do emitter interno para evitar leak
+    c.adapter.removeAllListeners();
     c.emitter.removeAllListeners();
     this.conexoes.delete(id);
   }
@@ -220,8 +222,13 @@ export class BalancaConnectionService implements OnModuleDestroy {
 
   private processarChunk(conexao: ConexaoAtiva, chunk: Buffer) {
     conexao.buffer = Buffer.concat([conexao.buffer, chunk]);
-    // Evitar crescimento descontrolado
+    // RC4: registra trim do buffer (descarte de tramas antigas) para diagnostico
     if (conexao.buffer.length > 4096) {
+      const descartados = conexao.buffer.length - 1024;
+      this.logger.warn(
+        `Buffer trim: descartados ${descartados} bytes (parser nao acompanhou). ` +
+          'Possivel rajada acima da capacidade de processamento.',
+      );
       conexao.buffer = conexao.buffer.subarray(conexao.buffer.length - 1024);
     }
     // Processa todas as tramas completas disponíveis

@@ -220,11 +220,14 @@ export async function getUnidades(): Promise<Array<{ id: string; nome: string }>
 }
 
 // --- Armazens ---
+const EMPTY_PAGE = { data: [], total: 0, page: 1, limit: 10, totalPages: 0 };
+
 export async function getArmazens(
   page = 1,
   limit = 10,
   search?: string,
 ): Promise<PaginatedResponse<Armazem>> {
+  if (USE_MOCK) return { ...EMPTY_PAGE, page, limit } as PaginatedResponse<Armazem>;
   const res = await apiClient.get('/armazens', { params: { page, limit, search } });
   const d = res.data;
   if (Array.isArray(d)) {
@@ -250,6 +253,7 @@ export async function getEmpresas(
   _limit = 10,
   _search?: string,
 ): Promise<PaginatedResponse<Empresa>> {
+  if (USE_MOCK) return { ...EMPTY_PAGE } as PaginatedResponse<Empresa>;
   try {
     const res = await apiClient.get('/empresa');
     const d = res.data;
@@ -277,6 +281,7 @@ export async function getTiposVeiculo(
   limit = 10,
   search?: string,
 ): Promise<PaginatedResponse<TipoVeiculo>> {
+  if (USE_MOCK) return { ...EMPTY_PAGE, page, limit } as PaginatedResponse<TipoVeiculo>;
   const res = await apiClient.get('/tipos-veiculo', { params: { search } });
   const d = res.data;
   const arr = Array.isArray(d) ? d : d?.data || [];
@@ -395,6 +400,7 @@ export async function getOrigens(
   limit = 20,
   search = '',
 ): Promise<PaginatedResponse<Origem>> {
+  if (USE_MOCK) return { ...EMPTY_PAGE, page, limit } as PaginatedResponse<Origem>;
   const tid = resolveTenantId();
   const res = await apiClient.get('/origens', {
     params: { page, limit, search, tenantId: tid || undefined },
@@ -430,6 +436,7 @@ export async function getDestinos(
   limit = 20,
   search = '',
 ): Promise<PaginatedResponse<Destino>> {
+  if (USE_MOCK) return { ...EMPTY_PAGE, page, limit } as PaginatedResponse<Destino>;
   const tid = resolveTenantId();
   const res = await apiClient.get('/destinos', {
     params: { page, limit, search, tenantId: tid || undefined },
@@ -471,6 +478,7 @@ export interface TipoDesconto {
   updatedAt?: string;
 }
 export async function getTiposDesconto(tenantId?: string): Promise<TipoDesconto[]> {
+  if (USE_MOCK) return [];
   const tid = tenantId || resolveTenantId();
   const res = await apiClient.get('/tipos-desconto', { params: tid ? { tenantId: tid } : {} });
   const d = res.data;

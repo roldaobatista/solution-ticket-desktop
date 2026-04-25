@@ -1,4 +1,4 @@
-import { apiClient, resolveTenantId } from './client';
+import { apiClient, resolveTenantId, USE_MOCK } from './client';
 
 export interface Recibo {
   id: string;
@@ -18,6 +18,7 @@ export interface Recibo {
 }
 
 export async function getRecibos(tenantId?: string): Promise<Recibo[]> {
+  if (USE_MOCK) return [];
   const tid = tenantId || resolveTenantId();
   const res = await apiClient.get('/recibos', { params: tid ? { tenantId: tid } : {} });
   const d = res.data;

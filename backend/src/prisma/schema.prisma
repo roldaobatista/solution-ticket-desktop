@@ -947,6 +947,8 @@ model SolicitacaoAprovacao {
 
 model Auditoria {
   id             String   @id @default(uuid()) @map("id")
+  // RD5 deferido: tornar required exige passar tenantId em 4 call sites
+  // (ticket.service.ts:286/466/694, auditoria.service.ts:19). Decisao de produto.
   tenantId       String?  @map("tenant_id")
   entidade       String   @map("entidade")
   entidadeId     String   @map("entidade_id")

@@ -70,3 +70,14 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3001/api
           NEXT_PUBLIC_USE_MOCK: 'false'
+
+      # RQ1: Playwright e2e (smoke). Browsers cached entre runs.
+      - name: Install Playwright browsers
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm --filter ./frontend exec playwright install --with-deps chromium
+      - name: Playwright smoke
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm --filter ./frontend test:e2e
+        env:
+          NEXT_PUBLIC_USE_MOCK: 'true'
+        continue-on-error: true

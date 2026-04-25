@@ -34,7 +34,7 @@
     "test": "pnpm --filter ./backend test",
     "test:e2e": "pnpm --filter ./backend test:e2e",
     "ci": "pnpm format:check && pnpm lint:check && pnpm typecheck:all && pnpm test && pnpm build:all",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
