@@ -3,12 +3,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { gerarPdf, TEMPLATE_REGISTRY } from './templates';
 import { ticketComRelacoesArgs, TicketComRelacoes } from './templates/types';
 import { errorMessage } from '../common/error-message.util';
+import { EscposPrinterService } from './escpos/escpos-printer.service';
+import { gerarTicketEscpos, TicketEscposData } from './escpos/ticket-escpos.template';
 
 @Injectable()
 export class ImpressaoService {
   private readonly logger = new Logger(ImpressaoService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly escposPrinter: EscposPrinterService,
+  ) {}
 
   listarTemplates() {
     return TEMPLATE_REGISTRY;
@@ -77,6 +82,53 @@ export class ImpressaoService {
       orderBy: { criadoEm: 'desc' },
       take: 200,
     });
+  }
+
+  // ============================================================
+  // ESC/POS — Impressão nativa em impressoras térmicas (Onda 3)
+  // ============================================================
+
+  async gerarTicketEscposBuffer(ticketId: string): Promise<Buffer> {
+    const ticket = await this.carregarTicket(ticketId);
+    if (!ticket) throw new NotFoundException('Ticket não encontrado');
+
+    const data: TicketEscposData = {
+      empresaNome:
+        ticket.unidade?.empresa?.nomeEmpresarial ||
+        ticket.unidade?.empresa?.nomeFantasia ||
+        undefined,
+      empresaDocumento: ticket.unidade?.empresa?.documento,
+      empresaEndereco: ticket.unidade?.empresa?.endereco || undefined,
+      numero: ticket.numero,
+      dataHora: ticket.fechadoEm
+        ? new Date(ticket.fechadoEm).toLocaleString('pt-BR')
+        : new Date().toLocaleString('pt-BR'),
+      placa: ticket.veiculoPlaca || ticket.veiculo?.placa,
+      motorista: ticket.motorista?.nome,
+      produto: ticket.produto?.descricao,
+      cliente: ticket.cliente?.razaoSocial,
+      transportadora: ticket.transportadora?.nome,
+      origem: ticket.origem?.descricao,
+      destino: ticket.destino?.descricao,
+      pesoBruto: ticket.pesoBrutoApurado?.toString(),
+      pesoTara: ticket.pesoTaraApurada?.toString(),
+      pesoLiquido: ticket.pesoLiquidoSemDesconto?.toString(),
+      descontos: ticket.totalDescontos?.toString(),
+      pesoLiquidoFinal: ticket.pesoLiquidoFinal?.toString(),
+      observacao: ticket.observacao || undefined,
+    };
+
+    return gerarTicketEscpos(data);
+  }
+
+  async imprimirTicketEscpos(ticketId: string, porta: string): Promise<boolean> {
+    const buffer = await this.gerarTicketEscposBuffer(ticketId);
+    return this.escposPrinter.imprimir(buffer, porta);
+  }
+
+  async salvarTicketEscpos(ticketId: string, nome?: string): Promise<string> {
+    const buffer = await this.gerarTicketEscposBuffer(ticketId);
+    return this.escposPrinter.salvarParaArquivo(buffer, nome);
   }
 
   async reimprimirErro(id: string): Promise<{ ok: boolean; erro?: string }> {

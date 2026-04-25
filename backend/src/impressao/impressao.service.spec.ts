@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ImpressaoService } from './impressao.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { EscposPrinterService } from './escpos/escpos-printer.service';
 
 interface PrismaMock {
   ticketPesagem: { findUnique: jest.Mock };
@@ -34,7 +35,11 @@ describe('ImpressaoService', () => {
   beforeEach(async () => {
     prisma = makePrismaMock();
     const moduleRef = await Test.createTestingModule({
-      providers: [ImpressaoService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ImpressaoService,
+        { provide: PrismaService, useValue: prisma },
+        EscposPrinterService,
+      ],
     }).compile();
     service = moduleRef.get(ImpressaoService);
   });

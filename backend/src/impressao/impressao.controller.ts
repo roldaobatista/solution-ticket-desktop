@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Res, Body } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ImpressaoService } from './impressao.service';
@@ -55,5 +55,49 @@ export class ImpressaoController {
   @ApiOperation({ summary: 'Marca erro como resolvido' })
   marcarResolvido(@Param('id') id: string) {
     return this.service.marcarResolvido(id);
+  }
+
+  // ESC/POS endpoints (Onda 3)
+  @Get('ticket/:ticketId/escpos')
+  @ApiOperation({ summary: 'Gera buffer ESC/POS do ticket (base64)' })
+  async gerarEscpos(@Param('ticketId') ticketId: string, @Res() res: Response) {
+    try {
+      const buffer = await this.service.gerarTicketEscposBuffer(ticketId);
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="ticket-${ticketId}.bin"`);
+      res.send(buffer);
+    } catch (err: unknown) {
+      res.status(500).json({ erro: errorMessage(err, 'Falha ao gerar ESC/POS') });
+    }
+  }
+
+  @Post('ticket/:ticketId/escpos/imprimir')
+  @ApiOperation({ summary: 'Imprime ticket ESC/POS diretamente na porta' })
+  async imprimirEscpos(
+    @Param('ticketId') ticketId: string,
+    @Body() body: { porta: string },
+    @Res() res: Response,
+  ) {
+    try {
+      const ok = await this.service.imprimirTicketEscpos(ticketId, body.porta);
+      res.json({ sucesso: ok });
+    } catch (err: unknown) {
+      res.status(500).json({ erro: errorMessage(err, 'Falha ao imprimir ESC/POS') });
+    }
+  }
+
+  @Post('ticket/:ticketId/escpos/salvar')
+  @ApiOperation({ summary: 'Salva buffer ESC/POS em arquivo temporário' })
+  async salvarEscpos(
+    @Param('ticketId') ticketId: string,
+    @Body() body: { nome?: string },
+    @Res() res: Response,
+  ) {
+    try {
+      const filePath = await this.service.salvarTicketEscpos(ticketId, body.nome);
+      res.json({ sucesso: true, arquivo: filePath });
+    } catch (err: unknown) {
+      res.status(500).json({ erro: errorMessage(err, 'Falha ao salvar ESC/POS') });
+    }
   }
 }
