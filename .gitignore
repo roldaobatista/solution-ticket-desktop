@@ -12,6 +12,9 @@ build/
 release/
 out/
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # SQLite
 *.db
 *.db-journal
