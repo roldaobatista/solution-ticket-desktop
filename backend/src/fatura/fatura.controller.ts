@@ -1,7 +1,15 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import type { Request as ExpressRequest } from 'express';
 import { FaturaService } from './fatura.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateFaturaDto } from './dto/create-fatura.dto';
+import { UpdateFaturaDto } from './dto/update-fatura.dto';
+import { RegistrarPagamentoDto } from './dto/registrar-pagamento.dto';
+
+interface AuthRequest extends ExpressRequest {
+  user?: { id?: string; sub?: string };
+}
 
 @ApiTags('Faturas')
 @ApiBearerAuth()
@@ -18,15 +26,15 @@ export class FaturaController {
 
   @Post('pagamentos/:id/baixar')
   @ApiOperation({ summary: 'Baixar pagamento' })
-  baixarPagamento(@Param('id') id: string, @Req() req: any) {
-    const usuarioId = req.user?.id || req.user?.sub || null;
+  baixarPagamento(@Param('id') id: string, @Req() req: AuthRequest) {
+    const usuarioId = req.user?.id ?? req.user?.sub ?? undefined;
     return this.faturaService.baixarPagamento(id, usuarioId);
   }
 
   @Post()
   @ApiOperation({ summary: 'Criar fatura' })
-  create(@Body() data: any) {
-    return this.faturaService.create(data);
+  create(@Body() dto: CreateFaturaDto) {
+    return this.faturaService.create(dto);
   }
 
   @Get()
@@ -51,13 +59,13 @@ export class FaturaController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar fatura' })
-  update(@Param('id') id: string, @Body() data: any) {
-    return this.faturaService.update(id, data);
+  update(@Param('id') id: string, @Body() dto: UpdateFaturaDto) {
+    return this.faturaService.update(id, dto);
   }
 
   @Post(':id/pagamentos')
   @ApiOperation({ summary: 'Registrar pagamento da fatura' })
-  registrarPagamento(@Param('id') id: string, @Body() data: any) {
-    return this.faturaService.registrarPagamento(id, data);
+  registrarPagamento(@Param('id') id: string, @Body() dto: RegistrarPagamentoDto) {
+    return this.faturaService.registrarPagamento(id, dto);
   }
 }

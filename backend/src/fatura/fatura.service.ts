@@ -1,24 +1,28 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginated, resolvePaging } from '../common/dto/pagination.dto';
+import { CreateFaturaDto } from './dto/create-fatura.dto';
+import { UpdateFaturaDto } from './dto/update-fatura.dto';
+import { RegistrarPagamentoDto } from './dto/registrar-pagamento.dto';
 
 @Injectable()
 export class FaturaService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: any) {
-    const numero = await this.gerarNumero(data.tenantId);
+  async create(dto: CreateFaturaDto) {
+    const numero = await this.gerarNumero(dto.tenantId);
 
     const fatura = await this.prisma.fatura.create({
       data: {
         numero,
-        tenantId: data.tenantId,
-        romaneioId: data.romaneioId || null,
-        clienteId: data.clienteId,
-        dataEmissao: new Date(data.dataEmissao),
-        notaFiscal: data.notaFiscal || null,
-        observacao: data.observacao || null,
-        totalGeral: data.totalGeral,
+        tenantId: dto.tenantId,
+        romaneioId: dto.romaneioId ?? null,
+        clienteId: dto.clienteId,
+        dataEmissao: new Date(dto.dataEmissao),
+        notaFiscal: dto.notaFiscal ?? null,
+        observacao: dto.observacao ?? null,
+        totalGeral: dto.totalGeral,
       },
     });
 
@@ -26,7 +30,7 @@ export class FaturaService {
   }
 
   async findAll(tenantId: string, clienteId?: string, paging?: { page?: number; limit?: number }) {
-    const where: any = { tenantId };
+    const where: Prisma.FaturaWhereInput = { tenantId };
     if (clienteId) where.clienteId = clienteId;
     const { page, limit, skip } = resolvePaging(paging ?? {});
 
@@ -62,12 +66,17 @@ export class FaturaService {
     return fatura;
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, dto: UpdateFaturaDto) {
     await this.findOne(id);
-    return this.prisma.fatura.update({ where: { id }, data: { ...data } });
+    const data: Prisma.FaturaUpdateInput = {};
+    if (dto.notaFiscal !== undefined) data.notaFiscal = dto.notaFiscal;
+    if (dto.observacao !== undefined) data.observacao = dto.observacao;
+    if (dto.totalGeral !== undefined) data.totalGeral = dto.totalGeral;
+    if (dto.dataEmissao !== undefined) data.dataEmissao = new Date(dto.dataEmissao);
+    return this.prisma.fatura.update({ where: { id }, data });
   }
 
-  async registrarPagamento(faturaId: string, data: any) {
+  async registrarPagamento(faturaId: string, dto: RegistrarPagamentoDto) {
     // B4: encapsula create-pagamento + recalculo-total + update-status numa
     // unica transacao. Sem isto, dois pagamentos concorrentes podiam ler
     // soma desatualizada e gravar status divergente do total real.
@@ -78,12 +87,12 @@ export class FaturaService {
       const pagamento = await tx.pagamentoFatura.create({
         data: {
           faturaId,
-          formaPagamentoId: data.formaPagamentoId,
-          valor: data.valor,
-          dataEmissao: new Date(data.dataEmissao),
-          dataVencimento: data.dataVencimento ? new Date(data.dataVencimento) : null,
-          numeroDocumento: data.numeroDocumento || null,
-          observacao: data.observacao || null,
+          formaPagamentoId: dto.formaPagamentoId,
+          valor: dto.valor,
+          dataEmissao: new Date(dto.dataEmissao),
+          dataVencimento: dto.dataVencimento ? new Date(dto.dataVencimento) : null,
+          numeroDocumento: dto.numeroDocumento ?? null,
+          observacao: dto.observacao ?? null,
         },
       });
 
@@ -105,7 +114,7 @@ export class FaturaService {
   }
 
   async listarTipos(tenantId?: string) {
-    const where: any = { ativo: true };
+    const where: Prisma.TipoFaturaWhereInput = { ativo: true };
     if (tenantId) where.tenantId = tenantId;
     return this.prisma.tipoFatura.findMany({ where, orderBy: { descricao: 'asc' } });
   }
@@ -119,8 +128,8 @@ export class FaturaService {
       data: {
         status: 'BAIXADO',
         dataBaixa: new Date(),
-        usuarioBaixa: usuarioId || null,
-      } as any,
+        usuarioBaixa: usuarioId ?? null,
+      },
     });
     return updated;
   }
