@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -53,11 +54,11 @@ export class UsersService {
   }
 
   async findAll(filter: UserFilterDto) {
-    const where: any = {};
+    const where: Prisma.UsuarioWhereInput = {};
 
     if (filter.tenantId) where.tenantId = filter.tenantId;
-    if (filter.nome) where.nome = { contains: filter.nome, mode: 'insensitive' };
-    if (filter.email) where.email = { contains: filter.email, mode: 'insensitive' };
+    if (filter.nome) where.nome = { contains: filter.nome };
+    if (filter.email) where.email = { contains: filter.email };
     if (filter.ativo !== undefined) where.ativo = filter.ativo;
 
     const page = filter.page || 1;
@@ -114,7 +115,7 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto) {
     await this.findOne(id);
 
-    const data: any = {};
+    const data: Prisma.UsuarioUpdateInput = {};
     if (dto.nome) data.nome = dto.nome;
     if (dto.email) data.email = dto.email;
     if (dto.ativo !== undefined) data.ativo = dto.ativo;

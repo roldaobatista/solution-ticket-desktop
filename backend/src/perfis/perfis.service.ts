@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePerfilDto } from './dto/create-perfil.dto';
 import { UpdatePerfilDto } from './dto/update-perfil.dto';
@@ -26,7 +27,7 @@ export class PerfisService {
   }
 
   async findAll(tenantId?: string) {
-    const where: any = { ativo: true };
+    const where: Prisma.PerfilWhereInput = { ativo: true };
     if (tenantId) where.tenantId = tenantId;
 
     return this.prisma.perfil.findMany({

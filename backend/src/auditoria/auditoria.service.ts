@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaFilterDto } from './dto/auditoria-filter.dto';
+
+type EstadoAuditavel = string | Record<string, unknown> | null | undefined;
+
+function serializarEstado(e: EstadoAuditavel): string | null {
+  if (e === null || e === undefined) return null;
+  return typeof e === 'string' ? e : JSON.stringify(e);
+}
 
 @Injectable()
 export class AuditoriaService {
@@ -10,8 +18,8 @@ export class AuditoriaService {
     entidade: string;
     entidadeId: string;
     evento: string;
-    estadoAnterior?: any;
-    estadoNovo?: any;
+    estadoAnterior?: EstadoAuditavel;
+    estadoNovo?: EstadoAuditavel;
     usuarioId?: string;
     motivo?: string;
     /**
@@ -26,8 +34,8 @@ export class AuditoriaService {
         entidade: data.entidade,
         entidadeId: data.entidadeId,
         evento: data.evento,
-        estadoAnterior: data.estadoAnterior || null,
-        estadoNovo: data.estadoNovo || null,
+        estadoAnterior: serializarEstado(data.estadoAnterior),
+        estadoNovo: serializarEstado(data.estadoNovo),
         usuarioId: data.usuarioId || null,
         motivo: data.motivo || null,
         tenantId: data.tenantId || null,
@@ -36,10 +44,10 @@ export class AuditoriaService {
   }
 
   async findAll(filter: AuditoriaFilterDto) {
-    const where: any = {};
+    const where: Prisma.AuditoriaWhereInput = {};
     if (filter.entidade) where.entidade = filter.entidade;
     if (filter.entidadeId) where.entidadeId = filter.entidadeId;
-    if (filter.evento) where.evento = { contains: filter.evento, mode: 'insensitive' };
+    if (filter.evento) where.evento = { contains: filter.evento };
     if (filter.usuarioId) where.usuarioId = filter.usuarioId;
     if (filter.dataInicio || filter.dataFim) {
       where.dataHora = {};

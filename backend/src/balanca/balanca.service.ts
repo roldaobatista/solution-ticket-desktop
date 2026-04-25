@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBalancaDto } from './dto/create-balanca.dto';
 import { UpdateBalancaDto } from './dto/update-balanca.dto';
@@ -13,7 +14,7 @@ export class BalancaService {
   }
 
   async findAll(filter: BalancaFilterDto) {
-    const where: any = {};
+    const where: Prisma.BalancaWhereInput = {};
     if (filter.empresaId) where.empresaId = filter.empresaId;
     if (filter.unidadeId) where.unidadeId = filter.unidadeId;
     if (filter.statusOnline !== undefined) where.statusOnline = filter.statusOnline;

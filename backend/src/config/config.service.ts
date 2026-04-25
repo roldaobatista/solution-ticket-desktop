@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateConfigDto } from './dto/create-config.dto';
 import { UpdateConfigDto } from './dto/update-config.dto';
@@ -15,7 +16,7 @@ export class ConfigService {
   }
 
   async findAll(empresaId?: string, unidadeId?: string) {
-    const where: any = {};
+    const where: Prisma.ConfiguracaoOperacionalUnidadeWhereInput = {};
     if (empresaId) where.empresaId = empresaId;
     if (unidadeId) where.unidadeId = unidadeId;
 

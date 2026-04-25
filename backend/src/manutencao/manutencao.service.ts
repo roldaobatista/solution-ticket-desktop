@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const StatusSolicitacaoAprovacao = {
@@ -33,7 +34,7 @@ export class ManutencaoService {
   }
 
   async findAll(filter: SolicitacaoFilterDto) {
-    const where: any = {};
+    const where: Prisma.SolicitacaoAprovacaoWhereInput = {};
     if (filter.status) where.status = filter.status;
     if (filter.tipoSolicitacao) where.tipoSolicitacao = filter.tipoSolicitacao;
     if (filter.solicitanteId) where.solicitanteId = filter.solicitanteId;
