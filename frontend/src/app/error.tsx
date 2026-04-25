@@ -6,6 +6,7 @@
  */
 
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 export default function RootError({
   error,
@@ -15,8 +16,7 @@ export default function RootError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.error('[RootError]', error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

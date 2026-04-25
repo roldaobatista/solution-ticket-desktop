@@ -9,6 +9,7 @@
  */
 
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 
@@ -20,8 +21,7 @@ export default function AuthenticatedError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.error('[AuthenticatedError]', error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
