@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { TenantGuard } from './common/guards/tenant.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -83,6 +85,8 @@ import { AppController } from './app.controller';
   providers: [
     ...(process.env.NODE_ENV !== 'test' ? [{ provide: APP_GUARD, useClass: ThrottlerGuard }] : []),
     { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule {}

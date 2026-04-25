@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 import type { Request, Response, NextFunction } from 'express';
 import { ensureUserDataDir, getDatabaseUrl } from './common/desktop-paths';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
 
 interface RequestWithId extends Request {
   requestId?: string;
@@ -154,7 +155,7 @@ async function bootstrap() {
 
   // S6: logging com PII scrubbing — todo request/response passa por
   // scrubPii() antes de ser logado/relatado.
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalInterceptors(new LoggingInterceptor(), new ResponseTransformInterceptor());
 
   if (!isProd) {
     const config = new DocumentBuilder()

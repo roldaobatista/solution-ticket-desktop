@@ -12,6 +12,12 @@ import * as os from 'os';
  * <backend>/data/ para manter o ciclo local rápido.
  */
 export function getUserDataDir(): string {
+  // O Electron passa USER_DATA_PATH via env. Se presente, usa ele para
+  // garantir consistência de paths entre Electron e backend (Onda 1 fix).
+  if (process.env.USER_DATA_PATH) {
+    return process.env.USER_DATA_PATH;
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     return path.resolve(process.cwd(), 'data');
   }

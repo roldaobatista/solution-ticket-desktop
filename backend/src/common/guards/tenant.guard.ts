@@ -16,10 +16,11 @@ export class TenantGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // Se o usuário ainda não foi autenticado (ex: JwtAuthGuard ainda não rodou),
-    // permitimos passar. O guard de autenticação será responsável por bloquear
-    // se necessário. Isso evita conflito de ordem entre APP_GUARDs globais.
-    if (!user) return true;
+    // Closed-by-default: se não há usuário autenticado e o endpoint não é público,
+    // negamos imediatamente. Isso previne bypass se JwtAuthGuard for esquecido.
+    if (!user) {
+      throw new ForbiddenException('Acesso negado: autenticação requerida');
+    }
 
     if (!user.tenantId) {
       throw new ForbiddenException('Acesso negado: tenantId ausente no token JWT');

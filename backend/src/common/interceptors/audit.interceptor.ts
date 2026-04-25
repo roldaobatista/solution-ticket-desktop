@@ -2,9 +2,11 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nes
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuditoriaService } from '../../auditoria/auditoria.service';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
   constructor(private readonly auditoriaService: AuditoriaService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -35,8 +37,8 @@ export class AuditInterceptor implements NestInterceptor {
                 body: request.body,
               }),
             });
-          } catch {
-            // Silently fail audit logging
+          } catch (err) {
+            this.logger.error(`Falha ao registrar auditoria: ${(err as Error).message}`);
           }
         }
       }),
@@ -44,12 +46,18 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private extractEntity(url: string): string {
-    const parts = url.split('/').filter(Boolean);
-    return parts[1] || 'unknown';
+    // Remove query strings e normaliza
+    const clean = url.split('?')[0];
+    const parts = clean.split('/').filter(Boolean);
+    // Ignora prefixo 'api' se presente; retorna o primeiro segmento real
+    const idx = parts[0] === 'api' ? 1 : 0;
+    return parts[idx] || 'unknown';
   }
 
   private extractAction(url: string): string {
-    const parts = url.split('/').filter(Boolean);
-    return parts.length > 2 ? 'update' : 'create';
+    const clean = url.split('?')[0];
+    const parts = clean.split('/').filter(Boolean);
+    const hasId = parts.some((p) => /^[0-9a-fA-F-]{24,36}$/.test(p));
+    return hasId ? 'update' : 'create';
   }
 }
