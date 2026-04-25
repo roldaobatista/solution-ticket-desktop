@@ -1,0 +1,29 @@
+'use client';
+
+import { create } from 'zustand';
+
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+}
+
+interface ToastStore {
+  toasts: ToastItem[];
+  addToast: (toast: Omit<ToastItem, 'id'>) => void;
+  removeToast: (id: string) => void;
+}
+
+export const useToastStore = create<ToastStore>((set) => ({
+  toasts: [],
+  addToast: (toast) =>
+    set((state) => ({
+      toasts: [...state.toasts, { ...toast, id: Math.random().toString(36).slice(2) }],
+    })),
+  removeToast: (id) =>
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+    })),
+}));
