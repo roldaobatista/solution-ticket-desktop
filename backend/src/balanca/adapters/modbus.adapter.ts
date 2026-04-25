@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { AdapterConfig, IBalancaAdapter } from './adapter.interface';
+import type { ModbusClient, ModbusClientCtor } from './modbus.types';
 
 /**
  * Adaptador Modbus (RTU via serial ou TCP). Faz polling do registrador
@@ -11,7 +12,7 @@ import { AdapterConfig, IBalancaAdapter } from './adapter.interface';
  *  - try/catch em cada leitura; emite 'error' estruturado com contexto (reg, unit)
  */
 export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
-  private client: any = null;
+  private client: ModbusClient | null = null;
   private conectado = false;
   private loopAtivo = false;
   private sleepTimer: NodeJS.Timeout | null = null;
@@ -22,16 +23,22 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
   }
 
   async connect(): Promise<void> {
-    let ModbusRTU: any;
+    let ModbusRTU: ModbusClientCtor;
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      ModbusRTU = require('modbus-serial');
-    } catch (e: any) {
-      throw new Error(`Falha ao carregar modbus-serial: ${e?.message ?? e}`);
+      ModbusRTU = require('modbus-serial') as ModbusClientCtor;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(`Falha ao carregar modbus-serial: ${msg}`);
     }
 
     this.client = new ModbusRTU();
     const readTimeout = this.config.readTimeoutMs ?? 1000;
+    const parity = (this.config.parity ?? 'none').toLowerCase();
+    const parityValido: 'none' | 'even' | 'odd' | 'mark' | 'space' =
+      parity === 'even' || parity === 'odd' || parity === 'mark' || parity === 'space'
+        ? parity
+        : 'none';
 
     if (this.config.enderecoIp && this.config.portaTcp) {
       await this.client.connectTCP(this.config.enderecoIp, { port: this.config.portaTcp });
@@ -40,7 +47,7 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
         baudRate: this.config.baudrate ?? 9600,
         dataBits: this.config.databits ?? 8,
         stopBits: this.config.stopbits ?? 1,
-        parity: (this.config.parity ?? 'none') as any,
+        parity: parityValido,
       });
     } else {
       throw new Error('Modbus: informe IP+porta ou porta serial');
@@ -64,14 +71,16 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
 
     while (this.loopAtivo && this.conectado) {
       try {
+        if (!this.client) break;
         const r = await this.client.readHoldingRegisters(reg, 2);
         // 32-bit big-endian por padrao
         const valor = (r.data[0] << 16) | r.data[1];
         this.emit('data', Buffer.from(`${valor}\n`, 'ascii'));
-      } catch (err: any) {
+      } catch (err) {
         // Contexto estruturado facilita diagnóstico em campo.
-        const e = new Error(`Modbus read falhou (reg=${reg} unit=${unit}): ${err?.message ?? err}`);
-        (e as any).cause = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        const e = new Error(`Modbus read falhou (reg=${reg} unit=${unit}): ${msg}`);
+        (e as Error & { cause?: unknown }).cause = err;
         this.emit('error', e);
         // Se for erro de conexão, interromper loop e sinalizar close para o decorator reconectar.
         if (this.ehErroFatal(err)) {
@@ -85,9 +94,10 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
     }
   }
 
-  private ehErroFatal(err: any): boolean {
+  private ehErroFatal(err: unknown): boolean {
     // RC3: prioriza err.code (estavel entre versoes) sobre string match
-    const code = err?.code ?? err?.errno;
+    const e = err as { code?: unknown; errno?: unknown; message?: unknown } | null | undefined;
+    const code = e?.code ?? e?.errno;
     if (typeof code === 'string') {
       const fatais = new Set([
         'ECONNRESET',
@@ -101,7 +111,7 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
       if (fatais.has(code)) return true;
     }
     // Fallback string match para erros nao-Node (modbus-serial throws com mensagem)
-    const msg = String(err?.message ?? err).toLowerCase();
+    const msg = String(e?.message ?? err).toLowerCase();
     return (
       msg.includes('port is not open') ||
       msg.includes('port closed') ||
@@ -135,7 +145,8 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
     }
     if (this.client) {
       try {
-        await new Promise<void>((r) => this.client.close(() => r()));
+        const c = this.client;
+        await new Promise<void>((r) => c.close(() => r()));
       } catch {
         /* ignore */
       }

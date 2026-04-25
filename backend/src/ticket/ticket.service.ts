@@ -284,6 +284,7 @@ export class TicketService {
     // Registra auditoria da transicao
     await this.prisma.auditoria.create({
       data: {
+        tenantId: ticket.tenantId, // RD5
         entidade: 'ticket_pesagem',
         entidadeId: ticketId,
         evento: 'ticket.transicao_estado',
@@ -464,6 +465,7 @@ export class TicketService {
     // Auditoria de fechamento
     await this.prisma.auditoria.create({
       data: {
+        tenantId: ticket.tenantId, // RD5
         entidade: 'ticket_pesagem',
         entidadeId: ticketId,
         evento: 'ticket.fechado',
@@ -692,6 +694,7 @@ export class TicketService {
     // Auditoria de reimpressao
     await this.prisma.auditoria.create({
       data: {
+        tenantId: ticket.tenantId, // RD5
         entidade: 'ticket_pesagem',
         entidadeId: ticketId,
         evento: 'ticket.reimprimir',

@@ -16,7 +16,11 @@ export async function login(
   const usuario = raw.usuario;
   if (typeof window !== 'undefined' && usuario) {
     const uid = (usuario as any).unidadeId || (usuario as any).unidade_id;
-    if (uid) localStorage.setItem('unidade_id', uid);
+    if (uid) {
+      // RS4: store em memoria via dynamic import (evita ciclo).
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('../../stores/unidade.store').setUnidadeId(uid);
+    }
   }
   return {
     access_token: raw.access_token ?? raw.accessToken ?? '',
@@ -30,7 +34,11 @@ export async function getMe(): Promise<Usuario> {
   const usuario = res.data as Usuario & { unidadeId?: string; unidade_id?: string };
   if (typeof window !== 'undefined' && usuario) {
     const uid = (usuario as any).unidadeId || (usuario as any).unidade_id;
-    if (uid) localStorage.setItem('unidade_id', uid);
+    if (uid) {
+      // RS4: store em memoria via dynamic import (evita ciclo).
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('../../stores/unidade.store').setUnidadeId(uid);
+    }
   }
   return usuario;
 }

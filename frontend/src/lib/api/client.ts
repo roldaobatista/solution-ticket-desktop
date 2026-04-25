@@ -88,11 +88,17 @@ export function toPaginated<T>(
   return { data: [], total: 0, page: page ?? 1, limit: lim, totalPages: 1 };
 }
 
-/** Resolve unidadeId do localStorage quando não passado explicitamente. */
+/**
+ * Resolve unidadeId quando não passado explicitamente.
+ * RS4: Zustand store em memoria (era localStorage). Reduz superficie XSS.
+ */
 export function resolveUnidadeId(unidadeId?: string): string {
   if (unidadeId) return unidadeId;
-  if (typeof window !== 'undefined') return localStorage.getItem('unidade_id') || '';
-  return '';
+  if (typeof window === 'undefined') return '';
+  // Import dinamico para evitar ciclo de modulos.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getUnidadeId } = require('../../stores/unidade.store');
+  return getUnidadeId();
 }
 
 /** Resolve tenantId a partir do localStorage (chaves tenant_id ou empresa_id). */
