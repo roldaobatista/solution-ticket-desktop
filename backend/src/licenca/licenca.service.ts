@@ -41,6 +41,26 @@ export class LicencaService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
+    // S2.1: prioriza chave injetada via env (build-time secret / CI) sobre
+    // arquivo no disco. Permite rotação sem rebuild e mantém compat dev/local.
+    const envKey = process.env.LICENSE_PUBLIC_KEY_B64;
+    if (envKey) {
+      try {
+        this.publicKey = Buffer.from(envKey, 'base64').toString('utf8');
+        if (!this.publicKey.includes('BEGIN PUBLIC KEY')) {
+          throw new Error('formato PEM inválido após decodificar base64');
+        }
+        this.logger.log(
+          'Chave pública de licenciamento carregada via env (LICENSE_PUBLIC_KEY_B64).',
+        );
+        return;
+      } catch (e) {
+        this.logger.error(
+          `LICENSE_PUBLIC_KEY_B64 inválida (${errorMessage(e)}). Caindo para arquivo.`,
+        );
+      }
+    }
+
     const p = path.join(__dirname, 'public.key');
     if (!fs.existsSync(p)) {
       this.logger.error(`public.key nao encontrada em ${p}. Licenciamento nao funcionara.`);
@@ -48,7 +68,7 @@ export class LicencaService implements OnModuleInit {
       return;
     }
     this.publicKey = fs.readFileSync(p, 'utf8');
-    this.logger.log('Chave publica de licenciamento carregada.');
+    this.logger.log('Chave pública de licenciamento carregada de disco (dev/local).');
   }
 
   getFingerprint(): string {
