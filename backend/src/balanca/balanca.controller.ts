@@ -82,6 +82,11 @@ export class BalancaController {
     return { leitura, status: this.connService.getStatus(id) };
   }
 
+  /**
+   * Stream SSE de peso em tempo real.
+   * @security O token JWT é propagado via cookie HttpOnly no header Authorization.
+   * Evite passar tokens em query strings — URLs podem ser logadas por proxies/navegadores.
+   */
   @Sse(':id/stream')
   @ApiOperation({ summary: 'Stream SSE de peso em tempo real' })
   stream(@Param('id') id: string): Observable<MessageEvent> {

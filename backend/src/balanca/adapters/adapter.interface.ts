@@ -1,5 +1,18 @@
 import { EventEmitter } from 'events';
 
+/**
+ * Subset tipado da API do pacote `serialport`.
+ * Permite mocking em testes sem dependência do binding nativo.
+ */
+export interface SerialPortLike {
+  isOpen: boolean;
+  open(cb: (err: Error | null) => void): void;
+  close(cb?: () => void): void;
+  on(event: 'data', listener: (chunk: Buffer) => void): this;
+  on(event: 'error', listener: (err: Error) => void): this;
+  on(event: 'close', listener: () => void): this;
+}
+
 export interface AdapterConfig {
   // Serial
   porta?: string | null;

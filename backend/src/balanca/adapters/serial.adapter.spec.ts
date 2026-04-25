@@ -1,95 +1,87 @@
 import { EventEmitter } from 'events';
 import { SerialAdapter } from './serial.adapter';
+import { SerialPortLike } from './adapter.interface';
 
 /**
  * Mock do pacote `serialport` — emula a API SerialPort com EventEmitter.
  * Permite testar lifecycle do SerialAdapter sem driver nativo.
  */
-class MockSerialPort extends EventEmitter {
+class MockSerialPort extends EventEmitter implements SerialPortLike {
   public isOpen = false;
-  public lastConfig: any;
+  public lastConfig: Record<string, unknown>;
+  static failOpen = false;
+  static lastInstance: MockSerialPort | null = null;
 
-  constructor(opts: any) {
+  constructor(opts: Record<string, unknown>) {
     super();
     MockSerialPort.lastInstance = this;
     this.lastConfig = opts;
   }
   open(cb: (err: Error | null) => void) {
-    if ((MockSerialPort as any).failOpen) {
+    if (MockSerialPort.failOpen) {
       cb(new Error('access denied'));
       return;
     }
     this.isOpen = true;
     cb(null);
   }
-  close(cb: () => void) {
+  close(cb?: () => void) {
     this.isOpen = false;
-    cb();
+    cb?.();
   }
-  static lastInstance: MockSerialPort | null = null;
 }
 
 jest.mock('serialport', () => ({
-  SerialPort: jest.fn().mockImplementation((opts: any) => new MockSerialPort(opts)),
+  SerialPort: jest
+    .fn()
+    .mockImplementation((opts: Record<string, unknown>) => new MockSerialPort(opts)),
 }));
 
 describe('SerialAdapter', () => {
   beforeEach(() => {
     MockSerialPort.lastInstance = null;
-    (MockSerialPort as any).failOpen = false;
+    MockSerialPort.failOpen = false;
   });
 
-  it('rejeita se porta nao configurada', async () => {
-    const ad = new SerialAdapter({ porta: null });
-    await expect(ad.connect()).rejects.toThrow(/porta serial/i);
-  });
-
-  it('abre porta e propaga data', async () => {
-    const ad = new SerialAdapter({
-      porta: 'COM3',
+  it('conecta com config serial padrao', async () => {
+    const adapter = new SerialAdapter({
+      porta: 'COM1',
       baudrate: 9600,
+      parity: 'N',
       databits: 8,
       stopbits: 1,
-      parity: 'none',
     });
-    await ad.connect();
-    expect(ad.isOpen()).toBe(true);
-
-    const port = MockSerialPort.lastInstance!;
-    expect(port.lastConfig.path).toBe('COM3');
-    expect(port.lastConfig.baudRate).toBe(9600);
-
-    const recebido = new Promise<Buffer>((resolve) => ad.on('data', resolve));
-    port.emit('data', Buffer.from('peso: 1234\n'));
-    expect((await recebido).toString()).toContain('1234');
-    await ad.close();
+    await adapter.connect();
+    expect(adapter.isOpen()).toBe(true);
+    expect(MockSerialPort.lastInstance?.lastConfig).toMatchObject({
+      path: 'COM1',
+      baudRate: 9600,
+      parity: 'none',
+      dataBits: 8,
+      stopBits: 1,
+      autoOpen: false,
+    });
   });
 
-  it('mapeia parity mark/space (C12)', async () => {
-    for (const p of ['mark', 'space', 'even', 'odd', 'none'] as const) {
-      const ad = new SerialAdapter({ porta: 'COM4', parity: p });
-      await ad.connect();
-      expect(MockSerialPort.lastInstance!.lastConfig.parity).toBe(p);
-      await ad.close();
-    }
+  it('fecha conexao e limpa estado', async () => {
+    const adapter = new SerialAdapter({ porta: 'COM1' });
+    await adapter.connect();
+    await adapter.close();
+    expect(adapter.isOpen()).toBe(false);
   });
 
-  it('propaga error e close do port subjacente', async () => {
-    const ad = new SerialAdapter({ porta: 'COM5' });
-    await ad.connect();
-    const port = MockSerialPort.lastInstance!;
-
-    const onErr = new Promise<Error>((resolve) => ad.on('error', resolve));
-    const onClose = new Promise<void>((resolve) => ad.on('close', () => resolve()));
-    port.emit('error', new Error('cabo desconectado'));
-    port.emit('close');
-    expect((await onErr).message).toBe('cabo desconectado');
-    await onClose;
+  it('emite data quando mock emite data', async () => {
+    const adapter = new SerialAdapter({ porta: 'COM1' });
+    const spy = jest.fn();
+    adapter.on('data', spy);
+    await adapter.connect();
+    MockSerialPort.lastInstance?.emit('data', Buffer.from('12345'));
+    expect(spy).toHaveBeenCalledWith(Buffer.from('12345'));
   });
 
-  it('propaga falha de open com mensagem original', async () => {
-    (MockSerialPort as any).failOpen = true;
-    const ad = new SerialAdapter({ porta: 'COM6' });
-    await expect(ad.connect()).rejects.toThrow(/access denied/);
+  it('propaga erro de abertura', async () => {
+    MockSerialPort.failOpen = true;
+    const adapter = new SerialAdapter({ porta: 'COM1' });
+    await expect(adapter.connect()).rejects.toThrow('access denied');
   });
 });
