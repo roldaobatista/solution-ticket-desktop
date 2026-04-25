@@ -126,7 +126,7 @@ export function TerminalSerial({ protocolo, endereco, serial }: Props) {
                   </span>
                 ))}
               </div>
-              <p className="text-slate-300 mt-1 break-all">"{l.texto}"</p>
+              <p className="text-slate-300 mt-1 break-all">&quot;{l.texto}&quot;</p>
             </div>
           ))}
         </div>

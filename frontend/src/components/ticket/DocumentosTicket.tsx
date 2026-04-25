@@ -83,7 +83,7 @@ export function DocumentosTicket({ ticketId }: Props) {
         }}
         className={`border-2 border-dashed rounded-lg p-4 text-center text-sm ${drag ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50'}`}
       >
-        Arraste arquivos aqui ou clique em "Enviar".
+        Arraste arquivos aqui ou clique em &quot;Enviar&quot;.
       </div>
 
       {isLoading && <div className="text-sm text-slate-500">Carregando...</div>}
