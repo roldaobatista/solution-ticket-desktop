@@ -47,7 +47,7 @@ import {
   Pie,
   Cell,
   Legend,
-} from 'recharts';
+} from '@/components/dashboard/recharts-lazy';
 import Link from 'next/link';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 
@@ -221,7 +221,7 @@ export default function DashboardPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={(e) => `${e.percentual}%`}
+                  label={(e: { percentual: number }) => `${e.percentual}%`}
                   labelLine={false}
                 >
                   {(distribuicao || []).map((_, i) => (
