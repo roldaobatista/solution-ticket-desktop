@@ -19,6 +19,7 @@ import { getTicketById } from '@/lib/api';
 import { DocumentosTicket } from '@/components/ticket/DocumentosTicket';
 import { formatWeight, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { use } from 'react';
 import {
   ArrowLeft,
   Printer,
@@ -36,11 +37,11 @@ import {
 } from 'lucide-react';
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default function TicketDetailPage({ params }: PageProps) {
-  const { id } = params;
+  const { id } = use(params);
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['ticket', id],

@@ -19,14 +19,16 @@ export function useMutationWithToast<TData, TError, TVariables, TContext>(
         const msg = typeof successMessage === 'function' ? successMessage(data) : successMessage;
         toast.success(msg);
       }
-      rest.onSuccess?.(data, variables, context);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (rest as any).onSuccess?.(data, variables, context);
     },
     onError: (error, variables, context) => {
       if (errorMessage) {
         const msg = typeof errorMessage === 'function' ? errorMessage(error) : errorMessage;
         toast.error(msg);
       }
-      rest.onError?.(error, variables, context);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (rest as any).onError?.(error, variables, context);
     },
-  });
+  } as UseMutationOptions<TData, TError, TVariables, TContext>);
 }

@@ -7,6 +7,7 @@
   "transform": {
     "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/../tsconfig.test.json" }]
   },
+  "transformIgnorePatterns": ["node_modules/(?!(uuid)/)"],
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/../src/$1"
   },
