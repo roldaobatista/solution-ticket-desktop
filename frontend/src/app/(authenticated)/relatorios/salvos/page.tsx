@@ -83,7 +83,12 @@ export default function RelatoriosSalvosPage() {
                   {new Date(r.atualizadoEm).toLocaleString('pt-BR')}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => excluir(r.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => excluir(r.id)}
+                    aria-label="Excluir"
+                  >
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </Button>
                 </td>

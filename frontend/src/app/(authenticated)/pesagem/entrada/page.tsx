@@ -202,6 +202,7 @@ export default function PesagemEntradaPage() {
                   variant="secondary"
                   title="Cadastrar veiculo rapido"
                   onClick={() => router.push('/cadastros/veiculos')}
+                  aria-label="Adicionar"
                 >
                   <Plus className="w-4 h-4" />
                 </Button>

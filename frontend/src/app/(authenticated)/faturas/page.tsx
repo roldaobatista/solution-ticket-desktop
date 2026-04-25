@@ -37,7 +37,12 @@ export default function FaturasPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedFaturaId(null)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedFaturaId(null)}
+            aria-label="Anterior"
+          >
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -251,6 +256,7 @@ export default function FaturasPage() {
                         size="sm"
                         className="p-1"
                         onClick={() => setSelectedFaturaId(f.id)}
+                        aria-label="Visualizar"
                       >
                         <Eye className="w-4 h-4 text-slate-500" />
                       </Button>

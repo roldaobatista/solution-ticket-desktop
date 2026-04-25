@@ -269,6 +269,7 @@ export default function TiposDescontoPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => openEdit(t)}
+                          aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4 text-slate-500" />
                         </Button>
@@ -277,6 +278,7 @@ export default function TiposDescontoPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => setDeleteId(t.id)}
+                          aria-label="Excluir"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>

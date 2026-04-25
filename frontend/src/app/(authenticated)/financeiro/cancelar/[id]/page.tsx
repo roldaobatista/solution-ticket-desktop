@@ -43,7 +43,7 @@ export default function CancelarFaturaPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => router.back()} aria-label="Anterior">
           <ChevronLeft className="w-5 h-5" />
         </Button>
         <div>

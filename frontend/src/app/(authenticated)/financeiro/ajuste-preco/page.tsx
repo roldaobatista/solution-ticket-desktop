@@ -305,7 +305,7 @@ export default function AjustePrecoPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/financeiro">
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" aria-label="Anterior">
             <ChevronLeft className="w-5 h-5" />
           </Button>
         </Link>

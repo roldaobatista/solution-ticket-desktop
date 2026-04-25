@@ -210,6 +210,7 @@ export default function ProdutosPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => openEdit(p)}
+                          aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4 text-slate-500" />
                         </Button>
@@ -218,6 +219,7 @@ export default function ProdutosPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => setDeleteId(p.id)}
+                          aria-label="Excluir"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>

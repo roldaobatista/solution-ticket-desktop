@@ -119,7 +119,7 @@ export default function RomaneiosPage() {
                       {formatDate(r.emitido_em)}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" className="p-1">
+                      <Button variant="ghost" size="sm" className="p-1" aria-label="Visualizar">
                         <Eye className="w-4 h-4 text-slate-500" />
                       </Button>
                     </TableCell>

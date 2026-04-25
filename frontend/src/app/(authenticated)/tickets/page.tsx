@@ -233,7 +233,13 @@ export default function TicketsPage() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Link href={`/tickets/${ticket.id}`}>
-                          <Button variant="ghost" size="sm" className="p-1" title="Ver detalhes">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1"
+                            title="Ver detalhes"
+                            aria-label="Visualizar"
+                          >
                             <Eye className="w-4 h-4 text-slate-500" />
                           </Button>
                         </Link>
@@ -243,6 +249,7 @@ export default function TicketsPage() {
                           className="p-1"
                           title="Reimprimir"
                           onClick={() => setPreviewId(ticket.id)}
+                          aria-label="Imprimir"
                         >
                           <Printer className="w-4 h-4 text-slate-500" />
                         </Button>
@@ -253,6 +260,7 @@ export default function TicketsPage() {
                               size="sm"
                               className="p-1"
                               title="Editar (Manutencao)"
+                              aria-label="Editar"
                             >
                               <Pencil className="w-4 h-4 text-slate-500" />
                             </Button>
@@ -279,6 +287,7 @@ export default function TicketsPage() {
               size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
+              aria-label="Anterior"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -287,6 +296,7 @@ export default function TicketsPage() {
               size="sm"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
+              aria-label="Proximo"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>

@@ -205,6 +205,7 @@ export default function VeiculosPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => openEdit(v)}
+                          aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4 text-slate-500" />
                         </Button>
@@ -213,6 +214,7 @@ export default function VeiculosPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => setDeleteId(v.id)}
+                          aria-label="Excluir"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>

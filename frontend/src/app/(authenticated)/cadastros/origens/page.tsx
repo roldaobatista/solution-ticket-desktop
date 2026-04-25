@@ -164,6 +164,7 @@ export default function OrigensPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => openEdit(o)}
+                          aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4 text-slate-500" />
                         </Button>
@@ -172,6 +173,7 @@ export default function OrigensPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => setDeleteId(o.id)}
+                          aria-label="Excluir"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>

@@ -199,6 +199,7 @@ export default function MotoristasPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => openEdit(m)}
+                          aria-label="Editar"
                         >
                           <Pencil className="w-4 h-4 text-slate-500" />
                         </Button>
@@ -207,6 +208,7 @@ export default function MotoristasPage() {
                           size="sm"
                           className="p-1"
                           onClick={() => setDeleteId(m.id)}
+                          aria-label="Excluir"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>

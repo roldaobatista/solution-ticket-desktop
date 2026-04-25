@@ -86,7 +86,12 @@ function FaturasTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedId(null)}
+              aria-label="Anterior"
+            >
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <div>
@@ -280,6 +285,7 @@ function FaturasTab() {
                           size="sm"
                           className="p-1"
                           onClick={() => setSelectedId(f.id)}
+                          aria-label="Visualizar"
                         >
                           <Eye className="w-4 h-4 text-slate-500" />
                         </Button>
@@ -701,7 +707,12 @@ function SaldosTab() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedCliente(null)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedCliente(null)}
+            aria-label="Anterior"
+          >
             <ChevronLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -795,7 +806,7 @@ function SaldosTab() {
                 </TableCell>
                 <TableCell>{formatDateShort(s.data_ultimo_saldo)}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="sm" className="p-1">
+                  <Button variant="ghost" size="sm" className="p-1" aria-label="Visualizar">
                     <Eye className="w-4 h-4 text-slate-500" />
                   </Button>
                 </TableCell>
