@@ -18,7 +18,7 @@ export class Toledo2090Parser implements IBalancaParser {
     const restante = buffer.subarray(lf + 1);
 
     // Pode terminar em CR+LF — descarta CR final
-    const text = slice.toString('ascii').replace(/\r$/, '');
+    const text = slice.toString('latin1').replace(/\r$/, '');
     // Pula STX se presente
     const body = text.startsWith('\x02') ? text.slice(1) : text;
     const limpo = body.trim().replace(/[^0-9\-+.]/g, '');

@@ -65,7 +65,9 @@ export class NetworkDiscoveryService {
     while (fila.length > 0) {
       const t = fila.shift();
       if (!t) return;
-      const ok = await this.probe(t.ip, t.porta, timeout);
+      // C9: retry 1x para reduzir falso-negativo em redes industriais ruidosas
+      let ok = await this.probe(t.ip, t.porta, timeout);
+      if (!ok) ok = await this.probe(t.ip, t.porta, timeout);
       if (ok) out.push({ ip: t.ip, porta: t.porta, rttMs: ok });
     }
   }

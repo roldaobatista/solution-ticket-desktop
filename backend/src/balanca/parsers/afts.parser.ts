@@ -13,8 +13,12 @@ export class AftsParser implements IBalancaParser {
   parse(buffer: Buffer): { leitura: LeituraPeso | null; restante: Buffer } {
     const lf = buffer.indexOf(0x0a);
     if (lf < 0) return { leitura: null, restante: buffer };
-    const slice = buffer.subarray(0, lf).toString('ascii').replace(/\r$/, '');
+    const slice = buffer.subarray(0, lf).toString('latin1').replace(/\r$/, '');
     const restante = buffer.subarray(lf + 1);
+
+    // C8: trama AFTS bem formada tem unidade 'kg' ou 'g' no final.
+    // A ausência costuma indicar trama truncada/ruído — rejeitar.
+    if (!/(kg|g|t|lb)\s*$/.test(slice.trim())) return { leitura: null, restante };
 
     // Aceita ST/US/OL como prefixo
     const m = slice.match(/^(ST|US|OL),(?:GS|NT),([+\-\s\d.]+)/);
@@ -22,6 +26,9 @@ export class AftsParser implements IBalancaParser {
 
     const status = m[1];
     const numStr = m[2].replace(/\s+/g, '');
+    // C8: número não pode ter múltiplos pontos nem ser apenas sinal.
+    if ((numStr.match(/\./g) ?? []).length > 1) return { leitura: null, restante };
+    if (!/\d/.test(numStr)) return { leitura: null, restante };
     let peso = parseFloat(numStr);
     if (isNaN(peso)) return { leitura: null, restante };
 

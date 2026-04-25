@@ -16,7 +16,7 @@ export class FilizolaAtParser implements IBalancaParser {
   parse(buffer: Buffer): { leitura: LeituraPeso | null; restante: Buffer } {
     const cr = buffer.indexOf(0x0d);
     if (cr < 0) return { leitura: null, restante: buffer };
-    const slice = buffer.subarray(0, cr).toString('ascii');
+    const slice = buffer.subarray(0, cr).toString('latin1');
     const restante = buffer.subarray(cr + 1);
 
     const at = slice.indexOf('@');

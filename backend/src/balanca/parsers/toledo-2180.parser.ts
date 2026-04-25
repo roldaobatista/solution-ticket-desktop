@@ -13,7 +13,7 @@ export class Toledo2180Parser implements IBalancaParser {
   parse(buffer: Buffer): { leitura: LeituraPeso | null; restante: Buffer } {
     const lf = buffer.indexOf(0x0a);
     if (lf < 0) return { leitura: null, restante: buffer };
-    const slice = buffer.subarray(0, lf).toString('ascii').replace(/\r$/, '');
+    const slice = buffer.subarray(0, lf).toString('latin1').replace(/\r$/, '');
     const restante = buffer.subarray(lf + 1);
 
     const start = slice.indexOf('\x02');

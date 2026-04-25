@@ -13,7 +13,7 @@ export class ToledoParser implements IBalancaParser {
     if (idx < 0) return { leitura: null, restante: buffer };
     const tramaBytes = buffer.subarray(0, idx);
     const restante = buffer.subarray(idx + 1);
-    const trama = tramaBytes.toString('ascii');
+    const trama = tramaBytes.toString('latin1');
 
     // Procura STX (0x02) ou usa desde o inicio
     let start = trama.indexOf('\x02');

@@ -13,7 +13,7 @@ export class ModbusParser implements IBalancaParser {
     // Adapter Modbus injeta o peso como string decimal seguido de \n.
     const idx = buffer.indexOf(0x0a);
     if (idx < 0) return { leitura: null, restante: buffer };
-    const linha = buffer.subarray(0, idx).toString('ascii').trim();
+    const linha = buffer.subarray(0, idx).toString('latin1').trim();
     const restante = buffer.subarray(idx + 1);
     if (!linha) return { leitura: null, restante };
     let peso = parseFloat(linha);

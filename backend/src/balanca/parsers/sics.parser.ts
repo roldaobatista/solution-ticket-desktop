@@ -16,7 +16,7 @@ export class SicsParser implements IBalancaParser {
     if (idx < 0) return { leitura: null, restante: buffer };
     const linhaBytes = buffer.subarray(0, idx);
     const restante = buffer.subarray(idx + 1);
-    const linha = linhaBytes.toString('ascii').replace(/\r$/, '').trim();
+    const linha = linhaBytes.toString('latin1').replace(/\r$/, '').trim();
     const tokens = linha.split(/\s+/);
     if (tokens.length < 3 || tokens[0] !== 'S') {
       return { leitura: null, restante };

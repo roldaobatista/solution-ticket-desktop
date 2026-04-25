@@ -15,7 +15,7 @@ export class SaturnoParser implements IBalancaParser {
     if (stx >= 0 && etx > stx) {
       const body = buffer
         .subarray(stx + 1, etx)
-        .toString('ascii')
+        .toString('latin1')
         .trim();
       const restante = buffer.subarray(etx + 1);
       return this.extrair(body, restante, true);
@@ -23,7 +23,7 @@ export class SaturnoParser implements IBalancaParser {
     // Fallback: linha terminada em LF
     const lf = buffer.indexOf(0x0a);
     if (lf < 0) return { leitura: null, restante: buffer };
-    const slice = buffer.subarray(0, lf).toString('ascii').replace(/\r$/, '').trim();
+    const slice = buffer.subarray(0, lf).toString('latin1').replace(/\r$/, '').trim();
     const restante = buffer.subarray(lf + 1);
     return this.extrair(slice, restante, false);
   }

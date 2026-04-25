@@ -16,7 +16,7 @@ export class GenericParser implements IBalancaParser {
     }
     const tramaBytes = buffer.subarray(0, idx);
     const restante = buffer.subarray(idx + 1);
-    const trama = tramaBytes.toString('ascii');
+    const trama = tramaBytes.toString('latin1');
     const tamanhoEsperado = this.config.tamanhoString ?? 0;
     if (tamanhoEsperado > 0 && trama.length < tamanhoEsperado - 1) {
       // trama curta demais, descartar

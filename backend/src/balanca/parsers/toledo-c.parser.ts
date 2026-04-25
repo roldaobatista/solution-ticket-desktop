@@ -23,7 +23,7 @@ export class ToledoCParser implements IBalancaParser {
     if (crIdx < 0) return { leitura: null, restante: buffer };
 
     // Consome até CR; ENQ pós-CR é handshake e fica no restante para descarte
-    const trama = buffer.subarray(stxIdx + 1, crIdx).toString('ascii');
+    const trama = buffer.subarray(stxIdx + 1, crIdx).toString('latin1');
     let consumed = crIdx + 1;
     if (buffer[consumed] === 0x05) consumed += 1; // ENQ trailing
     const restante = buffer.subarray(consumed);
@@ -31,14 +31,19 @@ export class ToledoCParser implements IBalancaParser {
     if (trama[0] !== 'i') return { leitura: null, restante };
 
     const status = trama[1] ?? '0';
-    // Bit semantics conforme manual Toledo: '2' = peso estável; '0' = movimento.
+    // C8: whitelist de status válidos (descarta trama corrompida silenciosamente).
+    // Manual Toledo: '0'=movimento, '1'=subpeso, '2'=estável, '3'=sobrecarga.
+    if (!['0', '1', '2', '3'].includes(status)) return { leitura: null, restante };
     const estavel = status === '2';
 
     const pesoStr = trama
       .slice(2)
       .replace(/\s+/g, '')
       .replace(/[^0-9\-]/g, '');
-    if (!pesoStr) return { leitura: null, restante };
+    // C8: peso Toledo-C tem entre 6 e 11 dígitos; fora disso é quase certamente ruído.
+    if (!pesoStr || pesoStr.length < 4 || pesoStr.length > 12) {
+      return { leitura: null, restante };
+    }
     let peso = parseInt(pesoStr, 10);
     if (isNaN(peso)) return { leitura: null, restante };
 

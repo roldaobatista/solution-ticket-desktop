@@ -18,7 +18,7 @@ export class UranoParser implements IBalancaParser {
     const idx = etx >= 0 && (lf < 0 || etx < lf) ? etx : lf;
     if (idx < 0) return { leitura: null, restante: buffer };
 
-    const slice = buffer.subarray(0, idx).toString('ascii');
+    const slice = buffer.subarray(0, idx).toString('latin1');
     const restante = buffer.subarray(idx + 1);
 
     // Remove STX inicial e CR no fim
