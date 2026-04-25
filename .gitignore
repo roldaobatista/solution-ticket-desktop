@@ -23,6 +23,8 @@ playwright/.cache/
 # SQLite
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 
 # Prisma
 prisma/migrations/dev.db*
