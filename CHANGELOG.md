@@ -6,6 +6,19 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ## [Não lançado]
 
+### Sprint 2 — Hardening UX (2026-04-25)
+
+- **Backend/Segurança:** CSP estrita no Electron renderer via `session.defaultSession.webRequest.onHeadersReceived` (S4); `LoggingInterceptor` global com `scrubPii()` recursivo cobrindo senha/token/JWT/CPF/CNPJ + spec 6/6 (S6). S3 (throttler) e S5 (RESET_TOKEN_TTL=15min) já estavam.
+- **Frontend:** defaults react-query mais conservadores (stale 30s, refetchOnWindowFocus, retry:1 query / retry:false mutation) — F8. Helper `tenantKey()` para namespacing de queryKeys (F3 infra; migração das ~30 pages diferida). F4 (interceptor 401) já estava em `client.ts`.
+- **Frontend tipos (F5):** 39 ocorrências de `any` eliminadas. Helper `lib/errors.ts` `extractMessage(e: unknown, fallback?)`. Patterns mecânicos: `catch (e: any)`→`unknown`, `(b: any)`→tipos mínimos, `payload: any`→`Record<string, unknown>`, `as any` em union literals→cast correto.
+- **Frontend perf (F6):** recharts (~110 KB) lazy-loaded via `next/dynamic` em `components/dashboard/recharts-lazy.tsx`. Lucide já tree-shakable, sem ação.
+- **Frontend a11y (F7):** `Input` agora gera id via `useId` e associa `htmlFor`+`aria-describedby`. 47 botões só-ícone receberam `aria-label` em 21 arquivos.
+
+### Reclassificações Sprint 2
+
+- **F2 (prop drilling operação):** o issue real é monólito (`pesagem/page.tsx` 768 linhas, 12 `useState`), não prop drilling. Refactor estrutural — diferido para Sprint 3.
+- **F1 (e2e Playwright pesagem):** 12h dedicadas + dev server + mocks de balança/impressão — diferido para Sprint 3.
+
 ### Sprint 1 — Bloqueadores de produção (2026-04-25)
 
 - **Backend:** TypeScript `strict: true` ativado (`feat: Q1`). 64 propriedades de DTO anotadas com `!:`; 8 outros gaps corrigidos (auth controller, serial adapter, brazilian-utils types).
