@@ -1,34 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateTipoDescontoDto, UpdateTipoDescontoDto } from './dto/create-tipo-desconto.dto';
 
 @Injectable()
 export class TiposDescontoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: any) {
+  async create(dto: CreateTipoDescontoDto) {
     return this.prisma.tipoDesconto.create({
       data: {
-        tenantId: data.tenantId,
-        descricao: data.descricao,
-        tipo: data.tipo || 'PERCENTUAL',
-        teto: data.teto ?? null,
-        carencia: data.carencia ?? null,
-        mantem: data.mantem ?? false,
-        calcula: data.calcula ?? true,
-        visivelPE: data.visivelPE ?? true,
-        visivelPS: data.visivelPS ?? true,
-        visivelPortaria: data.visivelPortaria ?? false,
-        visivelApontamento: data.visivelApontamento ?? false,
-        visivelPosApontamento: data.visivelPosApontamento ?? false,
-        valor: data.valor ?? null,
-        original: data.original ?? false,
-        ativo: data.ativo ?? true,
+        tenantId: dto.tenantId,
+        descricao: dto.descricao,
+        tipo: dto.tipo || 'PERCENTUAL',
+        teto: dto.teto ?? null,
+        carencia: dto.carencia ?? null,
+        mantem: dto.mantem ?? false,
+        calcula: dto.calcula ?? true,
+        visivelPE: dto.visivelPE ?? true,
+        visivelPS: dto.visivelPS ?? true,
+        visivelPortaria: dto.visivelPortaria ?? false,
+        visivelApontamento: dto.visivelApontamento ?? false,
+        visivelPosApontamento: dto.visivelPosApontamento ?? false,
+        valor: dto.valor ?? null,
+        original: dto.original ?? false,
+        ativo: dto.ativo ?? true,
       },
     });
   }
 
   async findAll(tenantId: string, apenasAtivos = false) {
-    const where: any = { tenantId };
+    const where: Prisma.TipoDescontoWhereInput = { tenantId };
     if (apenasAtivos) where.ativo = true;
     return this.prisma.tipoDesconto.findMany({ where, orderBy: { descricao: 'asc' } });
   }
@@ -39,12 +41,24 @@ export class TiposDescontoService {
     return r;
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, dto: UpdateTipoDescontoDto) {
     await this.findOne(id);
-    const patch: any = { ...data };
-    delete patch.id;
-    delete patch.criadoEm;
-    delete patch.atualizadoEm;
+    const patch: Prisma.TipoDescontoUpdateInput = {};
+    if (dto.descricao !== undefined) patch.descricao = dto.descricao;
+    if (dto.tipo !== undefined) patch.tipo = dto.tipo;
+    if (dto.teto !== undefined) patch.teto = dto.teto;
+    if (dto.carencia !== undefined) patch.carencia = dto.carencia;
+    if (dto.mantem !== undefined) patch.mantem = dto.mantem;
+    if (dto.calcula !== undefined) patch.calcula = dto.calcula;
+    if (dto.visivelPE !== undefined) patch.visivelPE = dto.visivelPE;
+    if (dto.visivelPS !== undefined) patch.visivelPS = dto.visivelPS;
+    if (dto.visivelPortaria !== undefined) patch.visivelPortaria = dto.visivelPortaria;
+    if (dto.visivelApontamento !== undefined) patch.visivelApontamento = dto.visivelApontamento;
+    if (dto.visivelPosApontamento !== undefined)
+      patch.visivelPosApontamento = dto.visivelPosApontamento;
+    if (dto.valor !== undefined) patch.valor = dto.valor;
+    if (dto.original !== undefined) patch.original = dto.original;
+    if (dto.ativo !== undefined) patch.ativo = dto.ativo;
     return this.prisma.tipoDesconto.update({ where: { id }, data: patch });
   }
 

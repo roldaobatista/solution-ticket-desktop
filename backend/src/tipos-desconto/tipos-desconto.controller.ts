@@ -12,6 +12,11 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TiposDescontoService } from './tipos-desconto.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  CreateTipoDescontoDto,
+  SeedTiposDescontoDto,
+  UpdateTipoDescontoDto,
+} from './dto/create-tipo-desconto.dto';
 
 @ApiTags('Tipos de Desconto')
 @ApiBearerAuth()
@@ -22,8 +27,8 @@ export class TiposDescontoController {
 
   @Post()
   @ApiOperation({ summary: 'Criar tipo de desconto' })
-  create(@Body() data: any) {
-    return this.service.create(data);
+  create(@Body() dto: CreateTipoDescontoDto) {
+    return this.service.create(dto);
   }
 
   @Get()
@@ -34,8 +39,8 @@ export class TiposDescontoController {
 
   @Post('seed')
   @ApiOperation({ summary: 'Criar tipos de desconto padrao' })
-  seed(@Body() data: any) {
-    return this.service.seedPadrao(data.tenantId);
+  seed(@Body() dto: SeedTiposDescontoDto) {
+    return this.service.seedPadrao(dto.tenantId);
   }
 
   @Get(':id')
@@ -44,8 +49,8 @@ export class TiposDescontoController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() data: any) {
-    return this.service.update(id, data);
+  update(@Param('id') id: string, @Body() dto: UpdateTipoDescontoDto) {
+    return this.service.update(id, dto);
   }
 
   @Delete(':id')
