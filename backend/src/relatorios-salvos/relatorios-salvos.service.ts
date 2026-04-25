@@ -1,5 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  CreateRelatorioSalvoDto,
+  FiltrosPayload,
+  UpdateRelatorioSalvoDto,
+} from './dto/create-relatorio-salvo.dto';
+
+function serializarFiltros(filtros: FiltrosPayload): string {
+  return typeof filtros === 'string' ? filtros : JSON.stringify(filtros ?? {});
+}
 
 @Injectable()
 export class RelatoriosSalvosService {
@@ -18,22 +28,22 @@ export class RelatoriosSalvosService {
     return r;
   }
 
-  create(tenantId: string, data: { nome: string; modulo: string; filtros: any }) {
-    const filtrosStr =
-      typeof data.filtros === 'string' ? data.filtros : JSON.stringify(data.filtros ?? {});
+  create(tenantId: string, data: CreateRelatorioSalvoDto) {
     return this.prisma.relatorioSalvo.create({
-      data: { tenantId, nome: data.nome, modulo: data.modulo, filtros: filtrosStr },
+      data: {
+        tenantId,
+        nome: data.nome,
+        modulo: data.modulo,
+        filtros: serializarFiltros(data.filtros),
+      },
     });
   }
 
-  async update(id: string, tenantId: string, data: { nome?: string; filtros?: any }) {
+  async update(id: string, tenantId: string, data: UpdateRelatorioSalvoDto) {
     await this.get(id, tenantId);
-    const payload: any = {};
+    const payload: Prisma.RelatorioSalvoUpdateInput = {};
     if (data.nome !== undefined) payload.nome = data.nome;
-    if (data.filtros !== undefined) {
-      payload.filtros =
-        typeof data.filtros === 'string' ? data.filtros : JSON.stringify(data.filtros);
-    }
+    if (data.filtros !== undefined) payload.filtros = serializarFiltros(data.filtros);
     return this.prisma.relatorioSalvo.update({ where: { id }, data: payload });
   }
 
