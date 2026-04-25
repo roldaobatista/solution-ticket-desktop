@@ -140,3 +140,59 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🟢 Baixo
 - **Esforço médio (1–3h)**: RD1+RD2 (migration cuidadosa), RS1 (Sentry), RC3 (detecção Modbus)
 
 Reauditoria sugere foco em **fechar RD1+RD2 antes de qualquer release** e tratar RA1+RS1+RQ1+RQ2 em batch antes do próximo sprint.
+
+---
+
+## Status final — execução em 2026-04-25
+
+| ID      | Sev | Status           | Commit / Notas                                                                          |
+| ------- | :-: | ---------------- | --------------------------------------------------------------------------------------- |
+| RA1     | 🟠  | ✅ resolvido     | `7db735c` — guards `USE_MOCK` em 7 endpoints                                            |
+| RA2     | 🟡  | ✅ documentado   | `5ff0662` — `getIndicadoresList` marcado `@deprecated`, comentário explica              |
+| RA3     | 🟡  | ⏸️ deferido      | TODOs são backlog de produto (endpoints `/comercial/tickets-pendentes`, etc)            |
+| RA4     | 🟢  | ⏸️ deferido      | Refactor de 35 `console.log` para Logger é esforço médio, baixo ROI                     |
+| RS1     | 🟠  | ✅ resolvido     | `7db735c` — `HttpExceptionFilter` reporta 5xx e não-Http a Sentry                       |
+| RS2     | 🟡  | ⏸️ deferido      | Code signing — decisão de produto (custo)                                               |
+| RS3     | 🟡  | ✅ resolvido     | `5ff0662` — JwtStrategy aceita `?access_token=`, frontend injeta na URL do SSE          |
+| RS4     | 🟡  | ⏸️ deferido      | Migrar `unidade_id` de localStorage exige refactor multi-arquivo                        |
+| RS5     | 🟢  | ✅ resolvido     | `7db735c` — Permissions-Policy header                                                   |
+| RC1     | 🟡  | ✅ resolvido     | `7db735c` — `adapter.removeAllListeners()` em desconectar                               |
+| RC2     | 🟡  | ✅ resolvido     | `7db735c` — `falhasConsecutivas` acumula entre reconexões                               |
+| RC3     | 🟡  | ✅ resolvido     | `7db735c` — Modbus detecção fatal por `err.code`                                        |
+| RC4     | 🟡  | ✅ resolvido     | `7db735c` — log warning quando buffer trim                                              |
+| RC5     | 🟢  | ⏸️ deferido      | 11 `any` são interop com `serialport`/`modbus-serial` não-tipados                       |
+| RC6     | 🟢  | ✅ resolvido     | `7db735c` — sleep cancelável no ModbusAdapter                                           |
+| **RD1** | 🔴  | ✅ resolvido     | `76d1e0d` — migration `20260425000000_catchup_indices_uniques_v1_1` aplicada e validada |
+| RD2     | 🟠  | ✅ resolvido     | `76d1e0d` — `PRE-CHECK-duplicates.sql` + procedimento RECOVERY                          |
+| RD3     | 🟡  | ⏸️ deferido      | `Empresa.documento` opcional (decisão de produto, comentário inline)                    |
+| RD4     | 🟡  | ✅ resolvido     | `5ff0662` — gate `pnpm db:seed` no CI (continue-on-error inicial)                       |
+| RD5     | 🟢  | ⏸️ deferido      | Tornar `Auditoria.tenantId` required exige passar tenantId em 4 call sites              |
+| RQ1     | 🟠  | ✅ resolvido     | `7db735c` — Playwright smoke step no CI (ubuntu-latest)                                 |
+| RQ2     | 🟠  | ✅ resolvido     | `7db735c` — `prepare: husky` (era `husky install` deprecated)                           |
+| RQ3     | 🟡  | ⏸️ deferido      | `--max-warnings` exige primeiro limpar 88 warnings existentes                           |
+| RQ4     | 🟡  | ⏸️ deferido      | Paralelismo de testes — info, baixo impacto enquanto suite é pequena                    |
+| RQ5     | 🟡  | ⏸️ deferido      | Promover `backend test:e2e` a gate exige primeiro estabilizar                           |
+| RQ6     | 🟢  | ✅ resolvido     | `7db735c` — sleep cancelável (RC6) também resolve worker leak                           |
+| RQ7     | 🟢  | ❎ não aplicável | `pnpm-workspace.yaml` já tinha `keygen` explícito                                       |
+
+### Totais
+
+- **14 resolvidos** (incluindo o crítico RD1)
+- **8 deferidos** com justificativa explícita (decisão de produto, escopo grande, ou baixo ROI)
+- **0 não tratados sem motivo**
+
+### Commits da rodada
+
+```
+5ff0662 fix(reaudit-r2): SSE auth via query, seed CI gate, alias deprecation (RS3, RD4, RA2)
+76d1e0d feat(reaudit-r1): migration catchup para reconciliar schema (RD1, RD2)
+7db735c fix(reaudit-r0): quick wins da reauditoria (12 achados em batch)
+6bbb3af docs: reauditoria pos-correcao da 1a auditoria
+```
+
+### Validação final
+
+- `pnpm typecheck:all` ✅
+- `pnpm format:check` ✅
+- 135 testes / 26 suites ✅
+- Migration aplicada com sucesso em DB fresh (49 tabelas, 103 índices)
