@@ -292,6 +292,7 @@ function createMainWindow(url) {
       sandbox: true, // S2: defesa em profundidade — renderer roda em processo isolado
       webSecurity: true,
       allowRunningInsecureContent: false,
+      devTools: isDev, // S7: DevTools desabilitado em build de producao
       preload: path.join(__dirname, 'preload.js'),
     },
   });

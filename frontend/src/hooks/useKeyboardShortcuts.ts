@@ -23,6 +23,13 @@ export function useKeyboardShortcuts(map: ShortcutMap, enabled = true) {
         const tag = target.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return;
       }
+      // F11: ignora atalhos enquanto qualquer modal/dialog estiver aberto.
+      // Evita que F1/F2/Escape da pagina principal vazem para dentro do
+      // Dialog (confirmacao de cancelamento, etc.) e disparem ambos.
+      if (typeof document !== 'undefined') {
+        const modal = document.querySelector('[role="dialog"][aria-modal="true"]');
+        if (modal) return;
+      }
       const fn = map[ev.key];
       if (fn) {
         ev.preventDefault();

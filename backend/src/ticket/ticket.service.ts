@@ -98,6 +98,19 @@ export class TicketService {
           ? 3
           : 2;
 
+    // B9: PF1 (TARA REFERENCIADA) exige tara conhecida no momento de criar.
+    // Sem isto, ticket abriria com tara=0 e o calculo do peso liquido na
+    // primeira passagem ficaria incorreto silenciosamente.
+    if (dto.fluxoPesagem === FluxoPesagem.PF1_TARA_REFERENCIADA) {
+      const taraValida = (taraSnapshot && taraSnapshot > 0) || taraTipo === 'MANUAL';
+      if (!taraValida) {
+        throw new BadRequestException(
+          'Fluxo PF1_TARA_REFERENCIADA exige tara: informe veiculoId com tara cadastrada ' +
+            "ou taraReferenciaTipo='MANUAL' com tara informada.",
+        );
+      }
+    }
+
     const ticket = await this.prisma.ticketPesagem.create({
       data: {
         numero,

@@ -232,3 +232,95 @@ describe('TicketService.create - bloqueio por licença', () => {
     ).rejects.toThrow(/trial/i);
   });
 });
+
+describe('TicketService.create - B9 validacao de tara em PF1', () => {
+  let service: TicketService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    prisma = {
+      ticketPesagem: {
+        create: jest.fn().mockResolvedValue({ id: 'novo' }),
+        count: jest.fn().mockResolvedValue(0),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'novo',
+          numero: 'TKT-1',
+          passagens: [],
+          descontos: [],
+          documentos: [],
+          snapshotsComercial: [],
+        }),
+      },
+      licencaInstalacao: { findFirst: jest.fn().mockResolvedValue(null) },
+      veiculo: { findUnique: jest.fn() },
+    };
+    const module = await Test.createTestingModule({
+      providers: [TicketService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get(TicketService);
+  });
+
+  it('rejeita PF1 sem veiculoId nem taraReferenciaTipo MANUAL', async () => {
+    await expect(
+      service.create({
+        tenantId: 't',
+        unidadeId: 'u',
+        fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+        clienteId: 'c',
+        produtoId: 'p',
+      } as any),
+    ).rejects.toThrow(/PF1_TARA_REFERENCIADA exige tara/);
+    expect(prisma.ticketPesagem.create).not.toHaveBeenCalled();
+  });
+
+  it('rejeita PF1 quando veiculo nao tem tara cadastrada', async () => {
+    prisma.veiculo.findUnique.mockResolvedValue({ id: 'v1', taraCadastrada: null });
+    await expect(
+      service.create({
+        tenantId: 't',
+        unidadeId: 'u',
+        fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+        clienteId: 'c',
+        produtoId: 'p',
+        veiculoId: 'v1',
+      } as any),
+    ).rejects.toThrow(/exige tara/);
+    expect(prisma.ticketPesagem.create).not.toHaveBeenCalled();
+  });
+
+  it('aceita PF1 com taraReferenciaTipo=MANUAL (sem veiculo)', async () => {
+    await service.create({
+      tenantId: 't',
+      unidadeId: 'u',
+      fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+      clienteId: 'c',
+      produtoId: 'p',
+      taraReferenciaTipo: 'MANUAL',
+    } as any);
+    expect(prisma.ticketPesagem.create).toHaveBeenCalled();
+  });
+
+  it('aceita PF1 com veiculo que tem taraCadastrada > 0', async () => {
+    prisma.veiculo.findUnique.mockResolvedValue({ id: 'v1', taraCadastrada: 5000 });
+    await service.create({
+      tenantId: 't',
+      unidadeId: 'u',
+      fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+      clienteId: 'c',
+      produtoId: 'p',
+      veiculoId: 'v1',
+    } as any);
+    expect(prisma.ticketPesagem.create).toHaveBeenCalled();
+  });
+
+  it('PF2 nao requer tara (passa sem checagem)', async () => {
+    await service.create({
+      tenantId: 't',
+      unidadeId: 'u',
+      fluxoPesagem: 'PF2_BRUTO_TARA',
+      clienteId: 'c',
+      produtoId: 'p',
+    } as any);
+    expect(prisma.ticketPesagem.create).toHaveBeenCalled();
+  });
+});
