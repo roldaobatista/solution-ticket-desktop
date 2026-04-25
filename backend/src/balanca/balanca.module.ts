@@ -5,7 +5,7 @@ import { BalancaConnectionService } from './balanca-connection.service';
 import { BalancaRealtimeService } from './balanca-realtime.service';
 import { AutoDetectService } from './auto-detect.service';
 import { CaptureRawService } from './capture-raw.service';
-import { NetworkDiscoveryService } from './network-discovery.service';
+import { NetworkDiscoveryService } from './diagnostics/network-discovery.service';
 import { BalancaConfigController } from './presets.controller';
 
 @Module({

@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PRESETS_BALANCA, SERIAL_OPTIONS } from './presets';
 import { AutoDetectService } from './auto-detect.service';
 import { CaptureRawService, CaptureRequest } from './capture-raw.service';
-import { NetworkDiscoveryService } from './network-discovery.service';
+import { NetworkDiscoveryService } from './diagnostics/network-discovery.service';
 import { createParser } from './parsers/parser.factory';
 
 @ApiTags('Balanca Configuração')
