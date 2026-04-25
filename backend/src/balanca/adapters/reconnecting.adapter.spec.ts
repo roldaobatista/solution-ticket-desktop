@@ -77,6 +77,29 @@ describe('ReconnectingAdapter', () => {
     expect(info.tentativas).toBeGreaterThanOrEqual(1);
   }, 10_000);
 
+  it('H2: rajada de close emite apenas um agendamento de reconexao', async () => {
+    const fake = new FakeAdapter();
+    const wrap = new ReconnectingAdapter(fake, { baseDelayMs: 30, maxDelayMs: 100 });
+    await wrap.connect();
+
+    const onReconectando = jest.fn();
+    wrap.on('reconectando', onReconectando);
+    const onReconectado = new Promise<void>((resolve) => wrap.on('reconectado', () => resolve()));
+
+    // Tres closes em rajada (ex.: error + close + close do socket)
+    fake.emit('close');
+    fake.emit('close');
+    fake.emit('close');
+
+    await onReconectado;
+
+    // Sem o guard, cada close criaria um setTimeout — multiplas reconexoes.
+    // Com idempotencia, apenas o primeiro agenda.
+    expect(onReconectando).toHaveBeenCalledTimes(1);
+    expect(fake.connectCalls).toBe(2); // 1 connect inicial + 1 reconect
+    await wrap.close();
+  });
+
   it('encaminha data e error do inner', async () => {
     const fake = new FakeAdapter();
     const wrap = new ReconnectingAdapter(fake, { baseDelayMs: 10 });

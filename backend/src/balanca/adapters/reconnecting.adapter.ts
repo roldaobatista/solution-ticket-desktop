@@ -71,6 +71,12 @@ export class ReconnectingAdapter extends EventEmitter implements IBalancaAdapter
   }
 
   private agendarReconexao() {
+    // H2: idempotência — se já existe um reconnect agendado, ignorar.
+    // Sem este guard, eventos 'close' em rajada (ex.: error → close em sequência)
+    // sobrescreveriam this.timer e o anterior viraria timer órfão executando
+    // sozinho, levando a dupla reconexão e contenção da porta serial.
+    if (this.timer) return;
+
     const base = this.opts.baseDelayMs ?? 1000;
     const max = this.opts.maxDelayMs ?? 30_000;
     const maxTent = this.opts.maxTentativas ?? Infinity;
