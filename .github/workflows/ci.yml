@@ -51,7 +51,13 @@ jobs:
       - name: Typecheck (backend + frontend)
         run: pnpm typecheck:all
 
+      # S2.5: gate de auditoria.
+      # TODO: tornar bloqueante após bumps planejados — Electron (1 critical),
+      # Next 14→15 (12 high). Por ora, falha CI é informativa.
       - name: Audit (production)
+        run: pnpm audit --prod --audit-level critical
+        continue-on-error: true
+      - name: Audit (production) — HIGH informativo
         run: pnpm audit --prod --audit-level high
         continue-on-error: true
 
