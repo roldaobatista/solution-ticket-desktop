@@ -3,9 +3,9 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": "e2e/.*\\.e2e-spec\\.ts$",
-  "testPathIgnorePatterns": ["/node_modules/", "e2e/cenarios-aceite.e2e-spec.ts"],
+  "testPathIgnorePatterns": ["/node_modules/"],
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/../tsconfig.test.json" }]
   },
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/../src/$1"

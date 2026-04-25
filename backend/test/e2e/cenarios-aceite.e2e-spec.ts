@@ -8,9 +8,9 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import request from 'supertest';
+import { AppModule } from '@/app.module';
+import { PrismaService } from '@/prisma/prisma.service';
 import {
   StatusOperacional,
   StatusComercial,
@@ -24,7 +24,7 @@ import {
   TaraReferenciaTipo,
   ModoComercial,
   CondicaoVeiculo,
-} from '../src/generated/prisma';
+} from '@/constants/enums';
 
 describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
   let app: INestApplication;
@@ -283,8 +283,8 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
       const passagemControle = await registrarPassagem(ticket.id, {
         pesoCapturado: 52800,
         papelCalculo: PapelCalculo.CONTROLE,
-        tipoPassagem: TipoPassagem.INTERMEDIARIA,
-        direcaoOperacional: DirecaoOperacional.NEUTRA,
+        tipoPassagem: TipoPassagem.CONTROLE,
+        direcaoOperacional: DirecaoOperacional.ENTRADA,
         balancaId: balancaId,
       });
       expect(passagemControle.papelCalculo).toBe(PapelCalculo.CONTROLE);
