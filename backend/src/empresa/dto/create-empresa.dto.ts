@@ -22,10 +22,10 @@ export class CreateEmpresaDto {
   @IsIn(['PJ', 'PF', 'PRODUTOR_RURAL'])
   tipoPessoa?: 'PJ' | 'PF' | 'PRODUTOR_RURAL';
 
-  @ApiPropertyOptional({ description: 'CNPJ (PJ) ou CPF (PF/Produtor Rural)' })
-  @IsOptional()
+  @ApiProperty({ description: 'CNPJ (PJ) ou CPF (PF/Produtor Rural)' })
+  @IsNotEmpty()
   @IsString()
-  documento?: string;
+  documento!: string;
 
   @ApiPropertyOptional({ description: 'Inscricao Estadual (obrigatoria para PRODUTOR_RURAL)' })
   @IsOptional()

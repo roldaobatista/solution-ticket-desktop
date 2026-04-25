@@ -104,7 +104,11 @@ export async function setupTestApp(): Promise<TestAppContext> {
 async function seedMinimo(prisma: PrismaService) {
   const tenant = await prisma.tenant.create({ data: { nome: 'Tenant Teste' } });
   const empresa = await prisma.empresa.create({
-    data: { tenantId: tenant.id, nomeEmpresarial: 'Empresa Teste' },
+    data: {
+      tenantId: tenant.id,
+      nomeEmpresarial: 'Empresa Teste',
+      documento: '00.000.000/0001-91',
+    },
   });
   const unidade = await prisma.unidade.create({
     data: { empresaId: empresa.id, nome: 'Unidade Teste' },

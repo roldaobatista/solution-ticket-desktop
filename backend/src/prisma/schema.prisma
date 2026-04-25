@@ -38,7 +38,7 @@ model Empresa {
   // RD3: PJ usa CNPJ em documento; PF usa CPF; PRODUTOR_RURAL usa IE como
   // identificador fiscal principal (CPF opcional). Validacao por tipoPessoa.
   tipoPessoa         String   @default("PJ") @map("tipo_pessoa") // PJ | PF | PRODUTOR_RURAL
-  documento          String?  @map("documento")
+  documento          String   @map("documento")
   inscricaoEstadual  String?  @map("inscricao_estadual")
   inscricaoMunicipal String?  @map("inscricao_municipal")
   endereco           String?  @map("endereco")
@@ -600,6 +600,8 @@ model TicketPesagem {
   @@index([veiculoId])
   @@index([criadoEm])
   @@index([statusOperacional])
+  @@index([tenantId, clienteId, criadoEm])
+  @@index([tenantId, statusComercial, criadoEm])
   @@map("ticket_pesagem")
 }
 
@@ -956,9 +958,7 @@ model SolicitacaoAprovacao {
 
 model Auditoria {
   id             String   @id @default(uuid()) @map("id")
-  // RD5 deferido: tornar required exige passar tenantId em 4 call sites
-  // (ticket.service.ts:286/466/694, auditoria.service.ts:19). Decisao de produto.
-  tenantId       String?  @map("tenant_id")
+  tenantId       String   @map("tenant_id")
   entidade       String   @map("entidade")
   entidadeId     String   @map("entidade_id")
   evento         String   @map("evento")

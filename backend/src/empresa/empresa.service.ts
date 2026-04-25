@@ -23,7 +23,7 @@ export class EmpresaService {
         nomeEmpresarial: dto.nomeEmpresarial,
         nomeFantasia: dto.nomeFantasia,
         tipoPessoa,
-        documento: normalizarDocumento(dto.documento),
+        documento: normalizarDocumento(dto.documento)!,
         inscricaoEstadual: dto.inscricaoEstadual,
         inscricaoMunicipal: dto.inscricaoMunicipal,
         endereco: dto.endereco,
@@ -70,7 +70,7 @@ export class EmpresaService {
       where: { id },
       data: {
         ...dto,
-        documento: dto.documento === undefined ? undefined : normalizarDocumento(dto.documento),
+        documento: dto.documento === undefined ? undefined : normalizarDocumento(dto.documento)!,
       },
     });
   }

@@ -22,12 +22,7 @@ export class AuditoriaService {
     estadoNovo?: EstadoAuditavel;
     usuarioId?: string;
     motivo?: string;
-    /**
-     * RD5: tenantId — propagado pelos call sites quando disponivel
-     * (ex: req.user.tenantId). Eventos de sistema (sem usuario logado)
-     * podem omitir.
-     */
-    tenantId?: string;
+    tenantId: string;
   }) {
     return this.prisma.auditoria.create({
       data: {
@@ -38,7 +33,7 @@ export class AuditoriaService {
         estadoNovo: serializarEstado(data.estadoNovo),
         usuarioId: data.usuarioId || null,
         motivo: data.motivo || null,
-        tenantId: data.tenantId || null,
+        tenantId: data.tenantId,
       },
     });
   }

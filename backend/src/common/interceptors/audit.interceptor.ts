@@ -22,11 +22,13 @@ export class AuditInterceptor implements NestInterceptor {
               typeof response === 'object' && response !== null && 'data' in response
                 ? (response as { data?: { id?: string } }).data
                 : undefined;
+            if (!user?.tenantId) return;
             await this.auditoriaService.registrar({
               entidade: this.extractEntity(url),
               entidadeId: request.params?.id || respData?.id || 'unknown',
               evento: `${method.toLowerCase()}.${this.extractAction(url)}`,
               usuarioId: user?.id,
+              tenantId: user.tenantId,
               estadoNovo: JSON.stringify({
                 method,
                 url,
