@@ -289,6 +289,9 @@ function createMainWindow(url) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true, // S2: defesa em profundidade — renderer roda em processo isolado
+      webSecurity: true,
+      allowRunningInsecureContent: false,
       preload: path.join(__dirname, 'preload.js'),
     },
   });
@@ -305,8 +308,32 @@ function createMainWindow(url) {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url: openUrl }) => {
-    shell.openExternal(openUrl);
+    // S3: allowlist de protocolo — evita javascript:/file:/data: via window.open
+    try {
+      const { protocol } = new URL(openUrl);
+      if (protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:') {
+        shell.openExternal(openUrl);
+      } else {
+        logLine('security', `bloqueado openExternal protocolo=${protocol} url=${openUrl}`);
+      }
+    } catch (e) {
+      logLine('security', `bloqueado openExternal url invalida: ${openUrl}`);
+    }
     return { action: 'deny' };
+  });
+
+  // S3: bloquear navegação para URLs fora do app (http://127.0.0.1)
+  mainWindow.webContents.on('will-navigate', (event, navUrl) => {
+    try {
+      const u = new URL(navUrl);
+      const allowed = u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+      if (!allowed) {
+        event.preventDefault();
+        logLine('security', `will-navigate bloqueado: ${navUrl}`);
+      }
+    } catch {
+      event.preventDefault();
+    }
   });
 
   mainWindow.on('closed', () => (mainWindow = null));
