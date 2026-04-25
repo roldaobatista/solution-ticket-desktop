@@ -14,21 +14,21 @@ type ModoComercial = (typeof MODO_COMERCIAL_VALUES)[number];
 export class CreateTicketDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty()
   @IsUUID()
-  unidadeId: string;
+  unidadeId!: string;
 
   @ApiProperty({ enum: FLUXO_PESAGEM_VALUES })
   @IsString()
   @IsNotEmpty()
   @IsIn(FLUXO_PESAGEM_VALUES as unknown as string[])
-  fluxoPesagem: FluxoPesagem;
+  fluxoPesagem!: FluxoPesagem;
 
   @ApiProperty()
   @IsUUID()
-  clienteId: string;
+  clienteId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -52,7 +52,7 @@ export class CreateTicketDto {
 
   @ApiProperty()
   @IsUUID()
-  produtoId: string;
+  produtoId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

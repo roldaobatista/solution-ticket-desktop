@@ -4,12 +4,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateProdutoDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  descricao: string;
+  descricao!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -19,7 +19,7 @@ export class CreateProdutoDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  unidade: string;
+  unidade!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

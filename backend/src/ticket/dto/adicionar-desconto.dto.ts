@@ -5,7 +5,7 @@ export class AdicionarDescontoDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  tipo: string;
+  tipo!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -14,7 +14,7 @@ export class AdicionarDescontoDto {
 
   @ApiProperty()
   @IsNumber()
-  valor: number;
+  valor!: number;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -9,11 +9,20 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import type { Request as ExpressRequest } from 'express';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
+
+interface AuthUser {
+  id?: string;
+  sub?: string;
+  email?: string;
+  perfil?: string;
+}
+type AuthRequest = ExpressRequest & { user: AuthUser };
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -26,7 +35,7 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Autenticar usuário' })
   @ApiBody({ type: LoginDto })
-  async login(@Request() req) {
+  async login(@Request() req: AuthRequest) {
     return this.authService.login(req.user);
   }
 
@@ -46,7 +55,7 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Retorna o usuário logado a partir do JWT' })
-  async me(@Request() req) {
+  async me(@Request() req: AuthRequest) {
     return req.user;
   }
 
@@ -54,12 +63,13 @@ export class AuthController {
   @Post('change-password')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Troca senha do usuario logado' })
-  async changePassword(@Request() req, @Body() body: { senhaAtual: string; novaSenha: string }) {
-    return this.authService.changePassword(
-      req.user.id || req.user.sub,
-      body.senhaAtual,
-      body.novaSenha,
-    );
+  async changePassword(
+    @Request() req: AuthRequest,
+    @Body() body: { senhaAtual: string; novaSenha: string },
+  ) {
+    const userId = req.user.id ?? req.user.sub;
+    if (!userId) throw new UnauthorizedException('Usuario sem identificador no token');
+    return this.authService.changePassword(userId, body.senhaAtual, body.novaSenha);
   }
 
   @Public()

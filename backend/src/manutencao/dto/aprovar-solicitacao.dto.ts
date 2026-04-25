@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class AprovarSolicitacaoDto {
   @ApiProperty()
   @IsUUID()
-  aprovadorId: string;
+  aprovadorId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

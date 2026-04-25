@@ -4,15 +4,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateFormaPagamentoDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  descricao: string;
+  descricao!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  tipo: string;
+  tipo!: string;
 }

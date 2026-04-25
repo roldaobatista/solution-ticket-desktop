@@ -4,16 +4,16 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateBalancaDto {
   @ApiProperty()
   @IsUUID()
-  empresaId: string;
+  empresaId!: string;
 
   @ApiProperty()
   @IsUUID()
-  unidadeId: string;
+  unidadeId!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  nome: string;
+  nome!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

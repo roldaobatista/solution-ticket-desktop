@@ -29,29 +29,29 @@ export class RegistrarPassagemDto {
   @IsString()
   @IsNotEmpty()
   @IsIn(TIPO_PASSAGEM_VALUES as unknown as string[])
-  tipoPassagem: TipoPassagem;
+  tipoPassagem!: TipoPassagem;
 
   @ApiProperty({ enum: DIRECAO_OPERACIONAL_VALUES })
   @IsString()
   @IsNotEmpty()
   @IsIn(DIRECAO_OPERACIONAL_VALUES as unknown as string[])
-  direcaoOperacional: DirecaoOperacional;
+  direcaoOperacional!: DirecaoOperacional;
 
   @ApiProperty({ enum: PAPEL_CALCULO_VALUES })
   @IsString()
   @IsNotEmpty()
   @IsIn(PAPEL_CALCULO_VALUES as unknown as string[])
-  papelCalculo: PapelCalculo;
+  papelCalculo!: PapelCalculo;
 
   @ApiProperty({ enum: CONDICAO_VEICULO_VALUES })
   @IsString()
   @IsNotEmpty()
   @IsIn(CONDICAO_VEICULO_VALUES as unknown as string[])
-  condicaoVeiculo: CondicaoVeiculo;
+  condicaoVeiculo!: CondicaoVeiculo;
 
   @ApiProperty()
   @IsNumber()
-  pesoCapturado: number;
+  pesoCapturado!: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -60,16 +60,16 @@ export class RegistrarPassagemDto {
 
   @ApiProperty()
   @IsUUID()
-  balancaId: string;
+  balancaId!: string;
 
   @ApiProperty()
   @IsUUID()
-  usuarioId: string;
+  usuarioId!: string;
 
   @ApiProperty({ enum: ORIGEM_LEITURA_VALUES })
   @IsString()
   @IsIn(ORIGEM_LEITURA_VALUES as unknown as string[])
-  origemLeitura: OrigemLeitura;
+  origemLeitura!: OrigemLeitura;
 
   @ApiPropertyOptional()
   @IsOptional()

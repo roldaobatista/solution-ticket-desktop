@@ -4,11 +4,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateConfigDto {
   @ApiProperty()
   @IsUUID()
-  empresaId: string;
+  empresaId!: string;
 
   @ApiProperty()
   @IsUUID()
-  unidadeId: string;
+  unidadeId!: string;
 
   // Feature flags
   @ApiPropertyOptional()

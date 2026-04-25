@@ -4,12 +4,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateTransportadoraDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  nome: string;
+  nome!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

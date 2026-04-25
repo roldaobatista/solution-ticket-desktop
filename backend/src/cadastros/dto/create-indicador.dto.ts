@@ -4,12 +4,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateIndicadorDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  descricao: string;
+  descricao!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

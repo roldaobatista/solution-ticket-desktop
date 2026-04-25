@@ -60,9 +60,9 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
       });
     });
 
-    this.port.on('data', (chunk: Buffer) => this.emit('data', chunk));
-    this.port.on('error', (err: Error) => this.emit('error', err));
-    this.port.on('close', () => this.emit('close'));
+    this.port!.on('data', (chunk: Buffer) => this.emit('data', chunk));
+    this.port!.on('error', (err: Error) => this.emit('error', err));
+    this.port!.on('close', () => this.emit('close'));
   }
 
   async close(): Promise<void> {

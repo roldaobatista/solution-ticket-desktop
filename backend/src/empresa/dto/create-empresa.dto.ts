@@ -4,12 +4,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateEmpresaDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  nomeEmpresarial: string;
+  nomeEmpresarial!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

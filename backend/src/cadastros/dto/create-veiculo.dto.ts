@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateVeiculoDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -14,7 +14,7 @@ export class CreateVeiculoDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  placa: string;
+  placa!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

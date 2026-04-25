@@ -5,22 +5,22 @@ export class CreateUserDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  nome: string;
+  nome!: string;
 
   @ApiProperty()
   @IsEmail()
   @IsNotEmpty()
-  email: string;
+  email!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  senha: string;
+  senha!: string;
 
   @ApiProperty()
   @IsUUID()
   @IsNotEmpty()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

@@ -5,7 +5,7 @@ export class CancelarTicketDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  motivo: string;
+  motivo!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

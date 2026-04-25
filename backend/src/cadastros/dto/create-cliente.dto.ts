@@ -4,12 +4,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateClienteDto {
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  razaoSocial: string;
+  razaoSocial!: string;
 
   // RD3: tipo de pessoa — produtor rural muito comum em balanca de cooperativa.
   @ApiProperty({ enum: ['PJ', 'PF', 'PRODUTOR_RURAL'], default: 'PJ' })

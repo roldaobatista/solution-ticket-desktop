@@ -4,16 +4,16 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class AtivarLicencaDto {
   @ApiProperty({ description: 'Id da unidade que recebera a licenca' })
   @IsUUID()
-  unidadeId: string;
+  unidadeId!: string;
 
   @ApiProperty({ description: 'Id do tenant proprietario da unidade' })
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 
   @ApiProperty({ description: 'Chave de licenca (JWT RS256)' })
   @IsString()
   @IsNotEmpty()
-  chave: string;
+  chave!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -24,9 +24,9 @@ export class AtivarLicencaDto {
 export class IniciarTrialDto {
   @ApiProperty()
   @IsUUID()
-  unidadeId: string;
+  unidadeId!: string;
 
   @ApiProperty()
   @IsUUID()
-  tenantId: string;
+  tenantId!: string;
 }
