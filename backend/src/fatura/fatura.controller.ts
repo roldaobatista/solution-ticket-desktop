@@ -30,9 +30,17 @@ export class FaturaController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar faturas' })
-  findAll(@Query('tenantId') tenantId: string, @Query('clienteId') clienteId?: string) {
-    return this.faturaService.findAll(tenantId, clienteId);
+  @ApiOperation({ summary: 'Listar faturas (paginado)' })
+  findAll(
+    @Query('tenantId') tenantId: string,
+    @Query('clienteId') clienteId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.faturaService.findAll(tenantId, clienteId, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get(':id')

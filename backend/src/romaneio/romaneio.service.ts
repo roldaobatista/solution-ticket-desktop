@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StatusComercial } from '../constants/enums';
+import { buildPaginated, resolvePaging } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class RomaneioService {
@@ -28,19 +29,27 @@ export class RomaneioService {
     return this.findOne(romaneio.id);
   }
 
-  async findAll(tenantId: string, clienteId?: string) {
+  async findAll(tenantId: string, clienteId?: string, paging?: { page?: number; limit?: number }) {
     const where: any = { tenantId };
     if (clienteId) where.clienteId = clienteId;
+    const { page, limit, skip } = resolvePaging(paging ?? {});
 
-    return this.prisma.romaneio.findMany({
-      where,
-      include: {
-        cliente: { select: { id: true, razaoSocial: true } },
-        itens: { include: { ticket: { select: { numero: true, pesoLiquidoFinal: true } } } },
-        _count: { select: { itens: true } },
-      },
-      orderBy: { criadoEm: 'desc' },
-    });
+    const [data, total] = await Promise.all([
+      this.prisma.romaneio.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          cliente: { select: { id: true, razaoSocial: true } },
+          itens: { include: { ticket: { select: { numero: true, pesoLiquidoFinal: true } } } },
+          _count: { select: { itens: true } },
+        },
+        orderBy: { criadoEm: 'desc' },
+      }),
+      this.prisma.romaneio.count({ where }),
+    ]);
+
+    return buildPaginated(data, total, page, limit);
   }
 
   async findOne(id: string) {

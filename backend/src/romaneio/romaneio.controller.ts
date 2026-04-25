@@ -17,9 +17,17 @@ export class RomaneioController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar romaneios' })
-  findAll(@Query('tenantId') tenantId: string, @Query('clienteId') clienteId?: string) {
-    return this.romaneioService.findAll(tenantId, clienteId);
+  @ApiOperation({ summary: 'Listar romaneios (paginado)' })
+  findAll(
+    @Query('tenantId') tenantId: string,
+    @Query('clienteId') clienteId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.romaneioService.findAll(tenantId, clienteId, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get(':id')
