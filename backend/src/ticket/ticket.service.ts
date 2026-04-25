@@ -77,8 +77,6 @@ export class TicketService {
       }
     }
 
-    const numero = await this.gerarNumero(dto.unidadeId);
-
     // Se veiculo informado, captura tara cadastrada
     let taraSnapshot: number | undefined;
     let taraTipo = dto.taraReferenciaTipo;
@@ -113,46 +111,61 @@ export class TicketService {
       }
     }
 
-    const ticket = await this.prisma.ticketPesagem.create({
-      data: {
-        numero,
-        tenantId: dto.tenantId,
-        unidadeId: dto.unidadeId,
-        statusOperacional: StatusOperacional.ABERTO,
-        statusComercial: StatusComercial.NAO_ROMANEADO,
-        fluxoPesagem: dto.fluxoPesagem,
-        totalPassagensPrevistas: passagensPrevistas,
-        totalPassagensRealizadas: 0,
-        clienteId: dto.clienteId,
-        transportadoraId: dto.transportadoraId || null,
-        motoristaId: dto.motoristaId || null,
-        veiculoId: dto.veiculoId || null,
-        veiculoPlaca: dto.veiculoPlaca || null,
-        produtoId: dto.produtoId,
-        origemId: dto.origemId || null,
-        destinoId: dto.destinoId || null,
-        armazemId: dto.armazemId || null,
-        indicadorPesagemId: dto.indicadorPesagemId || null,
-        notaFiscal: dto.notaFiscal || null,
-        pesoNf: dto.pesoNf || null,
-        taraCadastradaSnapshot: taraSnapshot || null,
-        taraReferenciaTipo: taraTipo || null,
-        modoComercial: dto.modoComercial || ModoComercial.DESABILITADO,
-        observacao: dto.observacao || null,
-        campo1: dto.campo1 || null,
-        campo2: dto.campo2 || null,
-        abertoEm: new Date(),
-      },
-      include: {
-        cliente: true,
-        transportadora: true,
-        motorista: true,
-        veiculo: true,
-        produto: true,
-        origem: true,
-        destino: true,
-        armazem: true,
-      },
+    // A3.2: count + create em transação única — em SQLite, write lock
+    // garante que dois creates concorrentes não reusem o mesmo numero.
+    const ticket = await this.prisma.$transaction(async (tx) => {
+      const year = new Date().getFullYear();
+      const count = await tx.ticketPesagem.count({
+        where: {
+          unidadeId: dto.unidadeId,
+          criadoEm: {
+            gte: new Date(year, 0, 1),
+            lte: new Date(year, 11, 31, 23, 59, 59),
+          },
+        },
+      });
+      const numero = `TK-${year}-${String(count + 1).padStart(4, '0')}`;
+      return tx.ticketPesagem.create({
+        data: {
+          numero,
+          tenantId: dto.tenantId,
+          unidadeId: dto.unidadeId,
+          statusOperacional: StatusOperacional.ABERTO,
+          statusComercial: StatusComercial.NAO_ROMANEADO,
+          fluxoPesagem: dto.fluxoPesagem,
+          totalPassagensPrevistas: passagensPrevistas,
+          totalPassagensRealizadas: 0,
+          clienteId: dto.clienteId,
+          transportadoraId: dto.transportadoraId || null,
+          motoristaId: dto.motoristaId || null,
+          veiculoId: dto.veiculoId || null,
+          veiculoPlaca: dto.veiculoPlaca || null,
+          produtoId: dto.produtoId,
+          origemId: dto.origemId || null,
+          destinoId: dto.destinoId || null,
+          armazemId: dto.armazemId || null,
+          indicadorPesagemId: dto.indicadorPesagemId || null,
+          notaFiscal: dto.notaFiscal || null,
+          pesoNf: dto.pesoNf || null,
+          taraCadastradaSnapshot: taraSnapshot || null,
+          taraReferenciaTipo: taraTipo || null,
+          modoComercial: dto.modoComercial || ModoComercial.DESABILITADO,
+          observacao: dto.observacao || null,
+          campo1: dto.campo1 || null,
+          campo2: dto.campo2 || null,
+          abertoEm: new Date(),
+        },
+        include: {
+          cliente: true,
+          transportadora: true,
+          motorista: true,
+          veiculo: true,
+          produto: true,
+          origem: true,
+          destino: true,
+          armazem: true,
+        },
+      });
     });
 
     return ticket;
@@ -668,21 +681,6 @@ export class TicketService {
   // ============================================================
   // HELPERS
   // ============================================================
-
-  private async gerarNumero(unidadeId: string): Promise<string> {
-    const date = new Date();
-    const year = date.getFullYear();
-    const count = await this.prisma.ticketPesagem.count({
-      where: {
-        unidadeId,
-        criadoEm: {
-          gte: new Date(year, 0, 1),
-          lte: new Date(year, 11, 31, 23, 59, 59),
-        },
-      },
-    });
-    return `TK-${year}-${String(count + 1).padStart(4, '0')}`;
-  }
 
   private async decrementarPesagemTrial(unidadeId: string) {
     const licenca = await this.prisma.licencaInstalacao.findFirst({

@@ -253,6 +253,7 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
       },
       licencaInstalacao: { findFirst: jest.fn().mockResolvedValue(null) },
       veiculo: { findUnique: jest.fn() },
+      $transaction: jest.fn((fn: (tx: typeof prisma) => unknown) => fn(prisma)),
     };
     const module = await Test.createTestingModule({
       providers: [TicketService, { provide: PrismaService, useValue: prisma }],
