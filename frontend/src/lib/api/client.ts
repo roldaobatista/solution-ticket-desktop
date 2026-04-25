@@ -94,3 +94,20 @@ export function resolveUnidadeId(unidadeId?: string): string {
   if (typeof window !== 'undefined') return localStorage.getItem('unidade_id') || '';
   return '';
 }
+
+/** Resolve tenantId a partir do localStorage (chaves tenant_id ou empresa_id). */
+export function resolveTenantId(): string {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('tenant_id') || localStorage.getItem('empresa_id') || '';
+  }
+  return '';
+}
+
+/** Aceita 'mes', 'YYYY-MM' ou data ISO; retorna YYYY-MM ou undefined. */
+export function mesQuery(periodo: string): string | undefined {
+  if (!periodo || periodo === 'mes') return undefined;
+  if (/^\d{4}-\d{2}$/.test(periodo)) return periodo;
+  const d = new Date(periodo);
+  if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return undefined;
+}
