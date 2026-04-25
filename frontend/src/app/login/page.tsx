@@ -11,8 +11,10 @@ import { Scale, AlertCircle } from 'lucide-react';
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, error } = useAuthStore();
-  const [email, setEmail] = useState('admin@solutionticket.com');
-  const [senha, setSenha] = useState('123456');
+  const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? '';
+  const DEMO_SENHA = process.env.NEXT_PUBLIC_DEMO_SENHA ?? '';
+  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [senha, setSenha] = useState(DEMO_SENHA);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -53,6 +53,7 @@
         "to": "backend/node_modules",
         "filter": [
           "**/*",
+          "!**/.env",
           "!**/*.md",
           "!**/*.ts",
           "!**/test/**",

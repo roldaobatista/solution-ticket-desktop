@@ -2143,6 +2143,36 @@ export const mockApi = {
     ];
   },
 
+  // Cadastros auxiliares (mock básico)
+  getEmpresas: async (): Promise<Array<{ id: string; razao_social: string; cnpj?: string }>> => {
+    await delay(200);
+    return [{ id: 'emp1', razao_social: 'Empresa Demo', cnpj: '00.000.000/0000-00' }];
+  },
+  getArmazens: async (): Promise<Array<{ id: string; nome: string }>> => {
+    await delay(200);
+    return [{ id: 'arm1', nome: 'Armazém Principal' }];
+  },
+  getOrigens: async (): Promise<Array<{ id: string; nome: string }>> => {
+    await delay(200);
+    return [{ id: 'orig1', nome: 'Fazenda São João' }];
+  },
+  getDestinos: async (): Promise<Array<{ id: string; nome: string }>> => {
+    await delay(200);
+    return [{ id: 'dest1', nome: 'Usina Central' }];
+  },
+  getTiposVeiculo: async (): Promise<Array<{ id: string; nome: string }>> => {
+    await delay(200);
+    return [{ id: 'tv1', nome: 'Caminhão Toco' }];
+  },
+  getRecibos: async (): Promise<Array<{ id: string; numero: string }>> => {
+    await delay(200);
+    return [{ id: 'rec1', numero: 'REC-2024-0001' }];
+  },
+  getTiposDesconto: async (): Promise<Array<{ id: string; nome: string }>> => {
+    await delay(200);
+    return [{ id: 'td1', nome: 'Umidade' }];
+  },
+
   getPesagensExcluidas: async (_filtros: FiltroRelatorioValues): Promise<PesagemExcluida[]> => {
     await delay(300);
     return [

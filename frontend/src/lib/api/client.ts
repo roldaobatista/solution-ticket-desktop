@@ -7,7 +7,7 @@
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== 'false';
+export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
