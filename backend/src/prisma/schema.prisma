@@ -185,6 +185,7 @@ model Cliente {
   faturas             Fatura[]
 
   @@index([tenantId])
+  @@unique([tenantId, documento], name: "cliente_documento_unique")
   @@map("cliente")
 }
 
