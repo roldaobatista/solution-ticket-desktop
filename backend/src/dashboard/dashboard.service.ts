@@ -1,15 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-const StatusOperacional = {
-  RASCUNHO: 'RASCUNHO',
-  ABERTO: 'ABERTO',
-  EM_PESAGEM: 'EM_PESAGEM',
-  AGUARDANDO_PASSAGEM: 'AGUARDANDO_PASSAGEM',
-  FECHADO: 'FECHADO',
-  EM_MANUTENCAO: 'EM_MANUTENCAO',
-  CANCELADO: 'CANCELADO',
-} as const;
+// Onda 4.2: importa enum centralizado em vez de redefinir local — antes
+// havia drift garantido entre dashboard e o resto do app.
+import { StatusOperacional } from '../constants/enums';
 
 @Injectable()
 export class DashboardService {

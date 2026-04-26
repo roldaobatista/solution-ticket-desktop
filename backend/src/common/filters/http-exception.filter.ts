@@ -29,7 +29,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<RequestWithId>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Erro interno do servidor';
+    let message: string | string[] = 'Erro interno do servidor';
     let code = 'INTERNAL_ERROR';
 
     if (exception instanceof HttpException) {
@@ -37,10 +37,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const raw = exception.getResponse();
       const exceptionResponse: HttpExceptionResponseBody =
         typeof raw === 'object' && raw !== null ? (raw as HttpExceptionResponseBody) : {};
-      message =
-        (Array.isArray(exceptionResponse.message)
-          ? exceptionResponse.message[0]
-          : exceptionResponse.message) || exception.message;
+      // Onda 4.5: preservar array de mensagens em erros de validacao
+      // (class-validator). Antes so a primeira era retornada — UX podia
+      // esconder erros relevantes quando havia varios campos invalidos.
+      message = exceptionResponse.message || exception.message;
       code = exceptionResponse.code || this.getCodeFromStatus(status);
     } else if (exception instanceof Error) {
       message = exception.message;
@@ -55,11 +55,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
       );
     }
 
+    // Onda 4.5: expoe array completo de validacoes em "messages" mantendo
+    // "message" (string) para compatibilidade com clientes existentes.
+    const messages = Array.isArray(message) ? message : [message];
     response.status(status).json({
       success: false,
       statusCode: status,
       code,
-      message: Array.isArray(message) ? message[0] : message,
+      message: messages[0],
+      messages,
       timestamp: new Date().toISOString(),
     });
   }

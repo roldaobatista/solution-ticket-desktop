@@ -424,6 +424,14 @@ model Balanca {
   ultimaConexao DateTime? @map("ultima_conexao")
   ultimaLeitura DateTime? @map("ultima_leitura")
 
+  // Onda 1.7 + 4.4: estabilidade configuravel por balanca + modo debug
+  // toleranciaEstabilidade: max-min admissivel na janela movel (em kg)
+  // janelaEstabilidade: numero de leituras consecutivas exigidas
+  // debugMode: quando true, dump hex de cada trama em logs/balanca-<id>.log
+  toleranciaEstabilidade Int?     @map("tolerancia_estabilidade")
+  janelaEstabilidade     Int?     @map("janela_estabilidade")
+  debugMode              Boolean  @default(false) @map("debug_mode")
+
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
