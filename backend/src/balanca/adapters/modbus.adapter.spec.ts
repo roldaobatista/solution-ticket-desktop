@@ -28,6 +28,11 @@ class MockModbusClient {
     if (this.readError) throw this.readError;
     return this.dataSequence.shift() ?? { data: [0, 0] };
   }
+  async readInputRegisters(reg: number, len: number) {
+    this.reads.push({ reg, len });
+    if (this.readError) throw this.readError;
+    return this.dataSequence.shift() ?? { data: [0, 0] };
+  }
   close(cb: () => void) {
     this.closed = true;
     cb();
@@ -125,5 +130,86 @@ describe('ModbusAdapter', () => {
     const onClose = new Promise<void>((resolve) => ad.on('close', () => resolve()));
     await onClose;
     expect(ad.isOpen()).toBe(false);
+  });
+
+  // Onda 3.1: cobertura de byteOrder/wordOrder/signed/scale/offset
+  describe('decodificacao 32-bit (Onda 3.1)', () => {
+    it('aplica wordOrder=BE + byteOrder=BE (default) — 0x0001 0x2345 = 0x00012345', async () => {
+      const ad = new ModbusAdapter({
+        enderecoIp: '127.0.0.1',
+        portaTcp: 502,
+        intervalMs: 5,
+      });
+      await ad.connect();
+      lastClient!.dataSequence = [{ data: [0x0001, 0x2345] }];
+      const valor = await new Promise<string>((resolve) =>
+        ad.on('data', (chunk: Buffer) => resolve(chunk.toString('ascii').trim())),
+      );
+      expect(parseInt(valor, 10)).toBe(0x00012345);
+      await ad.close();
+    });
+
+    it('aplica wordOrder=LE — 0x2345 0x0001 com LE = 0x00012345', async () => {
+      const ad = new ModbusAdapter({
+        enderecoIp: '127.0.0.1',
+        portaTcp: 502,
+        intervalMs: 5,
+        modbusWordOrder: 'LE',
+      });
+      await ad.connect();
+      lastClient!.dataSequence = [{ data: [0x2345, 0x0001] }];
+      const valor = await new Promise<string>((resolve) =>
+        ad.on('data', (chunk: Buffer) => resolve(chunk.toString('ascii').trim())),
+      );
+      expect(parseInt(valor, 10)).toBe(0x00012345);
+      await ad.close();
+    });
+
+    it('aplica signed — 0xFFFF 0xFFFF signed = -1', async () => {
+      const ad = new ModbusAdapter({
+        enderecoIp: '127.0.0.1',
+        portaTcp: 502,
+        intervalMs: 5,
+        modbusSigned: true,
+      });
+      await ad.connect();
+      lastClient!.dataSequence = [{ data: [0xffff, 0xffff] }];
+      const valor = await new Promise<string>((resolve) =>
+        ad.on('data', (chunk: Buffer) => resolve(chunk.toString('ascii').trim())),
+      );
+      expect(parseInt(valor, 10)).toBe(-1);
+      await ad.close();
+    });
+
+    it('aplica scale + offset — 12345 * 0.01 + 0 = 123.45', async () => {
+      const ad = new ModbusAdapter({
+        enderecoIp: '127.0.0.1',
+        portaTcp: 502,
+        intervalMs: 5,
+        modbusScale: 0.01,
+      });
+      await ad.connect();
+      lastClient!.dataSequence = [{ data: [0x0000, 12345] }];
+      const valor = await new Promise<string>((resolve) =>
+        ad.on('data', (chunk: Buffer) => resolve(chunk.toString('ascii').trim())),
+      );
+      expect(parseFloat(valor)).toBeCloseTo(123.45, 2);
+      await ad.close();
+    });
+
+    it('usa funcao input quando modbusFunction=input', async () => {
+      const ad = new ModbusAdapter({
+        enderecoIp: '127.0.0.1',
+        portaTcp: 502,
+        intervalMs: 5,
+        modbusFunction: 'input',
+      });
+      const inputSpy = jest.spyOn(MockModbusClient.prototype, 'readInputRegisters');
+      await ad.connect();
+      await new Promise<void>((resolve) => ad.on('data', () => resolve()));
+      expect(inputSpy).toHaveBeenCalled();
+      await ad.close();
+      inputSpy.mockRestore();
+    });
   });
 });

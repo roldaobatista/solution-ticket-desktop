@@ -27,6 +27,13 @@ export interface AdapterConfig {
   // Modbus
   modbusUnitId?: number | null;
   modbusRegister?: number | null;
+  // Onda 3.1: extensoes Modbus para suportar diferentes firmwares.
+  modbusFunction?: 'holding' | 'input' | null; // default 'holding'
+  modbusByteOrder?: 'BE' | 'LE' | null; // ordem dos bytes dentro de cada word (default BE)
+  modbusWordOrder?: 'BE' | 'LE' | null; // ordem das words (high-low/low-high) — default BE
+  modbusSigned?: boolean | null; // interpretar como int32 signed (default false)
+  modbusScale?: number | null; // multiplicador apos converter (default 1)
+  modbusOffset?: number | null; // somado apos scale (default 0)
   // Timeouts / reconexão (opcionais — defaults aplicados pelos adapters)
   connectTimeoutMs?: number | null;
   readTimeoutMs?: number | null;

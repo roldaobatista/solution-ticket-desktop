@@ -68,13 +68,22 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
     const reg = this.config.modbusRegister ?? 0;
     const unit = this.config.modbusUnitId ?? 1;
     const intervalMs = this.config.intervalMs ?? 500;
+    // Onda 3.1: parametros configuraveis por balanca/indicador.
+    const funcao = this.config.modbusFunction ?? 'holding';
+    const byteOrder = this.config.modbusByteOrder ?? 'BE';
+    const wordOrder = this.config.modbusWordOrder ?? 'BE';
+    const signed = this.config.modbusSigned ?? false;
+    const scale = this.config.modbusScale ?? 1;
+    const offset = this.config.modbusOffset ?? 0;
 
     while (this.loopAtivo && this.conectado) {
       try {
         if (!this.client) break;
-        const r = await this.client.readHoldingRegisters(reg, 2);
-        // 32-bit big-endian por padrao
-        const valor = (r.data[0] << 16) | r.data[1];
+        const r =
+          funcao === 'input'
+            ? await this.client.readInputRegisters(reg, 2)
+            : await this.client.readHoldingRegisters(reg, 2);
+        const valor = this.decodificar32bit(r.data, byteOrder, wordOrder, signed) * scale + offset;
         this.emit('data', Buffer.from(`${valor}\n`, 'ascii'));
       } catch (err) {
         // Contexto estruturado facilita diagnóstico em campo.
@@ -92,6 +101,39 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
       }
       await this.sleep(intervalMs);
     }
+  }
+
+  /**
+   * Onda 3.1: decodifica 2 registradores de 16-bit em valor 32-bit, respeitando
+   * byteOrder (dentro de cada word), wordOrder (entre words) e signed.
+   *
+   * Combinações comuns no campo:
+   *   - 'BE' + 'BE' (default): high-low, big-endian — ex: indicadores Toledo/Filizola
+   *   - 'BE' + 'LE': low-high, big-endian — ex: alguns Modbus chineses
+   *   - 'LE' + 'BE': swap dentro da word, high-low das words — ex: padrão CDAB
+   *   - 'LE' + 'LE': BADC swap completo — ex: alguns SCADA antigos
+   */
+  private decodificar32bit(
+    data: number[],
+    byteOrder: 'BE' | 'LE',
+    wordOrder: 'BE' | 'LE',
+    signed: boolean,
+  ): number {
+    // Cada item de data e um word de 16 bits. Aplica byte-swap dentro do word se LE.
+    const w0 = byteOrder === 'LE' ? this.swapBytes16(data[0]) : data[0];
+    const w1 = byteOrder === 'LE' ? this.swapBytes16(data[1]) : data[1];
+    // Combina words. wordOrder=BE => high=w0, low=w1; LE => high=w1, low=w0.
+    const high = wordOrder === 'BE' ? w0 : w1;
+    const low = wordOrder === 'BE' ? w1 : w0;
+    const u32 = (((high & 0xffff) << 16) >>> 0) | (low & 0xffff);
+    if (signed && u32 >= 0x80000000) {
+      return u32 - 0x1_0000_0000;
+    }
+    return u32;
+  }
+
+  private swapBytes16(w: number): number {
+    return (((w & 0xff) << 8) | ((w >> 8) & 0xff)) & 0xffff;
   }
 
   private ehErroFatal(err: unknown): boolean {

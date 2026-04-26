@@ -21,6 +21,7 @@ export interface ModbusClient {
   connectTCP(host: string, opts: { port: number }): Promise<void>;
   connectRTUBuffered(porta: string, cfg: ModbusRtuOptions): Promise<void>;
   readHoldingRegisters(reg: number, length: number): Promise<ModbusReadResult>;
+  readInputRegisters(reg: number, length: number): Promise<ModbusReadResult>;
   close(cb: (err?: Error | null) => void): void;
 }
 
