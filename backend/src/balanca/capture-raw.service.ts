@@ -2,8 +2,35 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { Socket } from 'net';
 import type { SerialConfig } from './presets';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SerialPort } = require('serialport');
+// Onda 3.2: lazy require de serialport — antes era top-level e quebrava
+// o boot do Nest se o binding nativo nao estivesse presente (cenario comum
+// em CI sem prebuilts ou em maquina sem permissao para carregar a DLL).
+type SerialPortCtor = new (opts: Record<string, unknown>) => SerialPortLike;
+
+interface SerialPortLike {
+  isOpen: boolean;
+  open(cb: (err: Error | null) => void): void;
+  close(cb?: () => void): void;
+  write(data: Buffer, cb?: (err?: Error | null) => void): void;
+  on(event: 'data', listener: (chunk: Buffer) => void): SerialPortLike;
+  on(event: 'error', listener: (err: Error) => void): SerialPortLike;
+  removeAllListeners(): SerialPortLike;
+}
+
+function getSerialPortCtor(): SerialPortCtor {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('serialport') as { SerialPort: SerialPortCtor };
+    return mod.SerialPort;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new BadRequestException(`Modulo serialport indisponivel: ${msg}`);
+  }
+}
+
+// Onda 3.2: timeout no port.open para nao pendurar Promise se a porta
+// nao responder. 5s e suficiente — porta valida abre em ~50ms.
+const PORT_OPEN_TIMEOUT_MS = 5000;
 
 const PARITY_MAP = { N: 'none', E: 'even', O: 'odd' } as const;
 
@@ -42,6 +69,7 @@ export class CaptureRawService {
   private async capturarSerial(req: CaptureRequest, durationMs: number): Promise<CaptureResponse> {
     if (!req.serial) throw new BadRequestException('serial config obrigatória.');
     const cfg = req.serial;
+    const SerialPort = getSerialPortCtor();
     const port = new SerialPort({
       path: req.endereco,
       baudRate: cfg.baudRate,
@@ -54,8 +82,11 @@ export class CaptureRawService {
     return new Promise<CaptureResponse>((resolve, reject) => {
       const chunks: Buffer[] = [];
       const start = Date.now();
+      let finalizou = false;
 
       const finalizar = () => {
+        if (finalizou) return;
+        finalizou = true;
         try {
           port.removeAllListeners();
           if (port.isOpen) port.close(() => {});
@@ -70,7 +101,21 @@ export class CaptureRawService {
         });
       };
 
+      // Onda 3.2: timeout no open evita Promise pendurada quando porta
+      // nao responde (driver travado, porta inexistente sem erro imediato).
+      const openTimeout = setTimeout(() => {
+        if (!port.isOpen) {
+          try {
+            port.removeAllListeners();
+          } catch {}
+          reject(
+            new BadRequestException(`Timeout abrindo ${req.endereco} (${PORT_OPEN_TIMEOUT_MS}ms)`),
+          );
+        }
+      }, PORT_OPEN_TIMEOUT_MS);
+
       port.open((err: Error | null) => {
+        clearTimeout(openTimeout);
         if (err)
           return reject(new BadRequestException(`Falha abrindo ${req.endereco}: ${err.message}`));
 

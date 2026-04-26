@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBalancaDto } from './dto/create-balanca.dto';
@@ -10,7 +15,41 @@ export class BalancaService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateBalancaDto) {
+    // Onda 3.3: lock de porta fisica + validacao protocolo↔campos.
+    // Antes era possivel criar 2 balancas com mesma COM3, ou 'tcp' sem
+    // enderecoIp, gerando conflito de driver Windows e erros opacos no boot.
+    await this.validarProtocoloEPorta(dto);
     return this.prisma.balanca.create({ data: { ...dto } });
+  }
+
+  private async validarProtocoloEPorta(
+    dto: CreateBalancaDto | UpdateBalancaDto,
+    excluirId?: string,
+  ) {
+    if (dto.protocolo === 'serial' || dto.protocolo === 'modbus') {
+      if (!dto.porta) {
+        throw new BadRequestException(`protocolo=${dto.protocolo} exige porta serial (ex: COM3)`);
+      }
+      // Porta deve ser unica entre balancas ativas
+      const conflito = await this.prisma.balanca.findFirst({
+        where: {
+          porta: dto.porta,
+          ativo: true,
+          ...(excluirId ? { NOT: { id: excluirId } } : {}),
+        },
+        select: { id: true, nome: true },
+      });
+      if (conflito) {
+        throw new ConflictException(
+          `Porta ${dto.porta} ja esta em uso pela balanca "${conflito.nome}"`,
+        );
+      }
+    }
+    if (dto.protocolo === 'tcp' || dto.protocolo === 'modbus') {
+      if (dto.protocolo === 'tcp' && (!dto.enderecoIp || !dto.portaTcp)) {
+        throw new BadRequestException(`protocolo=tcp exige enderecoIp e portaTcp`);
+      }
+    }
   }
 
   async findAll(filter: BalancaFilterDto) {
@@ -49,6 +88,10 @@ export class BalancaService {
 
   async update(id: string, dto: UpdateBalancaDto) {
     await this.findOne(id);
+    if (dto.protocolo || dto.porta || dto.enderecoIp) {
+      // Onda 3.3: revalida protocolo/porta no update
+      await this.validarProtocoloEPorta(dto, id);
+    }
     return this.prisma.balanca.update({ where: { id }, data: { ...dto } });
   }
 
