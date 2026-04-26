@@ -31,6 +31,7 @@ import { Balanca } from '@/types';
 import { Search, Plus, Pencil, Trash2, Save, Wifi, WifiOff, Zap } from 'lucide-react';
 import { z } from 'zod';
 import { AjusteLeituraSection } from '@/components/balanca/AjusteLeituraSection';
+import { CalibracaoSection } from '@/components/balanca/CalibracaoSection';
 import { extractMessage } from '@/lib/errors';
 
 const schema = z.object({
@@ -433,12 +434,16 @@ export default function BalancasPage() {
           </div>
 
           {editingId && (
-            <AjusteLeituraSection
-              balancaId={editingId}
-              indicadorId={form.indicadorId || ''}
-              onApplied={() => showToast('Ajuste aplicado com sucesso', 'success')}
-              onError={(m) => showToast(m, 'error')}
-            />
+            <>
+              <AjusteLeituraSection
+                balancaId={editingId}
+                indicadorId={form.indicadorId || ''}
+                onApplied={() => showToast('Ajuste aplicado com sucesso', 'success')}
+                onError={(m) => showToast(m, 'error')}
+              />
+              {/* Onda 5.2: registro de calibracoes integrado ao cadastro */}
+              <CalibracaoSection balancaId={editingId} onError={(m) => showToast(m, 'error')} />
+            </>
           )}
 
           <div className="flex justify-between gap-3 pt-2">
