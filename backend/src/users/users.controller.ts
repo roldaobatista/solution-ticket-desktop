@@ -15,6 +15,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('Usuários')
 @ApiBearerAuth()
@@ -23,32 +24,40 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // Onda 1.4: gerencia de usuarios exige permissao explicita.
+  // Antes qualquer usuario logado podia criar admins, deletar contas
+  // e alterar senhas alheias.
   @Post()
-  @ApiOperation({ summary: 'Criar usuário' })
+  @Roles('usuarios:gerenciar')
+  @ApiOperation({ summary: 'Criar usuário (admin)' })
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar usuários com paginação e filtros' })
+  @Roles('usuarios:gerenciar')
+  @ApiOperation({ summary: 'Listar usuários com paginação e filtros (admin)' })
   findAll(@Query() filter: UserFilterDto) {
     return this.usersService.findAll(filter);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Buscar usuário por ID' })
+  @Roles('usuarios:gerenciar')
+  @ApiOperation({ summary: 'Buscar usuário por ID (admin)' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Atualizar usuário' })
+  @Roles('usuarios:gerenciar')
+  @ApiOperation({ summary: 'Atualizar usuário (admin)' })
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Remover usuário' })
+  @Roles('usuarios:gerenciar')
+  @ApiOperation({ summary: 'Remover usuário (admin)' })
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
