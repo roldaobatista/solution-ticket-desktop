@@ -8,7 +8,10 @@ import { AppModule } from './app.module';
 import type { Request, Response, NextFunction } from 'express';
 import { ensureUserDataDir, getDatabaseUrl } from './common/desktop-paths';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
-import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
+// ResponseTransformInterceptor ja e registrado via APP_INTERCEPTOR em
+// common.module.ts. Importar duas vezes (DI + useGlobalInterceptors)
+// gerava envelope duplo {success,data:{success,data,timestamp},timestamp}
+// e quebrava o desembrulho automatico do axios no frontend.
 
 interface RequestWithId extends Request {
   requestId?: string;
@@ -155,7 +158,7 @@ async function bootstrap() {
 
   // S6: logging com PII scrubbing — todo request/response passa por
   // scrubPii() antes de ser logado/relatado.
-  app.useGlobalInterceptors(new LoggingInterceptor(), new ResponseTransformInterceptor());
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   if (!isProd) {
     const config = new DocumentBuilder()
