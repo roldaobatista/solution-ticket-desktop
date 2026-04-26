@@ -15,6 +15,11 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
+import {
+  ChangePasswordDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
+} from './dto/change-password.dto';
 
 interface AuthUser {
   id: string;
@@ -53,29 +58,38 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Troca senha do usuario logado' })
-  async changePassword(
-    @Request() req: AuthRequest,
-    @Body() body: { senhaAtual: string; novaSenha: string },
-  ) {
+  @ApiOperation({ summary: 'Troca senha do usuario logado (revoga JWTs antigos)' })
+  async changePassword(@Request() req: AuthRequest, @Body() dto: ChangePasswordDto) {
     const userId = req.user.id ?? req.user.sub;
     if (!userId) throw new UnauthorizedException('Usuario sem identificador no token');
-    return this.authService.changePassword(userId, body.senhaAtual, body.novaSenha);
+    return this.authService.changePassword(userId, dto.senhaAtual, dto.novaSenha);
+  }
+
+  // Onda 2.3: logout server-side incrementa tokenVersion no DB,
+  // invalidando o JWT atual (e quaisquer outros emitidos para o mesmo usuario).
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Logout (revoga JWTs do usuario)' })
+  async logout(@Request() req: AuthRequest) {
+    const userId = req.user.id ?? req.user.sub;
+    if (!userId) throw new UnauthorizedException('Usuario sem identificador no token');
+    return this.authService.logout(userId);
   }
 
   @Public()
   @Throttle({ auth: { limit: 3, ttl: 60_000 } })
   @Post('request-password-reset')
   @ApiOperation({ summary: 'Solicita reset de senha (envia token por canal externo)' })
-  async requestPasswordReset(@Body() body: { email: string }) {
-    return this.authService.requestPasswordReset(body.email);
+  async requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(dto.email);
   }
 
   @Public()
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post('reset-password')
   @ApiOperation({ summary: 'Reseta senha usando token' })
-  async resetPassword(@Body() body: { token: string; novaSenha: string }) {
-    return this.authService.resetPassword(body.token, body.novaSenha);
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.novaSenha);
   }
 }

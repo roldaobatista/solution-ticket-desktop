@@ -9,6 +9,9 @@ interface JwtPayload {
   email: string;
   nome: string;
   tenantId?: string | null;
+  // Onda 2.3: tokenVersion (tv). JWTs com tv < usuario.tokenVersion sao
+  // rejeitados (changePassword, logout e resetPassword incrementam o campo).
+  tv?: number;
 }
 
 @Injectable()
@@ -42,6 +45,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (!usuario || !usuario.ativo) {
       throw new UnauthorizedException();
+    }
+
+    // Onda 2.3: rejeita JWTs com tokenVersion antiga (revogacao em massa
+    // por changePassword/logout/resetPassword).
+    const tokenVersionAtual = (usuario as { tokenVersion?: number }).tokenVersion ?? 0;
+    const tvPayload = payload.tv ?? 0;
+    if (tvPayload < tokenVersionAtual) {
+      throw new UnauthorizedException('Token revogado');
     }
 
     const permissoes = usuario.perfis.flatMap((up) =>

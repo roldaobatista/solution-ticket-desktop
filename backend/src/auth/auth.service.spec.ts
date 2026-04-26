@@ -100,16 +100,38 @@ describe('AuthService', () => {
         senhaHash,
         ativo: true,
         bloqueadoAte: null,
+        tentativasLogin: 2,
         perfis: [],
       });
       await expect(service.validateUser('a@b.com', 'errada')).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
+      // Onda 2.2: bloqueio progressivo. Tentativa 3 ainda nao bloqueia
+      // (limite e 5); valor atualizado e 3.
       expect(prisma.usuario.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ tentativasLogin: { increment: 1 } }),
+          data: expect.objectContaining({ tentativasLogin: 3 }),
         }),
       );
+    });
+
+    it('aplica bloqueadoAte ao atingir 5 tentativas (Onda 2.2)', async () => {
+      const senhaHash = await bcrypt.hash('certa', 4);
+      prisma.usuario.findUnique.mockResolvedValue({
+        id: 'u1',
+        email: 'a@b.com',
+        senhaHash,
+        ativo: true,
+        bloqueadoAte: null,
+        tentativasLogin: 4, // proxima tentativa atinge o limite
+        perfis: [],
+      });
+      await expect(service.validateUser('a@b.com', 'errada')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      const callArgs = prisma.usuario.update.mock.calls[0][0];
+      expect(callArgs.data.bloqueadoAte).toBeInstanceOf(Date);
+      expect(callArgs.data.tentativasLogin).toBe(0); // reseta apos bloquear
     });
   });
 
@@ -143,15 +165,19 @@ describe('AuthService', () => {
   });
 
   describe('resetPassword', () => {
-    it('rejeita senha curta (< 8)', async () => {
-      await expect(service.resetPassword('any', '1234567')).rejects.toBeInstanceOf(
+    // Onda 2.7: politica subiu para 10 caracteres minimos + letra + numero.
+    it('rejeita senha sem 10+ chars + letra + numero', async () => {
+      await expect(service.resetPassword('any', '123456789')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      await expect(service.resetPassword('any', 'soletraslongas')).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
     });
 
     it('rejeita token inexistente / usado / expirado', async () => {
       prisma.tokenReset.findUnique.mockResolvedValue(null);
-      await expect(service.resetPassword('xxx', 'senha1234')).rejects.toThrow(/inválido/i);
+      await expect(service.resetPassword('xxx', 'senhaForte10')).rejects.toThrow(/inválido/i);
 
       prisma.tokenReset.findUnique.mockResolvedValue({
         id: 't1',
@@ -159,7 +185,7 @@ describe('AuthService', () => {
         usado: true,
         expiraEm: new Date(Date.now() + 60_000),
       });
-      await expect(service.resetPassword('xxx', 'senha1234')).rejects.toThrow(/inválido/i);
+      await expect(service.resetPassword('xxx', 'senhaForte10')).rejects.toThrow(/inválido/i);
 
       prisma.tokenReset.findUnique.mockResolvedValue({
         id: 't1',
@@ -167,7 +193,7 @@ describe('AuthService', () => {
         usado: false,
         expiraEm: new Date(Date.now() - 60_000),
       });
-      await expect(service.resetPassword('xxx', 'senha1234')).rejects.toThrow(/expirado/i);
+      await expect(service.resetPassword('xxx', 'senhaForte10')).rejects.toThrow(/expirado/i);
     });
 
     it('reseta senha quando token válido, marcando como usado', async () => {
@@ -177,7 +203,7 @@ describe('AuthService', () => {
         usado: false,
         expiraEm: new Date(Date.now() + 60_000),
       });
-      const r = await service.resetPassword('rawtoken', 'novaSenhaForte');
+      const r = await service.resetPassword('rawtoken', 'novaSenhaForte10');
       expect(r).toEqual({ ok: true });
       expect(prisma.$transaction).toHaveBeenCalled();
     });
