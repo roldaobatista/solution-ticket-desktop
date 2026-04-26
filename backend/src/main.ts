@@ -92,7 +92,7 @@ async function bootstrap() {
     process.env.DATABASE_URL = getDatabaseUrl();
   }
   logger.log(`Diretório de dados: ${dataDir}`);
-  logger.log(`DATABASE_URL: ${process.env.DATABASE_URL}`);
+  // SEC: DATABASE_URL nunca é logado (pode conter path com username Windows)
 
   const app = await NestFactory.create(AppModule);
   const isProd = process.env.NODE_ENV === 'production';

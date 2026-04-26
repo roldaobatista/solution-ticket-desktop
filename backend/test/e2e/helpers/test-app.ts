@@ -9,6 +9,7 @@ import { execSync } from 'child_process';
 import * as bcrypt from 'bcryptjs';
 import { AppModule } from '../../../src/app.module';
 import { PrismaService } from '../../../src/prisma/prisma.service';
+import { Permissao } from '../../../src/constants/permissoes';
 
 export interface TestAppContext {
   app: INestApplication;
@@ -115,6 +116,16 @@ async function seedMinimo(prisma: PrismaService) {
     data: { empresaId: empresa.id, nome: 'Unidade Teste' },
   });
   const senhaHash = await bcrypt.hash('senha123', 4);
+  const perfilAdmin = await prisma.perfil.create({
+    data: { tenantId: tenant.id, nome: 'Admin Teste', descricao: 'Acesso total' },
+  });
+  const permissoesAdmin = Object.values(Permissao);
+  for (const acao of permissoesAdmin) {
+    const modulo = acao.split(':')[0];
+    await prisma.permissao.create({
+      data: { perfilId: perfilAdmin.id, modulo, acao, concedido: true },
+    });
+  }
   const usuario = await prisma.usuario.create({
     data: {
       tenantId: tenant.id,
@@ -124,6 +135,9 @@ async function seedMinimo(prisma: PrismaService) {
       ativo: true,
     },
   });
+  await prisma.usuarioPerfil.create({
+    data: { usuarioId: usuario.id, perfilId: perfilAdmin.id },
+  });
   const cliente = await prisma.cliente.create({
     data: { tenantId: tenant.id, razaoSocial: 'Cliente Teste' },
   });
@@ -132,6 +146,7 @@ async function seedMinimo(prisma: PrismaService) {
   });
   const balanca = await prisma.balanca.create({
     data: {
+      tenantId: tenant.id,
       empresaId: empresa.id,
       unidadeId: unidade.id,
       nome: 'Balanca Teste',

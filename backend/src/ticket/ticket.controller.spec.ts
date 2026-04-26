@@ -103,9 +103,9 @@ describe('TicketController', () => {
       const stats = { pesagensHoje: 5 };
       ticketService.getEstatisticas.mockResolvedValue(stats as any);
 
-      const result = await controller.getEstatisticas('u1');
+      const result = await controller.getEstatisticas('u1', tenantId);
 
-      expect(ticketService.getEstatisticas).toHaveBeenCalledWith('u1');
+      expect(ticketService.getEstatisticas).toHaveBeenCalledWith('u1', tenantId);
       expect(result).toEqual(stats);
     });
   });

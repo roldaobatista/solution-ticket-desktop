@@ -96,20 +96,17 @@ export async function capturarPeso(id: string): Promise<LeituraPeso> {
   return res.data;
 }
 
+/**
+ * @deprecated Preferir fetchBalancaStreamUrl que busca token SSE curto.
+ * Retorna URL base do stream SEM token (segurança).
+ */
 export function getBalancaStreamUrl(id: string): string {
   const base = process.env.NEXT_PUBLIC_API_URL || '/api';
-  // DEPRECATED: mantido para compatibilidade, mas preferir fetchBalancaStreamUrl
-  let token = '';
-  if (typeof window !== 'undefined') {
-    token = sessionStorage.getItem('access_token') || '';
-  }
-  const qs = token ? `?access_token=${encodeURIComponent(token)}` : '';
-  return `${base}/balancas/${id}/stream${qs}`;
+  return `${base}/balancas/${id}/stream`;
 }
 
 export async function fetchBalancaStreamUrl(id: string): Promise<string> {
   const base = process.env.NEXT_PUBLIC_API_URL || '/api';
-  // RS3: busca token SSE curto (60s) em vez de expor JWT principal na URL
   let token = '';
   if (typeof window !== 'undefined') {
     try {
@@ -118,12 +115,13 @@ export async function fetchBalancaStreamUrl(id: string): Promise<string> {
         headers: { Authorization: `Bearer ${sessionStorage.getItem('access_token') || ''}` },
       });
       if (res.ok) {
-        const data = await res.json();
-        token = data.token || '';
+        const json = await res.json();
+        // Backend envelopa em { success, data, timestamp }; token está em data.token
+        token = json.data?.token || '';
       }
     } catch {
-      // fallback: JWT principal (menos seguro, mas funcional)
-      token = sessionStorage.getItem('access_token') || '';
+      // Sem fallback para JWT principal: stream falhará de forma segura
+      token = '';
     }
   }
   const qs = token ? `?access_token=${encodeURIComponent(token)}` : '';

@@ -22,7 +22,6 @@ describe('Ticket (e2e)', () => {
       .post('/api/tickets')
       .set('Authorization', auth())
       .send({
-        tenantId: ctx.tenantId,
         unidadeId: ctx.unidadeId,
         fluxoPesagem: 'PF2_BRUTO_TARA',
         clienteId: ctx.clienteId,

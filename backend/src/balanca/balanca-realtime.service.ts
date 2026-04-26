@@ -17,13 +17,13 @@ export interface PesoEvent {
 export class BalancaRealtimeService {
   constructor(private readonly conn: BalancaConnectionService) {}
 
-  stream(id: string): Observable<PesoEvent> {
+  stream(id: string, tenantId: string): Observable<PesoEvent> {
     return new Observable<PesoEvent>((subscriber) => {
       let emitter: ReturnType<typeof this.conn.getEmitter>;
       const start = async () => {
         if (!this.conn.isConectada(id)) {
           try {
-            await this.conn.conectar(id);
+            await this.conn.conectar(id, tenantId);
           } catch (err) {
             subscriber.error(err);
             return;

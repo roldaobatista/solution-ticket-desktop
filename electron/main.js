@@ -98,6 +98,43 @@ function getNextBin() {
   return path.join(getFrontendDir(), 'node_modules', 'next', 'dist', 'bin', 'next');
 }
 
+// ---------- Env whitelist (P1) ----------
+
+const ALLOWED_ENV_KEYS = new Set([
+  'PATH',
+  'PATHEXT',
+  'SystemRoot',
+  'TEMP',
+  'TMP',
+  'USERPROFILE',
+  'windir',
+  'NODE_ENV',
+  'PORT',
+  'DATABASE_URL',
+  'USER_DATA_PATH',
+  'NEXT_PUBLIC_API_URL',
+  'NEXT_PUBLIC_USE_MOCK',
+  'SENTRY_DSN',
+  'SENTRY_ORG',
+  'SENTRY_PROJECT',
+  'SENTRY_AUTH_TOKEN',
+  'RUN_MIGRATIONS_ON_BOOT',
+  'DISABLE_THROTTLER',
+  'JWT_SECRET',
+  'KIOSK_MODE',
+  'ELECTRON_RUN_AS_NODE',
+]);
+
+function buildEnv(extra = {}) {
+  const base = {};
+  for (const key of Object.keys(process.env)) {
+    if (ALLOWED_ENV_KEYS.has(key)) {
+      base[key] = process.env[key];
+    }
+  }
+  return { ...base, ...extra };
+}
+
 // ---------- Migrate on first run ----------
 
 function backupDatabase(dbPath) {
@@ -134,13 +171,16 @@ function runMigrationsIfNeeded() {
     return Promise.resolve();
   }
 
+  // P1: em produção empacotada, migration/schema ausente é falha crítica
   if (!fs.existsSync(prismaBin)) {
-    logLine('migrate', `prisma bin nao encontrado em ${prismaBin}, pulando`);
-    return Promise.resolve();
+    const msg = `prisma bin nao encontrado em ${prismaBin} — abortando startup`;
+    logLine('migrate', msg);
+    return Promise.reject(new Error(msg));
   }
   if (!fs.existsSync(schemaPath)) {
-    logLine('migrate', `schema nao encontrado em ${schemaPath}, pulando`);
-    return Promise.resolve();
+    const msg = `schema nao encontrado em ${schemaPath} — abortando startup`;
+    logLine('migrate', msg);
+    return Promise.reject(new Error(msg));
   }
 
   const backupPath = backupDatabase(dbPath);
@@ -151,11 +191,10 @@ function runMigrationsIfNeeded() {
       process.execPath,
       [prismaBin, 'migrate', 'deploy', `--schema=${schemaPath}`],
       {
-        env: {
-          ...process.env,
+        env: buildEnv({
           ELECTRON_RUN_AS_NODE: '1',
           DATABASE_URL: `file:${dbPath}`,
-        },
+        }),
         stdio: 'pipe',
       },
     );
@@ -196,8 +235,7 @@ function startBackend() {
   logLine('backend', `spawn ${entry}`);
 
   const dbPath = getDatabasePath();
-  const env = {
-    ...process.env,
+  const extraEnv = {
     ELECTRON_RUN_AS_NODE: '1',
     NODE_ENV: isDev ? 'development' : 'production',
     PORT: String(BACKEND_PORT),
@@ -208,12 +246,12 @@ function startBackend() {
     RUN_MIGRATIONS_ON_BOOT: 'false',
   };
   if (!isDev) {
-    env.DATABASE_URL = `file:${dbPath}`;
-    env.USER_DATA_PATH = app.getPath('userData');
+    extraEnv.DATABASE_URL = `file:${dbPath}`;
+    extraEnv.USER_DATA_PATH = app.getPath('userData');
   }
 
   const proc = spawn(process.execPath, [entry], {
-    env,
+    env: buildEnv(extraEnv),
     cwd: getBackendDir(),
     stdio: 'pipe',
   });
@@ -242,7 +280,7 @@ function startFrontend() {
     const npmCmd = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
     const proc = spawn(npmCmd, ['dev'], {
       cwd: getFrontendDir(),
-      env: { ...process.env },
+      env: buildEnv(),
       shell: true,
       stdio: 'pipe',
     });
@@ -263,11 +301,10 @@ function startFrontend() {
 
   const proc = spawn(process.execPath, [nextBin, 'start', '-p', String(FRONTEND_PORT)], {
     cwd: getFrontendDir(),
-    env: {
-      ...process.env,
+    env: buildEnv({
       ELECTRON_RUN_AS_NODE: '1',
       NODE_ENV: 'production',
-    },
+    }),
     stdio: 'pipe',
   });
 

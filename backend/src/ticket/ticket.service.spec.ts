@@ -42,7 +42,10 @@ describe('TicketService - cálculo de fechamento', () => {
       snapshotComercialTicket: { create: jest.fn().mockResolvedValue({}) },
       tabelaPrecoProdutoCliente: { findFirst: jest.fn().mockResolvedValue(null) },
       tabelaPrecoProduto: { findFirst: jest.fn().mockResolvedValue(null) },
-      veiculo: { findUnique: jest.fn() },
+      veiculo: { findUnique: jest.fn(), findFirst: jest.fn().mockResolvedValue({ id: 'v1' }) },
+      unidade: { findFirst: jest.fn().mockResolvedValue({ id: 'u1' }) },
+      cliente: { findFirst: jest.fn().mockResolvedValue({ id: 'c1' }) },
+      produto: { findFirst: jest.fn().mockResolvedValue({ id: 'p1' }) },
     };
     // Onda 1: fecharTicket/registrarPassagem usam $transaction. Mock simples
     // que invoca o callback passando o próprio prisma como tx (single-DB).
@@ -206,7 +209,10 @@ describe('TicketService.create - bloqueio por licença', () => {
         findUnique: jest.fn(),
       },
       licencaInstalacao: { findFirst: jest.fn() },
-      veiculo: { findUnique: jest.fn() },
+      veiculo: { findUnique: jest.fn(), findFirst: jest.fn().mockResolvedValue({ id: 'v' }) },
+      unidade: { findFirst: jest.fn().mockResolvedValue({ id: 'u' }) },
+      cliente: { findFirst: jest.fn().mockResolvedValue({ id: 'c' }) },
+      produto: { findFirst: jest.fn().mockResolvedValue({ id: 'p' }) },
     };
     const eventEmitter = { emit: jest.fn() };
     const module = await Test.createTestingModule({
@@ -274,8 +280,11 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
           snapshotsComercial: [],
         }),
       },
+      unidade: { findFirst: jest.fn().mockResolvedValue({ id: 'u' }) },
+      cliente: { findFirst: jest.fn().mockResolvedValue({ id: 'c' }) },
+      produto: { findFirst: jest.fn().mockResolvedValue({ id: 'p' }) },
       licencaInstalacao: { findFirst: jest.fn().mockResolvedValue(null) },
-      veiculo: { findUnique: jest.fn() },
+      veiculo: { findUnique: jest.fn(), findFirst: jest.fn().mockResolvedValue({ id: 'v' }) },
       $transaction: jest.fn((fn: (tx: typeof prisma) => unknown) => fn(prisma)),
     };
     const eventEmitter = { emit: jest.fn() };
@@ -336,7 +345,7 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
   });
 
   it('aceita PF1 com veiculo que tem taraCadastrada > 0', async () => {
-    prisma.veiculo.findUnique.mockResolvedValue({ id: 'v1', taraCadastrada: 5000 });
+    prisma.veiculo.findFirst.mockResolvedValue({ id: 'v1', taraCadastrada: 5000 });
     await service.create(
       {
         unidadeId: 'u',

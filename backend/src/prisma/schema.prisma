@@ -26,6 +26,7 @@ model Tenant {
   empresas Empresa[]
   perfis   Perfil[]
   usuarios Usuario[]
+  balancas Balanca[]
 
   @@map("tenant")
 }
@@ -391,6 +392,7 @@ model FormaPagamento {
 
 model Balanca {
   id               String  @id @default(uuid()) @map("id")
+  tenantId         String  @map("tenant_id")
   empresaId        String  @map("empresa_id")
   unidadeId        String  @map("unidade_id")
   nome             String  @map("nome")
@@ -435,12 +437,14 @@ model Balanca {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
   empresa     Empresa             @relation(fields: [empresaId], references: [id])
   unidade     Unidade             @relation(fields: [unidadeId], references: [id])
   indicador   IndicadorPesagem?   @relation(fields: [indicadorId], references: [id])
   passagens   PassagemPesagem[]
   calibracoes CalibracaoBalanca[]
 
+  @@index([tenantId])
   @@index([empresaId, unidadeId])
   @@index([indicadorId])
   @@map("balanca")

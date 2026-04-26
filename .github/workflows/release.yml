@@ -37,6 +37,7 @@ jobs:
         run: pnpm dist:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_RELEASE: 'true'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

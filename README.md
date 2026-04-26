@@ -5,8 +5,8 @@ Sistema de pesagem veicular para Windows. Clone funcional do PesoLog com licenci
 ## Stack
 
 - **Backend:** NestJS 10 + Prisma 5 + SQLite + JWT + bcrypt
-- **Frontend:** Next.js 14 (App Router) + Tailwind + React Query + Zustand
-- **Desktop:** Electron 30 + electron-builder (NSIS)
+- **Frontend:** Next.js 15 (App Router) + Tailwind + React Query + Zustand
+- **Desktop:** Electron 41 + electron-builder (NSIS)
 - **Hardware:** `serialport` 13 + `modbus-serial` — adapters RS-232/485, TCP/IP, Modbus RTU/TCP
 - **Licença:** JWT RSA-2048 com fingerprint de hardware
 
@@ -34,7 +34,7 @@ pnpm dev:backend               # só backend (porta 3001)
 pnpm dev:frontend              # só frontend (porta 3000)
 ```
 
-Credenciais padrão (após seed): `admin@solutionticket.com` / `123456`.
+Credenciais padrão (após seed): definidas via variável de ambiente `SEED_DEFAULT_PASSWORD`.
 
 ## Build do instalador
 

@@ -577,6 +577,7 @@ async function main() {
   const balancas = await Promise.all([
     prisma.balanca.create({
       data: {
+        tenantId: tenant.id,
         empresaId: empresa.id,
         unidadeId: unidade.id,
         nome: 'Balança Entrada - Toledo',
@@ -591,6 +592,7 @@ async function main() {
     }),
     prisma.balanca.create({
       data: {
+        tenantId: tenant.id,
         empresaId: empresa.id,
         unidadeId: unidade.id,
         nome: 'Balança Saída - Toledo',

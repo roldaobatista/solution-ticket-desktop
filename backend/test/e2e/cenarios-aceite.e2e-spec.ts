@@ -6,6 +6,8 @@
  * Prioridades: P0, P1
  */
 
+process.env.DISABLE_THROTTLER = '1';
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -41,6 +43,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
+    process.env.DISABLE_THROTTLER = '1';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -59,7 +62,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
 
     // Login para obter token
     const loginRes = await request(app.getHttpServer())
-      .post('/api/auth/login-direct')
+      .post('/api/auth/login')
       .send({ email: 'admin@solutionticket.com', senha: 'ChangeMe!2026' });
 
     authToken = loginRes.body.data?.accessToken || loginRes.body.access_token;

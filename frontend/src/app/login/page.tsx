@@ -101,22 +101,12 @@ export default function LoginPage() {
               </Link>
             </div>
           </form>
-
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <p className="text-xs text-slate-500 text-center">
-              <strong>Credenciais demo:</strong>
-              <br />
-              admin@solutionticket.com / 123456
-              <br />
-              operador@solutionticket.com / 123456
-              <br />
-              supervisor@solutionticket.com / 123456
-            </p>
-          </div>
         </div>
 
         {/* Version */}
-        <p className="text-center text-xs text-slate-400 mt-6">Solution Ticket v1.0.0 - 2024</p>
+        <p className="text-center text-xs text-slate-400 mt-6">
+          Solution Ticket v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
+        </p>
       </div>
     </div>
   );

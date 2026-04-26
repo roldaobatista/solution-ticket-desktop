@@ -42,9 +42,9 @@ export class BalancaConnectionService implements OnModuleDestroy {
     }
   }
 
-  async getBalancaComIndicador(id: string) {
-    const balanca = await this.prisma.balanca.findUnique({
-      where: { id },
+  async getBalancaComIndicador(id: string, tenantId: string) {
+    const balanca = await this.prisma.balanca.findFirst({
+      where: { id, tenantId },
       include: { indicador: true },
     });
     if (!balanca) throw new NotFoundException('Balanca nao encontrada');
@@ -71,9 +71,9 @@ export class BalancaConnectionService implements OnModuleDestroy {
     return this.conexoes.get(id)?.status.ultimaLeitura ?? null;
   }
 
-  async conectar(id: string): Promise<BalancaStatus> {
+  async conectar(id: string, tenantId: string): Promise<BalancaStatus> {
     if (this.conexoes.has(id)) return this.getStatus(id);
-    const balanca = await this.getBalancaComIndicador(id);
+    const balanca = await this.getBalancaComIndicador(id, tenantId);
     const indicador = balanca.indicador;
 
     const adapter = createAdapter(balanca.protocolo ?? 'serial', {
@@ -167,8 +167,12 @@ export class BalancaConnectionService implements OnModuleDestroy {
   }
 
   /** Tenta abrir conexão por {@link timeoutMs} e fecha em seguida. */
-  async testar(id: string, timeoutMs = 2000): Promise<{ sucesso: boolean; erro?: string }> {
-    const balanca = await this.getBalancaComIndicador(id);
+  async testar(
+    id: string,
+    tenantId: string,
+    timeoutMs = 2000,
+  ): Promise<{ sucesso: boolean; erro?: string }> {
+    const balanca = await this.getBalancaComIndicador(id, tenantId);
     const indicador = balanca.indicador;
     const adapter = createAdapter(
       balanca.protocolo ?? 'serial',
@@ -199,8 +203,8 @@ export class BalancaConnectionService implements OnModuleDestroy {
   }
 
   /** Aguarda peso estável ou retorna a última leitura após timeout. */
-  async capturar(id: string, timeoutMs = 3000): Promise<LeituraPeso | null> {
-    if (!this.conexoes.has(id)) await this.conectar(id);
+  async capturar(id: string, tenantId: string, timeoutMs = 3000): Promise<LeituraPeso | null> {
+    if (!this.conexoes.has(id)) await this.conectar(id, tenantId);
     const c = this.conexoes.get(id);
     if (!c) return null;
     if (c.status.ultimaLeitura?.estavel) return c.status.ultimaLeitura;

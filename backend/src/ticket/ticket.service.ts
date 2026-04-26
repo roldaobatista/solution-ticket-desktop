@@ -45,11 +45,14 @@ export class TicketService {
 
   async create(dto: CreateTicketDto, tenantId: string) {
     await this.licenseGuard.verificarLicenca(dto.unidadeId);
+    await this.validarRelacoesTenant(dto, tenantId);
 
     let taraSnapshot: number | undefined;
     let taraTipo = dto.taraReferenciaTipo;
     if (dto.veiculoId) {
-      const veiculo = await this.prisma.veiculo.findUnique({ where: { id: dto.veiculoId } });
+      const veiculo = await this.prisma.veiculo.findFirst({
+        where: { id: dto.veiculoId, tenantId },
+      });
       if (veiculo?.taraCadastrada) {
         taraSnapshot = Number(veiculo.taraCadastrada);
         if (!taraTipo) taraTipo = 'CADASTRADA';
@@ -236,7 +239,7 @@ export class TicketService {
 
     const sideEffects = TicketStateMachine.getSideEffects(novoEstado);
     const updated = await this.prisma.ticketPesagem.update({
-      where: { id: ticketId },
+      where: { id: ticketId, tenantId },
       data: { statusOperacional: novoEstado, ...sideEffects },
       include: {
         cliente: true,
@@ -586,31 +589,146 @@ export class TicketService {
     });
   }
 
-  async getEstatisticas(unidadeId: string) {
+  private async validarRelacoesTenant(dto: CreateTicketDto, tenantId: string) {
+    const checks: Array<Promise<void>> = [];
+
+    // Unidade: valida via Empresa (não tem tenantId direto)
+    checks.push(
+      this.prisma.unidade
+        .findFirst({
+          where: { id: dto.unidadeId, empresa: { tenantId } },
+          select: { id: true },
+        })
+        .then((u) => {
+          if (!u) throw new ForbiddenException('Unidade nao pertence ao tenant');
+        }),
+    );
+
+    // Cliente
+    checks.push(
+      this.prisma.cliente
+        .findFirst({ where: { id: dto.clienteId, tenantId }, select: { id: true } })
+        .then((c) => {
+          if (!c) throw new ForbiddenException('Cliente nao pertence ao tenant');
+        }),
+    );
+
+    // Produto
+    checks.push(
+      this.prisma.produto
+        .findFirst({ where: { id: dto.produtoId, tenantId }, select: { id: true } })
+        .then((p) => {
+          if (!p) throw new ForbiddenException('Produto nao pertence ao tenant');
+        }),
+    );
+
+    if (dto.transportadoraId) {
+      checks.push(
+        this.prisma.transportadora
+          .findFirst({
+            where: { id: dto.transportadoraId, tenantId },
+            select: { id: true },
+          })
+          .then((t) => {
+            if (!t) throw new ForbiddenException('Transportadora nao pertence ao tenant');
+          }),
+      );
+    }
+
+    if (dto.motoristaId) {
+      checks.push(
+        this.prisma.motorista
+          .findFirst({ where: { id: dto.motoristaId, tenantId }, select: { id: true } })
+          .then((m) => {
+            if (!m) throw new ForbiddenException('Motorista nao pertence ao tenant');
+          }),
+      );
+    }
+
+    if (dto.veiculoId) {
+      checks.push(
+        this.prisma.veiculo
+          .findFirst({ where: { id: dto.veiculoId, tenantId }, select: { id: true } })
+          .then((v) => {
+            if (!v) throw new ForbiddenException('Veiculo nao pertence ao tenant');
+          }),
+      );
+    }
+
+    if (dto.origemId) {
+      checks.push(
+        this.prisma.origem
+          .findFirst({ where: { id: dto.origemId, tenantId }, select: { id: true } })
+          .then((o) => {
+            if (!o) throw new ForbiddenException('Origem nao pertence ao tenant');
+          }),
+      );
+    }
+
+    if (dto.destinoId) {
+      checks.push(
+        this.prisma.destino
+          .findFirst({ where: { id: dto.destinoId, tenantId }, select: { id: true } })
+          .then((d) => {
+            if (!d) throw new ForbiddenException('Destino nao pertence ao tenant');
+          }),
+      );
+    }
+
+    if (dto.armazemId) {
+      checks.push(
+        this.prisma.armazem
+          .findFirst({ where: { id: dto.armazemId, tenantId }, select: { id: true } })
+          .then((a) => {
+            if (!a) throw new ForbiddenException('Armazem nao pertence ao tenant');
+          }),
+      );
+    }
+
+    if (dto.indicadorPesagemId) {
+      checks.push(
+        this.prisma.indicadorPesagem
+          .findFirst({
+            where: { id: dto.indicadorPesagemId, tenantId },
+            select: { id: true },
+          })
+          .then((i) => {
+            if (!i) throw new ForbiddenException('Indicador nao pertence ao tenant');
+          }),
+      );
+    }
+
+    await Promise.all(checks);
+  }
+
+  async getEstatisticas(unidadeId: string, tenantId: string) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
+    const baseWhere = { unidadeId, tenantId };
     const [totalHoje, abertos, emPesagem, aguardando, fechadosHoje, canceladosHoje] =
       await Promise.all([
-        this.prisma.ticketPesagem.count({ where: { unidadeId, criadoEm: { gte: hoje } } }),
         this.prisma.ticketPesagem.count({
-          where: { unidadeId, statusOperacional: StatusOperacional.ABERTO },
+          where: { ...baseWhere, criadoEm: { gte: hoje } },
         }),
         this.prisma.ticketPesagem.count({
-          where: { unidadeId, statusOperacional: StatusOperacional.EM_PESAGEM },
+          where: { ...baseWhere, statusOperacional: StatusOperacional.ABERTO },
         }),
         this.prisma.ticketPesagem.count({
-          where: { unidadeId, statusOperacional: StatusOperacional.AGUARDANDO_PASSAGEM },
+          where: { ...baseWhere, statusOperacional: StatusOperacional.EM_PESAGEM },
+        }),
+        this.prisma.ticketPesagem.count({
+          where: { ...baseWhere, statusOperacional: StatusOperacional.AGUARDANDO_PASSAGEM },
         }),
         this.prisma.ticketPesagem.count({
           where: {
-            unidadeId,
+            ...baseWhere,
             statusOperacional: StatusOperacional.FECHADO,
             fechadoEm: { gte: hoje },
           },
         }),
         this.prisma.ticketPesagem.count({
           where: {
-            unidadeId,
+            ...baseWhere,
             statusOperacional: StatusOperacional.CANCELADO,
             canceladoEm: { gte: hoje },
           },

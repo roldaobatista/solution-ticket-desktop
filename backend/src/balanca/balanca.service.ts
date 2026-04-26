@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,12 +15,29 @@ import { BalancaFilterDto } from './dto/balanca-filter.dto';
 export class BalancaService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateBalancaDto) {
-    // Onda 3.3: lock de porta fisica + validacao protocolo↔campos.
-    // Antes era possivel criar 2 balancas com mesma COM3, ou 'tcp' sem
-    // enderecoIp, gerando conflito de driver Windows e erros opacos no boot.
+  async create(dto: CreateBalancaDto, tenantId: string) {
+    await this.validarPosseEmpresaUnidade(dto.empresaId, dto.unidadeId, tenantId);
     await this.validarProtocoloEPorta(dto);
-    return this.prisma.balanca.create({ data: { ...dto } });
+    return this.prisma.balanca.create({
+      data: { ...dto, tenantId },
+    });
+  }
+
+  private async validarPosseEmpresaUnidade(empresaId: string, unidadeId: string, tenantId: string) {
+    const empresa = await this.prisma.empresa.findFirst({
+      where: { id: empresaId, tenantId },
+      select: { id: true },
+    });
+    if (!empresa) {
+      throw new ForbiddenException('Empresa nao pertence ao tenant');
+    }
+    const unidade = await this.prisma.unidade.findFirst({
+      where: { id: unidadeId, empresaId },
+      select: { id: true },
+    });
+    if (!unidade) {
+      throw new ForbiddenException('Unidade nao pertence a empresa do tenant');
+    }
   }
 
   private async validarProtocoloEPorta(
@@ -30,7 +48,6 @@ export class BalancaService {
       if (!dto.porta) {
         throw new BadRequestException(`protocolo=${dto.protocolo} exige porta serial (ex: COM3)`);
       }
-      // Porta deve ser unica entre balancas ativas
       const conflito = await this.prisma.balanca.findFirst({
         where: {
           porta: dto.porta,
@@ -52,8 +69,8 @@ export class BalancaService {
     }
   }
 
-  async findAll(filter: BalancaFilterDto) {
-    const where: Prisma.BalancaWhereInput = {};
+  async findAll(filter: BalancaFilterDto, tenantId: string) {
+    const where: Prisma.BalancaWhereInput = { tenantId };
     if (filter.empresaId) where.empresaId = filter.empresaId;
     if (filter.unidadeId) where.unidadeId = filter.unidadeId;
     if (filter.statusOnline !== undefined) where.statusOnline = filter.statusOnline;
@@ -77,34 +94,39 @@ export class BalancaService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
-    const balanca = await this.prisma.balanca.findUnique({
-      where: { id },
+  async findOne(id: string, tenantId: string) {
+    const balanca = await this.prisma.balanca.findFirst({
+      where: { id, tenantId },
       include: { empresa: true, unidade: true },
     });
     if (!balanca) throw new NotFoundException('Balanca nao encontrada');
     return balanca;
   }
 
-  async update(id: string, dto: UpdateBalancaDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateBalancaDto, tenantId: string) {
+    await this.findOne(id, tenantId);
     if (dto.protocolo || dto.porta || dto.enderecoIp) {
-      // Onda 3.3: revalida protocolo/porta no update
       await this.validarProtocoloEPorta(dto, id);
     }
-    return this.prisma.balanca.update({ where: { id }, data: { ...dto } });
+    return this.prisma.balanca.update({
+      where: { id, tenantId },
+      data: { ...dto },
+    });
   }
 
-  async updateStatus(id: string, statusOnline: boolean) {
-    await this.findOne(id);
+  async updateStatus(id: string, statusOnline: boolean, tenantId: string) {
+    await this.findOne(id, tenantId);
     return this.prisma.balanca.update({
-      where: { id },
+      where: { id, tenantId },
       data: { statusOnline, atualizadoEm: new Date() },
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.balanca.update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.balanca.update({
+      where: { id, tenantId },
+      data: { ativo: false },
+    });
   }
 }

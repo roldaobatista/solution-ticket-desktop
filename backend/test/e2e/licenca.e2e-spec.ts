@@ -28,9 +28,12 @@ describe('Licenca (e2e)', () => {
     expect(res.body.data.fingerprint).toMatch(/^[a-f0-9]{32}$/);
   });
 
+  const auth = () => `Bearer ${ctx.jwtToken}`;
+
   it('POST /api/licenca/iniciar-trial cria licença TRIAL', async () => {
     const res = await request(ctx.app.getHttpServer())
       .post('/api/licenca/iniciar-trial')
+      .set('Authorization', auth())
       .send({ unidadeId: ctx.unidadeId, tenantId: ctx.tenantId });
     expect(res.status).toBe(201);
     expect(res.body.data.statusLicenca).toBe('TRIAL');
@@ -40,9 +43,11 @@ describe('Licenca (e2e)', () => {
   it('POST /api/licenca/iniciar-trial é idempotente', async () => {
     const r1 = await request(ctx.app.getHttpServer())
       .post('/api/licenca/iniciar-trial')
+      .set('Authorization', auth())
       .send({ unidadeId: ctx.unidadeId, tenantId: ctx.tenantId });
     const r2 = await request(ctx.app.getHttpServer())
       .post('/api/licenca/iniciar-trial')
+      .set('Authorization', auth())
       .send({ unidadeId: ctx.unidadeId, tenantId: ctx.tenantId });
     expect(r1.body.data.id).toBe(r2.body.data.id);
   });
@@ -65,6 +70,7 @@ describe('Licenca (e2e)', () => {
 
     const res = await request(ctx.app.getHttpServer())
       .post('/api/licenca/ativar')
+      .set('Authorization', auth())
       .send({ unidadeId: ctx.unidadeId, tenantId: ctx.tenantId, chave });
 
     expect(res.status).toBe(201);
@@ -79,6 +85,7 @@ describe('Licenca (e2e)', () => {
     });
     const res = await request(ctx.app.getHttpServer())
       .post('/api/licenca/ativar')
+      .set('Authorization', auth())
       .send({ unidadeId: ctx.unidadeId, tenantId: ctx.tenantId, chave });
     expect(res.status).toBe(400);
   });

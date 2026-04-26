@@ -56,7 +56,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     const permissoes = usuario.perfis.flatMap((up) =>
-      up.perfil.permissoes.filter((p) => p.concedido).map((p) => `${p.modulo}:${p.acao}`),
+      up.perfil.permissoes.filter((p) => p.concedido).map((p) => p.acao),
     );
 
     return {

@@ -41,8 +41,11 @@ export class TicketController {
 
   @Get('estatisticas/:unidadeId')
   @ApiOperation({ summary: 'Estatísticas do dia por unidade' })
-  getEstatisticas(@Param('unidadeId') unidadeId: string) {
-    return this.ticketService.getEstatisticas(unidadeId);
+  getEstatisticas(
+    @Param('unidadeId') unidadeId: string,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.ticketService.getEstatisticas(unidadeId, tenantId);
   }
 
   @Get(':id')

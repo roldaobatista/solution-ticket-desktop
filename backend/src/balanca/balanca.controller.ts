@@ -43,50 +43,58 @@ export class BalancaController {
   @Post()
   @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Criar balanca' })
-  create(@Body() dto: CreateBalancaDto) {
-    return this.balancaService.create(dto);
+  create(@Body() dto: CreateBalancaDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.balancaService.create(dto, tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar balancas' })
-  findAll(@Query() filter: BalancaFilterDto) {
-    return this.balancaService.findAll(filter);
+  findAll(@Query() filter: BalancaFilterDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.balancaService.findAll(filter, tenantId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar balanca por ID' })
-  findOne(@Param('id') id: string) {
-    return this.balancaService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.balancaService.findOne(id, tenantId);
   }
 
   @Patch(':id')
   @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar balanca' })
-  update(@Param('id') id: string, @Body() dto: UpdateBalancaDto) {
-    return this.balancaService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateBalancaDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.balancaService.update(id, dto, tenantId);
   }
 
   @Patch(':id/status')
   @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar status online/offline' })
-  updateStatus(@Param('id') id: string, @Body('statusOnline') statusOnline: boolean) {
-    return this.balancaService.updateStatus(id, statusOnline);
+  updateStatus(
+    @Param('id') id: string,
+    @Body('statusOnline') statusOnline: boolean,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.balancaService.updateStatus(id, statusOnline, tenantId);
   }
 
   @Delete(':id')
   @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Remover balanca' })
-  remove(@Param('id') id: string) {
-    return this.balancaService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.balancaService.remove(id, tenantId);
   }
 
   // ============ HARDWARE ============
 
   @Get(':id/peso')
   @ApiOperation({ summary: 'Retorna a última leitura de peso' })
-  async peso(@Param('id') id: string) {
+  async peso(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
     if (!this.connService.isConectada(id)) {
-      await this.connService.conectar(id).catch(() => undefined);
+      await this.connService.conectar(id, tenantId).catch(() => undefined);
     }
     const leitura = this.connService.getUltimaLeitura(id);
     return { leitura, status: this.connService.getStatus(id) };
@@ -99,14 +107,17 @@ export class BalancaController {
    */
   @Sse(':id/stream')
   @ApiOperation({ summary: 'Stream SSE de peso em tempo real' })
-  stream(@Param('id') id: string): Observable<MessageEvent> {
-    return this.realtimeService.stream(id) as unknown as Observable<MessageEvent>;
+  stream(
+    @Param('id') id: string,
+    @CurrentUser('tenantId') tenantId: string,
+  ): Observable<MessageEvent> {
+    return this.realtimeService.stream(id, tenantId) as unknown as Observable<MessageEvent>;
   }
 
   @Post(':id/capturar')
   @ApiOperation({ summary: 'Captura peso estável (aguarda até 3s)' })
-  async capturar(@Param('id') id: string) {
-    const leitura = await this.connService.capturar(id, 3000);
+  async capturar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    const leitura = await this.connService.capturar(id, tenantId, 3000);
     if (!leitura) {
       throw new HttpException('Sem leitura disponível', HttpStatus.SERVICE_UNAVAILABLE);
     }
@@ -121,14 +132,14 @@ export class BalancaController {
 
   @Post(':id/testar')
   @ApiOperation({ summary: 'Tenta abrir a conexão por 2s' })
-  testar(@Param('id') id: string) {
-    return this.connService.testar(id, 2000);
+  testar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.connService.testar(id, tenantId, 2000);
   }
 
   @Post(':id/conectar')
   @ApiOperation({ summary: 'Inicia conexão contínua (daemon)' })
-  async conectar(@Param('id') id: string) {
-    const status = await this.connService.conectar(id);
+  async conectar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    const status = await this.connService.conectar(id, tenantId);
     return status;
   }
 
@@ -144,6 +155,7 @@ export class BalancaController {
   // ==========================================================
 
   @Post(':id/calibracoes')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Registra calibracao (ZERO/SPAN/MULTIPONTO) com peso conhecido' })
   registrarCalibracao(
     @Param('id') id: string,
