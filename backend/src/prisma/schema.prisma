@@ -435,14 +435,43 @@ model Balanca {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  empresa   Empresa           @relation(fields: [empresaId], references: [id])
-  unidade   Unidade           @relation(fields: [unidadeId], references: [id])
-  indicador IndicadorPesagem? @relation(fields: [indicadorId], references: [id])
-  passagens PassagemPesagem[]
+  empresa     Empresa             @relation(fields: [empresaId], references: [id])
+  unidade     Unidade             @relation(fields: [unidadeId], references: [id])
+  indicador   IndicadorPesagem?   @relation(fields: [indicadorId], references: [id])
+  passagens   PassagemPesagem[]
+  calibracoes CalibracaoBalanca[]
 
   @@index([empresaId, unidadeId])
   @@index([indicadorId])
   @@map("balanca")
+}
+
+// ============================================================
+// CALIBRACAO DE BALANCA (Onda 5.2)
+// ============================================================
+// Historico de calibracoes registradas na tela da balanca.
+// Tipo:
+//   ZERO       — operador zerou a balanca vazia (peso ref = 0)
+//   SPAN       — ajuste de fator com peso conhecido (1 ponto)
+//   MULTIPONTO — registro adicional em curva (3+ pontos)
+// peso_referencia: peso real conhecido (kg)
+// peso_lido:       peso retornado pelo indicador antes do ajuste
+// fator_calculado: peso_referencia / peso_lido (1 se ZERO)
+model CalibracaoBalanca {
+  id              String   @id @default(uuid()) @map("id")
+  balancaId       String   @map("balanca_id")
+  tipo            String   @map("tipo")
+  pesoReferencia  Decimal  @map("peso_referencia")
+  pesoLido        Decimal  @map("peso_lido")
+  fatorCalculado  Decimal  @map("fator_calculado")
+  observacao      String?  @map("observacao")
+  usuarioId       String?  @map("usuario_id")
+  realizadoEm     DateTime @default(now()) @map("realizado_em")
+
+  balanca Balanca @relation(fields: [balancaId], references: [id], onDelete: Cascade)
+
+  @@index([balancaId, realizadoEm])
+  @@map("calibracao_balanca")
 }
 
 // ============================================================

@@ -18,10 +18,13 @@ import { Observable } from 'rxjs';
 import { BalancaService } from './balanca.service';
 import { BalancaConnectionService } from './balanca-connection.service';
 import { BalancaRealtimeService } from './balanca-realtime.service';
+import { CalibracaoService } from './calibracao.service';
 import { CreateBalancaDto } from './dto/create-balanca.dto';
 import { UpdateBalancaDto } from './dto/update-balanca.dto';
 import { BalancaFilterDto } from './dto/balanca-filter.dto';
+import { RegistrarCalibracaoDto } from './dto/registrar-calibracao.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Balanças')
 @ApiBearerAuth()
@@ -32,6 +35,7 @@ export class BalancaController {
     private readonly balancaService: BalancaService,
     private readonly connService: BalancaConnectionService,
     private readonly realtimeService: BalancaRealtimeService,
+    private readonly calibracaoService: CalibracaoService,
   ) {}
 
   @Post()
@@ -127,5 +131,37 @@ export class BalancaController {
   async desconectar(@Param('id') id: string) {
     await this.connService.desconectar(id);
     return { ok: true };
+  }
+
+  // ==========================================================
+  // Calibracao (Onda 5.2) — historico por balanca
+  // ==========================================================
+
+  @Post(':id/calibracoes')
+  @ApiOperation({ summary: 'Registra calibracao (ZERO/SPAN/MULTIPONTO) com peso conhecido' })
+  registrarCalibracao(
+    @Param('id') id: string,
+    @Body() dto: RegistrarCalibracaoDto,
+    @CurrentUser('id') usuarioId: string,
+  ) {
+    return this.calibracaoService.registrar(id, {
+      tipo: dto.tipo,
+      pesoReferencia: dto.pesoReferencia,
+      pesoLido: dto.pesoLido,
+      observacao: dto.observacao,
+      usuarioId,
+    });
+  }
+
+  @Get(':id/calibracoes')
+  @ApiOperation({ summary: 'Historico de calibracoes da balanca' })
+  listarCalibracoes(@Param('id') id: string, @Query('limite') limite?: string) {
+    return this.calibracaoService.listar(id, limite ? parseInt(limite, 10) : 50);
+  }
+
+  @Get(':id/calibracoes/status')
+  @ApiOperation({ summary: 'Status de vencimento da ultima calibracao' })
+  statusCalibracao(@Param('id') id: string, @Query('diasMaximo') diasMaximo?: string) {
+    return this.calibracaoService.statusVencimento(id, diasMaximo ? parseInt(diasMaximo, 10) : 180);
   }
 }
