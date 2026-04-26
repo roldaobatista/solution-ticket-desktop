@@ -44,6 +44,12 @@ describe('TicketService - cálculo de fechamento', () => {
       tabelaPrecoProduto: { findFirst: jest.fn().mockResolvedValue(null) },
       veiculo: { findUnique: jest.fn() },
     };
+    // Onda 1: fecharTicket/registrarPassagem usam $transaction. Mock simples
+    // que invoca o callback passando o próprio prisma como tx (single-DB).
+    prisma.$transaction = jest.fn(async (arg: any) => {
+      if (typeof arg === 'function') return arg(prisma);
+      return Promise.all(arg);
+    });
 
     const eventEmitter = { emit: jest.fn() };
     const module = await Test.createTestingModule({

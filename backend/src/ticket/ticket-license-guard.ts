@@ -1,15 +1,22 @@
 import { ForbiddenException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+type PrismaTx = Prisma.TransactionClient | PrismaService;
 
 /**
  * D10: Verificação de licenciamento antes de operações de ticket.
  * Isolado para facilitar testes unitários e mocks.
+ *
+ * Onda 1: aceita TransactionClient opcional para que verificação e
+ * decremento participem da mesma $transaction do fecharTicket.
  */
 export class TicketLicenseGuard {
   constructor(private readonly prisma: PrismaService) {}
 
-  async verificarLicenca(unidadeId: string): Promise<void> {
-    const licenca = await this.prisma.licencaInstalacao.findFirst({
+  async verificarLicenca(unidadeId: string, tx?: PrismaTx): Promise<void> {
+    const client = tx ?? this.prisma;
+    const licenca = await client.licencaInstalacao.findFirst({
       where: { unidadeId },
     });
 
@@ -33,8 +40,9 @@ export class TicketLicenseGuard {
     }
   }
 
-  async decrementarPesagemTrial(unidadeId: string): Promise<void> {
-    const licenca = await this.prisma.licencaInstalacao.findFirst({
+  async decrementarPesagemTrial(unidadeId: string, tx?: PrismaTx): Promise<void> {
+    const client = tx ?? this.prisma;
+    const licenca = await client.licencaInstalacao.findFirst({
       where: { unidadeId },
     });
     if (!licenca) return;
@@ -43,7 +51,7 @@ export class TicketLicenseGuard {
       return;
     if (licenca.pesagensRestantesTrial <= 0) return;
 
-    await this.prisma.licencaInstalacao.update({
+    await client.licencaInstalacao.update({
       where: { id: licenca.id },
       data: { pesagensRestantesTrial: licenca.pesagensRestantesTrial - 1 },
     });
