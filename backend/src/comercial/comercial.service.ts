@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const PDFDocument = require('pdfkit');
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateTabelaPrecoProdutoDto,
@@ -223,6 +225,92 @@ export class ComercialService {
     return movimentos.map((m) => {
       saldo += m.valor;
       return { ...m, saldo };
+    });
+  }
+
+  /**
+   * Onda 5.4: extrato em PDF (paridade com PesoLog).
+   * Reaproveita getExtrato para coletar movimentos e gera PDF com pdfkit.
+   * Layout simples: cabecalho com cliente e periodo + tabela de movimentos
+   * + linha de saldo final.
+   */
+  async gerarExtratoPdf(clienteId: string, inicio?: string, fim?: string): Promise<Buffer> {
+    const cliente = await this.prisma.cliente.findUnique({ where: { id: clienteId } });
+    if (!cliente) throw new NotFoundException('Cliente nao encontrado');
+
+    const movimentos = await this.getExtrato(clienteId, inicio, fim);
+
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 40 });
+      const chunks: Buffer[] = [];
+      doc.on('data', (c: Buffer) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Cabecalho
+      doc.fontSize(16).text('Extrato de Cliente', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(10);
+      doc.text(
+        `Cliente: ${cliente.razaoSocial}${cliente.documento ? ` (${cliente.documento})` : ''}`,
+      );
+      const periodoInicio =
+        inicio ||
+        (movimentos[0]?.data ? new Date(movimentos[0].data).toLocaleDateString('pt-BR') : '-');
+      const periodoFim =
+        fim ||
+        (movimentos[movimentos.length - 1]?.data
+          ? new Date(movimentos[movimentos.length - 1].data).toLocaleDateString('pt-BR')
+          : '-');
+      doc.text(`Periodo: ${periodoInicio} a ${periodoFim}`);
+      doc.moveDown(1);
+
+      // Cabecalho da tabela
+      const colData = 40;
+      const colTipo = 110;
+      const colDesc = 175;
+      const colDoc = 360;
+      const colValor = 430;
+      const colSaldo = 500;
+      doc.fontSize(9).font('Helvetica-Bold');
+      doc.text('Data', colData, doc.y, { continued: false });
+      const linhaY = doc.y - 12;
+      doc.text('Tipo', colTipo, linhaY);
+      doc.text('Descricao', colDesc, linhaY);
+      doc.text('Documento', colDoc, linhaY);
+      doc.text('Valor', colValor, linhaY, { width: 60, align: 'right' });
+      doc.text('Saldo', colSaldo, linhaY, { width: 60, align: 'right' });
+      doc.font('Helvetica').moveDown(0.5);
+      doc.moveTo(40, doc.y).lineTo(560, doc.y).stroke();
+      doc.moveDown(0.3);
+
+      // Linhas
+      const fmt = (v: number) =>
+        v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      for (const m of movimentos) {
+        const y = doc.y;
+        doc.text(new Date(m.data).toLocaleDateString('pt-BR'), colData, y, { width: 65 });
+        doc.text(m.tipo, colTipo, y, { width: 60 });
+        doc.text(m.descricao, colDesc, y, { width: 180 });
+        doc.text(m.documento || '-', colDoc, y, { width: 65 });
+        doc.text(fmt(m.valor), colValor, y, { width: 60, align: 'right' });
+        doc.text(fmt(m.saldo), colSaldo, y, { width: 60, align: 'right' });
+        doc.moveDown(0.5);
+      }
+
+      if (movimentos.length === 0) {
+        doc.moveDown(1).text('Nenhuma movimentacao no periodo.', { align: 'center' });
+      } else {
+        doc.moveDown(0.5);
+        doc.moveTo(40, doc.y).lineTo(560, doc.y).stroke();
+        doc.moveDown(0.5);
+        const saldoFinal = movimentos[movimentos.length - 1].saldo;
+        doc
+          .font('Helvetica-Bold')
+          .text(`Saldo final: R$ ${fmt(saldoFinal)}`, 40, doc.y, { align: 'right' });
+      }
+
+      doc.end();
     });
   }
 

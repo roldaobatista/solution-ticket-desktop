@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ComercialService } from './comercial.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -104,13 +105,28 @@ export class ComercialController {
   }
 
   @Get('extrato/:clienteId')
-  @ApiOperation({ summary: 'Extrato do cliente' })
+  @ApiOperation({ summary: 'Extrato do cliente (JSON)' })
   getExtrato(
     @Param('clienteId') clienteId: string,
     @Query('inicio') inicio?: string,
     @Query('fim') fim?: string,
   ) {
     return this.comercialService.getExtrato(clienteId, inicio, fim);
+  }
+
+  // Onda 5.4: extrato em PDF (paridade PesoLog).
+  @Get('extrato/:clienteId/pdf')
+  @ApiOperation({ summary: 'Extrato do cliente em PDF' })
+  async getExtratoPdf(
+    @Param('clienteId') clienteId: string,
+    @Res() res: Response,
+    @Query('inicio') inicio?: string,
+    @Query('fim') fim?: string,
+  ) {
+    const buffer = await this.comercialService.gerarExtratoPdf(clienteId, inicio, fim);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="extrato-${clienteId}.pdf"`);
+    res.send(buffer);
   }
 
   @Get('precos/historico')
