@@ -121,7 +121,7 @@ export class AuthService {
       where: { id: usuarioId },
       // tokenVersion: cast ate prisma generate atualizar o tipo (DLL travada
       // por instancia do app rodando localmente; coluna ja existe na migration).
-      data: { senhaHash: hash, tokenVersion: { increment: 1 } } as never,
+      data: { senhaHash: hash, tokenVersion: { increment: 1 } },
     });
     return { ok: true };
   }
@@ -135,7 +135,7 @@ export class AuthService {
   async logout(usuarioId: string) {
     await this.prisma.usuario.update({
       where: { id: usuarioId },
-      data: { tokenVersion: { increment: 1 } } as never,
+      data: { tokenVersion: { increment: 1 } },
     });
     return { ok: true };
   }
@@ -172,7 +172,7 @@ export class AuthService {
     await this.prisma.$transaction([
       this.prisma.usuario.update({
         where: { id: reg.usuarioId },
-        data: { senhaHash: hash, tokenVersion: { increment: 1 } } as never,
+        data: { senhaHash: hash, tokenVersion: { increment: 1 } },
       }),
       this.prisma.tokenReset.update({ where: { id: reg.id }, data: { usado: true } }),
     ]);

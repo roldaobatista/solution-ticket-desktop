@@ -20,17 +20,12 @@ export interface RegistrarCalibracaoInput {
  * essa decisao continua com AjusteLeituraSection (que aciona a balanca-config
  * api). O historico da rastreabilidade exigida pela legislacao metrológica.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PrismaWithCalibracao = PrismaService & { calibracaoBalanca: any };
-
 @Injectable()
 export class CalibracaoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private get db(): PrismaWithCalibracao {
-    // Casts ate o regenerate do Prisma client refletir o novo model
-    // (DLL fica travada quando o app instalado esta rodando localmente).
-    return this.prisma as PrismaWithCalibracao;
+  private get db() {
+    return this.prisma;
   }
 
   async registrar(balancaId: string, input: RegistrarCalibracaoInput) {
