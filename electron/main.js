@@ -70,7 +70,12 @@ function getFrontendDir() {
 }
 
 function getBackendEntry() {
-  return path.join(getBackendDir(), 'dist', 'main.js');
+  // Nest build com sourceRoot=src + outDir=./dist preserva src dentro do
+  // outDir → dist/src/main.js. Mantemos fallback para dist/main.js caso
+  // alguma config antiga seja restaurada.
+  const novoEntry = path.join(getBackendDir(), 'dist', 'src', 'main.js');
+  const legadoEntry = path.join(getBackendDir(), 'dist', 'main.js');
+  return fs.existsSync(novoEntry) ? novoEntry : legadoEntry;
 }
 
 function getDatabasePath() {
@@ -174,6 +179,11 @@ function startBackend() {
     ELECTRON_RUN_AS_NODE: '1',
     NODE_ENV: isDev ? 'development' : 'production',
     PORT: String(BACKEND_PORT),
+    // No app empacotado nao ha 'npx' no PATH — migrations sao aplicadas
+    // pelo Electron via prisma db push antes do spawn (ou nao aplicadas
+    // se DB ja existe). Backend NUNCA deve tentar rodar migrate deploy
+    // sozinho em producao empacotada.
+    RUN_MIGRATIONS_ON_BOOT: 'false',
   };
   if (!isDev) {
     env.DATABASE_URL = `file:${dbPath}`;
