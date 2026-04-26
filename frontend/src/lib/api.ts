@@ -43,3 +43,7 @@ export * from './api/utilitarios';
 // Modulos de balanca config + indicador ja existiam pre-split — mantidos.
 export * from './api/balanca-config';
 export * from './api/indicador';
+// Onda 5.1 — fotos de ticket via webcam/IP camera/OCR.
+export * from './api/camera';
+// Onda 5.2 — historico de calibracoes por balanca.
+export * from './api/calibracao';

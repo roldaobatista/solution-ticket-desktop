@@ -17,6 +17,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { getTicketById } from '@/lib/api';
 import { DocumentosTicket } from '@/components/ticket/DocumentosTicket';
+import { CameraTicket } from '@/components/ticket/CameraTicket';
 import { formatWeight, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { use } from 'react';
@@ -293,6 +294,11 @@ export default function TicketDetailPage({ params }: PageProps) {
       label: 'Documentos',
       value: 'documentos',
       content: <DocumentosTicket ticketId={id} />,
+    },
+    {
+      label: 'Fotos',
+      value: 'fotos',
+      content: <CameraTicket ticketId={id} />,
     },
     {
       label: 'Timeline',
