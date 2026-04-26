@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -88,6 +89,13 @@ import { AppController } from './app.controller';
     ...(process.env.DISABLE_THROTTLER !== '1'
       ? [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
       : []),
+    // Ordem dos guards globais e CRITICA: JwtAuthGuard precisa popular
+    // request.user ANTES do TenantGuard checar tenantId. Antes apenas
+    // TenantGuard era global, e endpoints com @UseGuards(JwtAuthGuard)
+    // local rodavam o Jwt depois do Tenant — TenantGuard via user=null
+    // e devolvia 403 mesmo com Bearer valido. Endpoints @Public() pulam
+    // o JwtAuthGuard via reflection (IS_PUBLIC_KEY).
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
