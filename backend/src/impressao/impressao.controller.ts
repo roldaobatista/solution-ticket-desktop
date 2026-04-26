@@ -1,10 +1,14 @@
-import { Controller, Get, Param, Post, Query, Res, Body } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Res, Body, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ImpressaoService } from './impressao.service';
 import { errorMessage } from '../common/error-message.util';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+// Onda 2.6: JwtAuthGuard adicionado.
 @ApiTags('Impressão')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('impressao')
 export class ImpressaoController {
   constructor(private readonly service: ImpressaoService) {}

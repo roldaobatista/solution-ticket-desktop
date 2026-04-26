@@ -36,6 +36,7 @@ export async function setupTestApp(): Promise<TestAppContext> {
   const dbUrl = `file:${dbPath}`;
   process.env.DATABASE_URL = dbUrl;
   process.env.NODE_ENV = 'test';
+  process.env.DISABLE_THROTTLER = '1'; // Onda 2.8: bypass explicito de throttler
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-e2e';
 
   // Aplica schema via prisma db push (rápido e não exige histórico)

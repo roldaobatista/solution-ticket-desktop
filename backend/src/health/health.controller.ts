@@ -6,6 +6,7 @@ import {
   DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { PrismaService } from '../prisma/prisma.service';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('health')
 export class HealthController {
@@ -16,6 +17,9 @@ export class HealthController {
     private readonly prisma: PrismaService,
   ) {}
 
+  // Onda 2.6: health permanece publico (necessario para o splash do Electron
+  // saber se backend ja subiu antes do login). Nao expoe dados sensiveis.
+  @Public()
   @Get()
   @HealthCheck()
   check() {

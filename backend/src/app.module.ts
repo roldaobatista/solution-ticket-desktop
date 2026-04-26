@@ -41,7 +41,9 @@ import { AppController } from './app.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ...(process.env.NODE_ENV !== 'test'
+    // Onda 2.8: variavel dedicada DISABLE_THROTTLER em vez de NODE_ENV.
+    // Antes um deploy com NODE_ENV=test por engano abria brute-force.
+    ...(process.env.DISABLE_THROTTLER !== '1'
       ? [
           ThrottlerModule.forRoot([
             { name: 'short', ttl: 60_000, limit: 60 },
@@ -83,7 +85,9 @@ import { AppController } from './app.controller';
   ],
   controllers: [AppController],
   providers: [
-    ...(process.env.NODE_ENV !== 'test' ? [{ provide: APP_GUARD, useClass: ThrottlerGuard }] : []),
+    ...(process.env.DISABLE_THROTTLER !== '1'
+      ? [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
+      : []),
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

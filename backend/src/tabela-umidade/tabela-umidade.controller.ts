@@ -1,9 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { TabelaUmidadeService } from './tabela-umidade.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+// Onda 2.6: JwtAuthGuard adicionado.
 @ApiTags('Tabela de Umidade')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('tabela-umidade')
 export class TabelaUmidadeController {
   constructor(private readonly service: TabelaUmidadeService) {}

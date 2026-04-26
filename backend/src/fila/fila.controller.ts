@@ -1,8 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FilaService } from './fila.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+// Onda 2.6: JwtAuthGuard adicionado — antes nenhum guard explicito,
+// e o TenantGuard global bloqueava silenciosamente sem JwtStrategy popular request.user.
 @ApiTags('Fila de Veículos')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('fila')
 export class FilaController {
   constructor(private readonly service: FilaService) {}
