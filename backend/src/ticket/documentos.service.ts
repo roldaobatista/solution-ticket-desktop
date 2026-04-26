@@ -24,7 +24,18 @@ function getBasePath(): string {
 export class DocumentosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listar(ticketId: string) {
+  async listar(ticketId: string, tenantId?: string) {
+    // Onda 2.5: ownership check — usuario do tenant A nao lista docs do tenant B
+    if (tenantId) {
+      const ticket = await this.prisma.ticketPesagem.findUnique({
+        where: { id: ticketId },
+        select: { tenantId: true },
+      });
+      if (!ticket) throw new NotFoundException('Ticket não encontrado');
+      if (ticket.tenantId !== tenantId) {
+        throw new NotFoundException('Ticket não encontrado'); // nao expoe existencia
+      }
+    }
     return this.prisma.documentoPesagem.findMany({
       where: { ticketId },
       orderBy: { criadoEm: 'desc' },
@@ -37,10 +48,15 @@ export class DocumentosService {
     tipo?: string,
     numero?: string,
     observacao?: string,
+    tenantId?: string,
   ) {
     if (!file) throw new BadRequestException('Arquivo não enviado');
     const ticket = await this.prisma.ticketPesagem.findUnique({ where: { id: ticketId } });
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
+    // Onda 2.5: ownership check antes de aceitar upload
+    if (tenantId && ticket.tenantId !== tenantId) {
+      throw new NotFoundException('Ticket não encontrado');
+    }
 
     const dir = path.join(getBasePath(), ticketId);
     await fsp.mkdir(dir, { recursive: true });
@@ -60,9 +76,16 @@ export class DocumentosService {
     });
   }
 
-  async remover(id: string) {
-    const doc = await this.prisma.documentoPesagem.findUnique({ where: { id } });
+  async remover(id: string, tenantId?: string) {
+    const doc = await this.prisma.documentoPesagem.findUnique({
+      where: { id },
+      include: { ticket: { select: { tenantId: true } } },
+    });
     if (!doc) throw new NotFoundException('Documento não encontrado');
+    // Onda 2.5: ownership check — atacante autenticado nao remove doc de outro tenant
+    if (tenantId && doc.ticket.tenantId !== tenantId) {
+      throw new NotFoundException('Documento não encontrado');
+    }
     if (doc.arquivoUrl && (await fileExists(doc.arquivoUrl))) {
       try {
         await fsp.unlink(doc.arquivoUrl);
@@ -74,9 +97,19 @@ export class DocumentosService {
     return { ok: true };
   }
 
-  async download(id: string): Promise<{ path: string; nome: string; mime: string }> {
-    const doc = await this.prisma.documentoPesagem.findUnique({ where: { id } });
+  async download(
+    id: string,
+    tenantId?: string,
+  ): Promise<{ path: string; nome: string; mime: string }> {
+    const doc = await this.prisma.documentoPesagem.findUnique({
+      where: { id },
+      include: { ticket: { select: { tenantId: true } } },
+    });
     if (!doc || !doc.arquivoUrl) throw new NotFoundException('Documento não encontrado');
+    // Onda 2.5: ownership check antes de servir o arquivo
+    if (tenantId && doc.ticket.tenantId !== tenantId) {
+      throw new NotFoundException('Documento não encontrado');
+    }
     if (!(await fileExists(doc.arquivoUrl)))
       throw new NotFoundException('Arquivo físico não encontrado');
     const nome = path.basename(doc.arquivoUrl);

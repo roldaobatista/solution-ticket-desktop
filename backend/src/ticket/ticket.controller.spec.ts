@@ -138,7 +138,7 @@ describe('TicketController', () => {
       const res = { ok: true };
       passagemService.invalidar.mockResolvedValue(res as any);
 
-      const result = await controller.invalidarPassagem('t1', 'p1', 'erro balanca');
+      const result = await controller.invalidarPassagem('t1', 'p1', { motivo: 'erro balanca' });
 
       expect(passagemService.invalidar).toHaveBeenCalledWith('t1', 'p1', 'erro balanca');
       expect(result).toEqual(res);
@@ -176,7 +176,8 @@ describe('TicketController', () => {
       const ticket = { id: 't1', statusOperacional: 'EM_MANUTENCAO' };
       ticketService.solicitarManutencao.mockResolvedValue(ticket as any);
 
-      const result = await controller.solicitarManutencao('t1', 'erro peso', 'u1');
+      // Onda 2.1: usuarioId vem do JWT via @CurrentUser, nao do body
+      const result = await controller.solicitarManutencao('t1', { motivo: 'erro peso' }, 'u1');
 
       expect(ticketService.solicitarManutencao).toHaveBeenCalledWith('t1', 'erro peso', 'u1');
       expect(result).toEqual(ticket);

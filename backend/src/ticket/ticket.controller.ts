@@ -9,7 +9,10 @@ import { RegistrarPassagemDto } from './dto/registrar-passagem.dto';
 import { FecharTicketDto } from './dto/fechar-ticket.dto';
 import { CancelarTicketDto } from './dto/cancelar-ticket.dto';
 import { AdicionarDescontoDto } from './dto/adicionar-desconto.dto';
+import { SolicitarManutencaoDto } from './dto/manutencao.dto';
+import { InvalidarPassagemDto } from './dto/invalidar-passagem.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Tickets de Pesagem')
 @ApiBearerAuth()
@@ -69,9 +72,9 @@ export class TicketController {
   invalidarPassagem(
     @Param('ticketId') ticketId: string,
     @Param('passagemId') passagemId: string,
-    @Body('motivo') motivo: string,
+    @Body() dto: InvalidarPassagemDto,
   ) {
-    return this.passagemService.invalidar(ticketId, passagemId, motivo);
+    return this.passagemService.invalidar(ticketId, passagemId, dto.motivo);
   }
 
   // Fechamento
@@ -88,20 +91,20 @@ export class TicketController {
     return this.ticketService.cancelarTicket(id, dto);
   }
 
-  // Manutencao
+  // Manutencao — usuarioId vem do JWT (Onda 2.1, ALTO seguranca)
   @Post(':id/manutencao/solicitar')
   @ApiOperation({ summary: 'Solicitar manutencao pos-fechamento' })
   solicitarManutencao(
     @Param('id') id: string,
-    @Body('motivo') motivo: string,
-    @Body('usuarioId') usuarioId: string,
+    @Body() dto: SolicitarManutencaoDto,
+    @CurrentUser('id') usuarioId: string,
   ) {
-    return this.ticketService.solicitarManutencao(id, motivo, usuarioId);
+    return this.ticketService.solicitarManutencao(id, dto.motivo, usuarioId);
   }
 
   @Post(':id/manutencao/concluir')
   @ApiOperation({ summary: 'Concluir manutencao' })
-  concluirManutencao(@Param('id') id: string, @Body('usuarioId') usuarioId: string) {
+  concluirManutencao(@Param('id') id: string, @CurrentUser('id') usuarioId: string) {
     return this.ticketService.concluirManutencao(id, usuarioId);
   }
 
@@ -125,10 +128,10 @@ export class TicketController {
     return this.ticketService.getHistorico(id);
   }
 
-  // Reimpressao
+  // Reimpressao — usuarioId vem do JWT (Onda 2.1)
   @Post(':id/reimprimir')
   @ApiOperation({ summary: 'Reimprimir ticket' })
-  reimprimirTicket(@Param('id') id: string, @Body('usuarioId') usuarioId: string) {
+  reimprimirTicket(@Param('id') id: string, @CurrentUser('id') usuarioId: string) {
     return this.ticketService.reimprimir(id, usuarioId);
   }
 }
