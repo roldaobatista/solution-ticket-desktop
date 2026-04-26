@@ -3,12 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "description": "Solution Ticket - Sistema de pesagem veicular desktop Windows",
-  "workspaces": [
-    "backend",
-    "frontend",
-    "electron",
-    "keygen"
-  ],
   "scripts": {
     "dev:backend": "pnpm --filter ./backend start:dev",
     "dev:frontend": "pnpm --filter ./frontend dev",

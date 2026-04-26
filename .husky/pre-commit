@@ -1,1 +1,5 @@
-pnpm exec lint-staged
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Onda 0 — typecheck antes do commit (alinha com regra global "validar antes de commitar")
+pnpm exec lint-staged && pnpm typecheck:all
