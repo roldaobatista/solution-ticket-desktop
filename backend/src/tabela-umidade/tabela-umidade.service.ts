@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateTabelaUmidadeDto } from '../comercial/dto/create-tabela-umidade.dto';
+import { UpdateTabelaUmidadeDto } from '../comercial/dto/create-tabela-umidade.dto';
 
 @Injectable()
 export class TabelaUmidadeService {
@@ -13,16 +15,19 @@ export class TabelaUmidadeService {
     });
   }
 
-  async create(dto: Prisma.TabelaUmidadeUncheckedCreateInput) {
-    return this.prisma.tabelaUmidade.create({ data: dto });
+  async create(dto: CreateTabelaUmidadeDto, tenantId: string) {
+    return this.prisma.tabelaUmidade.create({ data: { ...dto, tenantId } });
   }
 
-  async update(id: string, dto: Prisma.TabelaUmidadeUncheckedUpdateInput) {
-    return this.prisma.tabelaUmidade.update({ where: { id }, data: dto });
+  async update(id: string, dto: UpdateTabelaUmidadeDto, tenantId: string) {
+    return this.prisma.tabelaUmidade.update({
+      where: { id, tenantId },
+      data: dto as Prisma.TabelaUmidadeUncheckedUpdateInput,
+    });
   }
 
-  async remove(id: string) {
-    return this.prisma.tabelaUmidade.delete({ where: { id } });
+  async remove(id: string, tenantId: string) {
+    return this.prisma.tabelaUmidade.delete({ where: { id, tenantId } });
   }
 
   /**

@@ -1,8 +1,14 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Prisma } from '@prisma/client';
 import { TabelaUmidadeService } from './tabela-umidade.service';
+import {
+  CreateTabelaUmidadeDto,
+  UpdateTabelaUmidadeDto,
+} from '../comercial/dto/create-tabela-umidade.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 // Onda 2.6: JwtAuthGuard adicionado.
 @ApiTags('Tabela de Umidade')
@@ -19,21 +25,28 @@ export class TabelaUmidadeController {
   }
 
   @Post()
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar faixa de umidade' })
-  create(@Body() dto: Prisma.TabelaUmidadeUncheckedCreateInput) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateTabelaUmidadeDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.create(dto, tenantId);
   }
 
   @Put(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar faixa' })
-  update(@Param('id') id: string, @Body() dto: Prisma.TabelaUmidadeUncheckedUpdateInput) {
-    return this.service.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTabelaUmidadeDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.service.update(id, dto, tenantId);
   }
 
   @Delete(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Remover faixa' })
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.remove(id, tenantId);
   }
 
   @Post('calcular')

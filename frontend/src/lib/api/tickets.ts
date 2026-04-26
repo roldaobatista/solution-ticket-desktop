@@ -6,10 +6,12 @@ export async function getTickets(
   page?: number,
   limit?: number,
   search?: string,
-  status?: string,
+  statusOperacional?: string,
 ): Promise<PaginatedResponse<TicketPesagem>> {
-  if (USE_MOCK) return mockApi.getTickets(page, limit, search, status);
-  const res = await apiClient.get('/tickets', { params: { page, limit, search, status } });
+  if (USE_MOCK) return mockApi.getTickets(page, limit, search, statusOperacional);
+  const res = await apiClient.get('/tickets', {
+    params: { page, limit, search, statusOperacional },
+  });
   return toPaginated(res.data, page ?? 1, limit ?? 10);
 }
 
@@ -53,7 +55,7 @@ export async function getTicketsFechados(
 ): Promise<PaginatedResponse<TicketPesagem>> {
   if (USE_MOCK) return mockApi.getTickets(page, limit, search, 'FECHADO');
   const res = await apiClient.get('/tickets', {
-    params: { page, limit, search, status: 'FECHADO' },
+    params: { page, limit, search, statusOperacional: 'FECHADO' },
   });
   return toPaginated(res.data, page ?? 1, limit ?? 10);
 }

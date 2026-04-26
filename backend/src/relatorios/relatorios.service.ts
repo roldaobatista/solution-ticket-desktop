@@ -145,9 +145,10 @@ export class RelatoriosService {
    * - findMany() ainda carrega 1+N JOINs do include (Prisma 5 batch);
    *   passagens/descontos cobertas em 2 queries com whereIn do batch.
    */
-  async movimento(dataInicio: string, dataFim: string, unidadeId?: string) {
+  async movimento(dataInicio: string, dataFim: string, tenantId: string, unidadeId?: string) {
     const MAX_TICKETS = 5000;
     const where: Prisma.TicketPesagemWhereInput = {
+      tenantId,
       fechadoEm: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim),
@@ -188,10 +189,11 @@ export class RelatoriosService {
   async movimentoPdf(
     dataInicio: string,
     dataFim: string,
+    tenantId: string,
     unidadeId?: string,
     variante: '001' | '002' = '001',
   ): Promise<Buffer> {
-    const dados = await this.movimento(dataInicio, dataFim, unidadeId);
+    const dados = await this.movimento(dataInicio, dataFim, tenantId, unidadeId);
     const nomeEmpresa = await this.obterNomeEmpresa(unidadeId);
     const decimais = variante === '002' ? 3 : 2;
     const incluirMotorista = variante === '002';
@@ -327,8 +329,14 @@ export class RelatoriosService {
   // Relatorio de pesagens alteradas
   // ============================================================
 
-  async pesagensAlteradas(dataInicio: string, dataFim: string, unidadeId?: string) {
+  async pesagensAlteradas(
+    dataInicio: string,
+    dataFim: string,
+    tenantId: string,
+    unidadeId?: string,
+  ) {
     const where: Prisma.TicketPesagemWhereInput = {
+      tenantId,
       atualizadoEm: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim),
@@ -350,12 +358,18 @@ export class RelatoriosService {
     return { tickets, total: tickets.length };
   }
 
-  async alteradasPdf(dataInicio: string, dataFim: string, unidadeId?: string): Promise<Buffer> {
+  async alteradasPdf(
+    dataInicio: string,
+    dataFim: string,
+    tenantId: string,
+    unidadeId?: string,
+  ): Promise<Buffer> {
     const nomeEmpresa = await this.obterNomeEmpresa(unidadeId);
 
     // Busca eventos de auditoria de tickets no periodo
     const auditorias = await this.prisma.auditoria.findMany({
       where: {
+        tenantId,
         entidade: 'TicketPesagem',
         dataHora: {
           gte: new Date(dataInicio),
@@ -372,7 +386,7 @@ export class RelatoriosService {
     );
     const tickets = ticketIds.length
       ? await this.prisma.ticketPesagem.findMany({
-          where: { id: { in: ticketIds }, ...(unidadeId ? { unidadeId } : {}) },
+          where: { id: { in: ticketIds }, tenantId, ...(unidadeId ? { unidadeId } : {}) },
           select: { id: true, numero: true, unidadeId: true },
         })
       : [];
@@ -531,8 +545,14 @@ export class RelatoriosService {
   // Relatorio de pesagens canceladas
   // ============================================================
 
-  async pesagensCanceladas(dataInicio: string, dataFim: string, unidadeId?: string) {
+  async pesagensCanceladas(
+    dataInicio: string,
+    dataFim: string,
+    tenantId: string,
+    unidadeId?: string,
+  ) {
     const where: Prisma.TicketPesagemWhereInput = {
+      tenantId,
       canceladoEm: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim),
@@ -553,15 +573,21 @@ export class RelatoriosService {
     return { tickets, total: tickets.length };
   }
 
-  async canceladasPdf(dataInicio: string, dataFim: string, unidadeId?: string): Promise<Buffer> {
+  async canceladasPdf(
+    dataInicio: string,
+    dataFim: string,
+    tenantId: string,
+    unidadeId?: string,
+  ): Promise<Buffer> {
     const nomeEmpresa = await this.obterNomeEmpresa(unidadeId);
-    const dados = await this.pesagensCanceladas(dataInicio, dataFim, unidadeId);
+    const dados = await this.pesagensCanceladas(dataInicio, dataFim, tenantId, unidadeId);
 
     // Descobre usuarios do cancelamento via auditoria
     const ids = dados.tickets.map((t) => t.id);
     const audits = ids.length
       ? await this.prisma.auditoria.findMany({
           where: {
+            tenantId,
             entidade: 'TicketPesagem',
             entidadeId: { in: ids },
             evento: { in: ['CANCELAMENTO', 'CANCELAR', 'CANCELADO', 'CANCEL'] },
@@ -664,7 +690,12 @@ export class RelatoriosService {
   // Analise de passagens por balanca
   // ============================================================
 
-  async passagensPorBalanca(dataInicio: string, dataFim: string, unidadeId?: string) {
+  async passagensPorBalanca(
+    dataInicio: string,
+    dataFim: string,
+    _tenantId: string,
+    unidadeId?: string,
+  ) {
     const where: Prisma.PassagemPesagemWhereInput = {
       criadoEm: {
         gte: new Date(dataInicio),

@@ -9,7 +9,7 @@ import { CreateReciboDto, UpdateReciboDto } from './dto/create-recibo.dto';
 export class RecibosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateReciboDto) {
+  async create(dto: CreateReciboDto & { tenantId?: string }, tenantId?: string) {
     const valor = Number(dto.valor || 0);
     const valorExtenso =
       dto.valorExtenso && dto.valorExtenso.trim().length > 0
@@ -17,7 +17,7 @@ export class RecibosService {
         : numeroParaExtenso(valor);
     return this.prisma.recibo.create({
       data: {
-        tenantId: dto.tenantId,
+        tenantId: (tenantId ?? dto.tenantId) as string,
         data: new Date(dto.data),
         cedente: dto.cedente,
         sacado: dto.sacado,
@@ -40,14 +40,14 @@ export class RecibosService {
     });
   }
 
-  async findOne(id: string) {
-    const r = await this.prisma.recibo.findUnique({ where: { id } });
+  async findOne(id: string, tenantId?: string) {
+    const r = await this.prisma.recibo.findUnique({ where: { id, tenantId } });
     if (!r) throw new NotFoundException('Recibo nao encontrado');
     return r;
   }
 
-  async update(id: string, dto: UpdateReciboDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateReciboDto, tenantId?: string) {
+    await this.findOne(id, tenantId);
     const patch: Prisma.ReciboUpdateInput = {};
     if (dto.data !== undefined) patch.data = new Date(dto.data);
     if (dto.cedente !== undefined) patch.cedente = dto.cedente;
@@ -67,12 +67,12 @@ export class RecibosService {
     if (dto.valorExtenso !== undefined && dto.valorExtenso.trim().length > 0) {
       patch.valorExtenso = dto.valorExtenso;
     }
-    return this.prisma.recibo.update({ where: { id }, data: patch });
+    return this.prisma.recibo.update({ where: { id, tenantId }, data: patch });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.recibo.delete({ where: { id } });
+  async remove(id: string, tenantId?: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.recibo.delete({ where: { id, tenantId } });
   }
 
   async gerarPdf(id: string): Promise<Buffer> {

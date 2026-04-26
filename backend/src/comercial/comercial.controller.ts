@@ -3,6 +3,9 @@ import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ComercialService } from './comercial.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 import {
   CreateTabelaPrecoProdutoDto,
   UpdateTabelaPrecoProdutoDto,
@@ -23,9 +26,13 @@ export class ComercialController {
 
   // Preco Produto
   @Post('preco-produto')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar tabela de preco por produto' })
-  createPrecoProduto(@Body() dto: CreateTabelaPrecoProdutoDto) {
-    return this.comercialService.createTabelaPrecoProduto(dto);
+  createPrecoProduto(
+    @Body() dto: CreateTabelaPrecoProdutoDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.comercialService.createTabelaPrecoProduto(dto, tenantId);
   }
 
   @Get('preco-produto')
@@ -35,16 +42,25 @@ export class ComercialController {
   }
 
   @Patch('preco-produto/:id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar tabela de preco' })
-  updatePrecoProduto(@Param('id') id: string, @Body() dto: UpdateTabelaPrecoProdutoDto) {
-    return this.comercialService.updateTabelaPrecoProduto(id, dto);
+  updatePrecoProduto(
+    @Param('id') id: string,
+    @Body() dto: UpdateTabelaPrecoProdutoDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.comercialService.updateTabelaPrecoProduto(id, dto, tenantId);
   }
 
   // Preco Cliente
   @Post('preco-cliente')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar tabela de preco por cliente' })
-  createPrecoCliente(@Body() dto: CreateTabelaPrecoClienteDto) {
-    return this.comercialService.createTabelaPrecoCliente(dto);
+  createPrecoCliente(
+    @Body() dto: CreateTabelaPrecoClienteDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.comercialService.createTabelaPrecoCliente(dto, tenantId);
   }
 
   @Get('preco-cliente')
@@ -54,16 +70,22 @@ export class ComercialController {
   }
 
   @Patch('preco-cliente/:id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar tabela de preco cliente' })
-  updatePrecoCliente(@Param('id') id: string, @Body() dto: UpdateTabelaPrecoClienteDto) {
-    return this.comercialService.updateTabelaPrecoCliente(id, dto);
+  updatePrecoCliente(
+    @Param('id') id: string,
+    @Body() dto: UpdateTabelaPrecoClienteDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.comercialService.updateTabelaPrecoCliente(id, dto, tenantId);
   }
 
   // Frete
   @Post('frete')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar tabela de frete' })
-  createFrete(@Body() dto: CreateTabelaFreteDto) {
-    return this.comercialService.createTabelaFrete(dto);
+  createFrete(@Body() dto: CreateTabelaFreteDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.comercialService.createTabelaFrete(dto, tenantId);
   }
 
   @Get('frete')
@@ -73,16 +95,22 @@ export class ComercialController {
   }
 
   @Patch('frete/:id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar tabela de frete' })
-  updateFrete(@Param('id') id: string, @Body() dto: UpdateTabelaFreteDto) {
-    return this.comercialService.updateTabelaFrete(id, dto);
+  updateFrete(
+    @Param('id') id: string,
+    @Body() dto: UpdateTabelaFreteDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.comercialService.updateTabelaFrete(id, dto, tenantId);
   }
 
   // Umidade
   @Post('umidade')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar tabela de umidade' })
-  createUmidade(@Body() dto: CreateTabelaUmidadeDto) {
-    return this.comercialService.createTabelaUmidade(dto);
+  createUmidade(@Body() dto: CreateTabelaUmidadeDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.comercialService.createTabelaUmidade(dto, tenantId);
   }
 
   @Get('umidade')
@@ -92,9 +120,14 @@ export class ComercialController {
   }
 
   @Patch('umidade/:id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar tabela de umidade' })
-  updateUmidade(@Param('id') id: string, @Body() dto: UpdateTabelaUmidadeDto) {
-    return this.comercialService.updateTabelaUmidade(id, dto);
+  updateUmidade(
+    @Param('id') id: string,
+    @Body() dto: UpdateTabelaUmidadeDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.comercialService.updateTabelaUmidade(id, dto, tenantId);
   }
 
   // Saldos por cliente (credito - debito agregando faturas)

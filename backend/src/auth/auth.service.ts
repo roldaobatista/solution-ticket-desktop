@@ -199,4 +199,20 @@ export class AuthService {
 
     return permissoes.length > 0;
   }
+
+  /**
+   * Gera token JWT de curta duração (60s) para uso em EventSource/SSE.
+   * O token não carrega permissões completas, apenas scope 'sse' e tenantId.
+   * RS3: reduz risco de vazamento do JWT principal em query strings e logs.
+   */
+  generateSseToken(usuario: AuthenticatedUser): string {
+    return this.jwtService.sign(
+      {
+        sub: usuario.id,
+        tenantId: usuario.tenantId,
+        scope: 'sse',
+      },
+      { expiresIn: '60s' },
+    );
+  }
 }

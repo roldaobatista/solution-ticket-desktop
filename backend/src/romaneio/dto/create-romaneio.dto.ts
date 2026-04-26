@@ -4,10 +4,6 @@ import { IsArray, IsDateString, IsOptional, IsString, IsUUID } from 'class-valid
 export class CreateRomaneioDto {
   @ApiProperty()
   @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
-  @IsUUID()
   clienteId!: string;
 
   @ApiProperty({ description: 'Inicio do periodo (ISO)' })

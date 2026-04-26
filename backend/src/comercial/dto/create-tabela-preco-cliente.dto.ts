@@ -14,10 +14,6 @@ import {
 export class CreateTabelaPrecoClienteDto {
   @ApiProperty()
   @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
-  @IsUUID()
   produtoId!: string;
 
   @ApiProperty()

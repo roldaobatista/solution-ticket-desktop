@@ -92,4 +92,13 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.novaSenha);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sse-token')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Token curto para EventSource/SSE (60s)' })
+  async sseToken(@Request() req: AuthRequest) {
+    const token = this.authService.generateSseToken(req.user);
+    return { token, expiresIn: 60 };
+  }
 }

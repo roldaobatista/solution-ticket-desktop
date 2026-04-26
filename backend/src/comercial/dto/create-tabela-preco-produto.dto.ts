@@ -14,10 +14,6 @@ import {
 export class CreateTabelaPrecoProdutoDto {
   @ApiProperty()
   @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
-  @IsUUID()
   produtoId!: string;
 
   @ApiProperty()

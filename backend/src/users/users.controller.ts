@@ -16,6 +16,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Usuários')
 @ApiBearerAuth()
@@ -28,35 +29,35 @@ export class UsersController {
   // Antes qualquer usuario logado podia criar admins, deletar contas
   // e alterar senhas alheias.
   @Post()
-  @Roles('usuarios:gerenciar')
+  @Roles(Permissao.USUARIOS_GERENCIAR)
   @ApiOperation({ summary: 'Criar usuário (admin)' })
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
 
   @Get()
-  @Roles('usuarios:gerenciar')
+  @Roles(Permissao.USUARIOS_GERENCIAR)
   @ApiOperation({ summary: 'Listar usuários com paginação e filtros (admin)' })
   findAll(@Query() filter: UserFilterDto) {
     return this.usersService.findAll(filter);
   }
 
   @Get(':id')
-  @Roles('usuarios:gerenciar')
+  @Roles(Permissao.USUARIOS_GERENCIAR)
   @ApiOperation({ summary: 'Buscar usuário por ID (admin)' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles('usuarios:gerenciar')
+  @Roles(Permissao.USUARIOS_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar usuário (admin)' })
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('usuarios:gerenciar')
+  @Roles(Permissao.USUARIOS_GERENCIAR)
   @ApiOperation({ summary: 'Remover usuário (admin)' })
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);

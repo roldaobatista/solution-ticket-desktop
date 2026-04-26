@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Wifi, WifiOff, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getBalancaStreamUrl, getBalancaStatus, USE_MOCK } from '@/lib/api';
+import { fetchBalancaStreamUrl, getBalancaStatus, USE_MOCK } from '@/lib/api';
 import { formatWeight } from '@/lib/utils';
 import type { LeituraPeso } from '@/types';
 import { extractMessage } from '@/lib/errors';
@@ -52,9 +52,9 @@ export function PesoRealtime({
 
     let cancelled = false;
 
-    const connect = () => {
+    const connect = async () => {
       try {
-        const url = getBalancaStreamUrl(balancaId);
+        const url = await fetchBalancaStreamUrl(balancaId);
         const es = new EventSource(url, { withCredentials: false });
         esRef.current = es;
 

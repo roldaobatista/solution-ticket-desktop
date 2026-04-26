@@ -5,10 +5,6 @@ import { IsBoolean, IsDateString, IsNumber, IsOptional, IsUUID, Min } from 'clas
 export class CreateTabelaUmidadeDto {
   @ApiProperty()
   @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
-  @IsUUID()
   produtoId!: string;
 
   @ApiProperty()

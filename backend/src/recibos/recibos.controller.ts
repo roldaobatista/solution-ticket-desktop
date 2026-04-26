@@ -14,6 +14,9 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { RecibosService } from './recibos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 import { CreateReciboDto, UpdateReciboDto } from './dto/create-recibo.dto';
 
 @ApiTags('Recibos')
@@ -24,9 +27,10 @@ export class RecibosController {
   constructor(private readonly service: RecibosService) {}
 
   @Post()
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar recibo' })
-  create(@Body() dto: CreateReciboDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateReciboDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.create(dto, tenantId);
   }
 
   @Get()
@@ -37,20 +41,26 @@ export class RecibosController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar recibo por ID' })
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.findOne(id, tenantId);
   }
 
   @Patch(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar recibo' })
-  update(@Param('id') id: string, @Body() dto: UpdateReciboDto) {
-    return this.service.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateReciboDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.service.update(id, dto, tenantId);
   }
 
   @Delete(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Excluir recibo' })
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.remove(id, tenantId);
   }
 
   @Get(':id/pdf')

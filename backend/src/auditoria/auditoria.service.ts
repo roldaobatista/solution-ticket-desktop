@@ -38,8 +38,8 @@ export class AuditoriaService {
     });
   }
 
-  async findAll(filter: AuditoriaFilterDto) {
-    const where: Prisma.AuditoriaWhereInput = {};
+  async findAll(filter: AuditoriaFilterDto, tenantId: string) {
+    const where: Prisma.AuditoriaWhereInput = { tenantId };
     if (filter.entidade) where.entidade = filter.entidade;
     if (filter.entidadeId) where.entidadeId = filter.entidadeId;
     if (filter.evento) where.evento = { contains: filter.evento };
@@ -67,17 +67,18 @@ export class AuditoriaService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async recentes(limit: number = 20) {
+  async recentes(tenantId: string, limit: number = 20) {
     const take = Math.max(1, Math.min(limit, 200));
     return this.prisma.auditoria.findMany({
+      where: { tenantId },
       take,
       orderBy: { dataHora: 'desc' },
     });
   }
 
-  async findByEntidade(entidade: string, entidadeId: string) {
+  async findByEntidade(entidade: string, entidadeId: string, tenantId: string) {
     return this.prisma.auditoria.findMany({
-      where: { entidade, entidadeId },
+      where: { entidade, entidadeId, tenantId },
       orderBy: { dataHora: 'desc' },
     });
   }

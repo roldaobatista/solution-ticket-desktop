@@ -14,10 +14,6 @@ type ModoComercial = (typeof MODO_COMERCIAL_VALUES)[number];
 export class CreateTicketDto {
   @ApiProperty()
   @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
-  @IsUUID()
   unidadeId!: string;
 
   @ApiProperty({ enum: FLUXO_PESAGEM_VALUES })

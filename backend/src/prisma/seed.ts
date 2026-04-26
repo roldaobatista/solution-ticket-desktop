@@ -14,6 +14,7 @@ import {
   ModoComercial,
   CondicaoVeiculo,
 } from '../constants/enums';
+import { Permissao } from '../constants/permissoes';
 import { seedIndicadoresHardware } from './seed-indicadores';
 
 const prisma = new PrismaClient();
@@ -115,24 +116,24 @@ async function main() {
 
   // 5. Permissoes
   const permissoesAdmin = [
-    'ticket:criar',
-    'ticket:editar',
-    'ticket:fechar',
-    'ticket:cancelar',
-    'ticket:manutencao',
-    'ticket:reimprimir',
-    'cadastro:gerenciar',
-    'config:gerenciar',
-    'romaneio:gerenciar',
-    'fatura:gerenciar',
-    'relatorio:visualizar',
-    'dashboard:visualizar',
-    'usuario:gerenciar',
-    'licenca:gerenciar',
-    'auditoria:visualizar',
-    'peso:manual',
-    'passagem:invalidar',
-    'pagamento:gerenciar',
+    Permissao.TICKET_CRIAR,
+    Permissao.TICKET_EDITAR,
+    Permissao.TICKET_FECHAR,
+    Permissao.TICKET_CANCELAR,
+    Permissao.TICKET_MANUTENCAO,
+    Permissao.TICKET_REIMPRIMIR,
+    Permissao.CADASTRO_GERENCIAR,
+    Permissao.CONFIG_GERENCIAR,
+    Permissao.ROMANEIO_GERENCIAR,
+    Permissao.FATURA_GERENCIAR,
+    Permissao.RELATORIO_VISUALIZAR,
+    Permissao.DASHBOARD_VISUALIZAR,
+    Permissao.USUARIOS_GERENCIAR,
+    Permissao.LICENCA_GERENCIAR,
+    Permissao.AUDITORIA_VISUALIZAR,
+    Permissao.PESO_MANUAL,
+    Permissao.PASSAGEM_INVALIDAR,
+    Permissao.PAGAMENTO_GERENCIAR,
   ];
   for (const acao of permissoesAdmin) {
     const modulo = acao.split(':')[0];
@@ -142,11 +143,11 @@ async function main() {
   }
 
   const permissoesOperador = [
-    'ticket:criar',
-    'ticket:editar',
-    'ticket:fechar',
-    'ticket:reimprimir',
-    'peso:manual',
+    Permissao.TICKET_CRIAR,
+    Permissao.TICKET_EDITAR,
+    Permissao.TICKET_FECHAR,
+    Permissao.TICKET_REIMPRIMIR,
+    Permissao.PESO_MANUAL,
   ];
   for (const acao of permissoesOperador) {
     const modulo = acao.split(':')[0];
@@ -156,19 +157,19 @@ async function main() {
   }
 
   const permissoesSupervisor = [
-    'ticket:criar',
-    'ticket:editar',
-    'ticket:fechar',
-    'ticket:cancelar',
-    'ticket:manutencao',
-    'ticket:reimprimir',
-    'passagem:invalidar',
-    'peso:manual',
-    'relatorio:visualizar',
-    'dashboard:visualizar',
-    'auditoria:visualizar',
-    'romaneio:gerenciar',
-    'fatura:gerenciar',
+    Permissao.TICKET_CRIAR,
+    Permissao.TICKET_EDITAR,
+    Permissao.TICKET_FECHAR,
+    Permissao.TICKET_CANCELAR,
+    Permissao.TICKET_MANUTENCAO,
+    Permissao.TICKET_REIMPRIMIR,
+    Permissao.PASSAGEM_INVALIDAR,
+    Permissao.PESO_MANUAL,
+    Permissao.RELATORIO_VISUALIZAR,
+    Permissao.DASHBOARD_VISUALIZAR,
+    Permissao.AUDITORIA_VISUALIZAR,
+    Permissao.ROMANEIO_GERENCIAR,
+    Permissao.FATURA_GERENCIAR,
   ];
   for (const acao of permissoesSupervisor) {
     const modulo = acao.split(':')[0];

@@ -11,11 +11,6 @@ export class TicketFilterDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
-  tenantId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
   clienteId?: string;
 
   @ApiPropertyOptional()

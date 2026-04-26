@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Post, Res, UseGuards } from '@nes
 import { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 import { CameraService } from './camera.service';
 
 @ApiTags('Camera')
@@ -12,6 +14,7 @@ export class CameraController {
   constructor(private readonly service: CameraService) {}
 
   @Post('foto')
+  @Roles(Permissao.TICKET_CRIAR, Permissao.TICKET_EDITAR)
   @ApiOperation({ summary: 'Anexa foto a um ticket/passagem' })
   salvar(
     @Body()
@@ -42,6 +45,7 @@ export class CameraController {
   }
 
   @Delete('foto/:id')
+  @Roles(Permissao.TICKET_CRIAR, Permissao.TICKET_EDITAR)
   @ApiOperation({ summary: 'Remove foto (arquivo + registro)' })
   excluir(@Param('id') id: string) {
     return this.service.excluir(id);

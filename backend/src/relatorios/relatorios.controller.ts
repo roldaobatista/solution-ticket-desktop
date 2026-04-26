@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { RelatoriosService } from './relatorios.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { gerarXlsx, XLSX_MIME, ColunaXlsx } from './xlsx.helper';
 
 const COLUNAS_MOVIMENTO: ColunaXlsx[] = [
@@ -29,9 +30,10 @@ export class RelatoriosController {
   movimento(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId?: string,
   ) {
-    return this.relatoriosService.movimento(dataInicio, dataFim, unidadeId);
+    return this.relatoriosService.movimento(dataInicio, dataFim, tenantId, unidadeId);
   }
 
   @Get('movimento/pdf')
@@ -39,12 +41,19 @@ export class RelatoriosController {
   async movimentoPdf(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId: string | undefined,
     @Query('variante') variante: string | undefined,
     @Res() res: Response,
   ) {
     const v = variante === '002' ? '002' : '001';
-    const buffer = await this.relatoriosService.movimentoPdf(dataInicio, dataFim, unidadeId, v);
+    const buffer = await this.relatoriosService.movimentoPdf(
+      dataInicio,
+      dataFim,
+      tenantId,
+      unidadeId,
+      v,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -58,9 +67,10 @@ export class RelatoriosController {
   pesagensAlteradas(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId?: string,
   ) {
-    return this.relatoriosService.pesagensAlteradas(dataInicio, dataFim, unidadeId);
+    return this.relatoriosService.pesagensAlteradas(dataInicio, dataFim, tenantId, unidadeId);
   }
 
   @Get('alteradas/pdf')
@@ -68,10 +78,16 @@ export class RelatoriosController {
   async alteradasPdf(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId: string | undefined,
     @Res() res: Response,
   ) {
-    const buffer = await this.relatoriosService.alteradasPdf(dataInicio, dataFim, unidadeId);
+    const buffer = await this.relatoriosService.alteradasPdf(
+      dataInicio,
+      dataFim,
+      tenantId,
+      unidadeId,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -85,9 +101,10 @@ export class RelatoriosController {
   pesagensCanceladas(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId?: string,
   ) {
-    return this.relatoriosService.pesagensCanceladas(dataInicio, dataFim, unidadeId);
+    return this.relatoriosService.pesagensCanceladas(dataInicio, dataFim, tenantId, unidadeId);
   }
 
   @Get('canceladas/pdf')
@@ -95,10 +112,16 @@ export class RelatoriosController {
   async canceladasPdf(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId: string | undefined,
     @Res() res: Response,
   ) {
-    const buffer = await this.relatoriosService.canceladasPdf(dataInicio, dataFim, unidadeId);
+    const buffer = await this.relatoriosService.canceladasPdf(
+      dataInicio,
+      dataFim,
+      tenantId,
+      unidadeId,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -112,10 +135,16 @@ export class RelatoriosController {
   async movimentoXlsx(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId: string | undefined,
     @Res() res: Response,
   ) {
-    const result = (await this.relatoriosService.movimento(dataInicio, dataFim, unidadeId)) as {
+    const result = (await this.relatoriosService.movimento(
+      dataInicio,
+      dataFim,
+      tenantId,
+      unidadeId,
+    )) as {
       tickets?: Record<string, unknown>[];
     } & Record<string, unknown>;
     const dados = (result.tickets ?? []) as Record<string, unknown>[];
@@ -133,12 +162,14 @@ export class RelatoriosController {
   async alteradasXlsx(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId: string | undefined,
     @Res() res: Response,
   ) {
     const result = (await this.relatoriosService.pesagensAlteradas(
       dataInicio,
       dataFim,
+      tenantId,
       unidadeId,
     )) as { tickets?: Record<string, unknown>[] } & Record<string, unknown>;
     const dados = (result.tickets ?? []) as Record<string, unknown>[];
@@ -156,12 +187,14 @@ export class RelatoriosController {
   async canceladasXlsx(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId: string | undefined,
     @Res() res: Response,
   ) {
     const result = (await this.relatoriosService.pesagensCanceladas(
       dataInicio,
       dataFim,
+      tenantId,
       unidadeId,
     )) as { tickets?: Record<string, unknown>[] } & Record<string, unknown>;
     const dados = (result.tickets ?? []) as Record<string, unknown>[];
@@ -179,8 +212,9 @@ export class RelatoriosController {
   passagensPorBalanca(
     @Query('dataInicio') dataInicio: string,
     @Query('dataFim') dataFim: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('unidadeId') unidadeId?: string,
   ) {
-    return this.relatoriosService.passagensPorBalanca(dataInicio, dataFim, unidadeId);
+    return this.relatoriosService.passagensPorBalanca(dataInicio, dataFim, tenantId, unidadeId);
   }
 }

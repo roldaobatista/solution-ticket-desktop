@@ -100,6 +100,30 @@ function getNextBin() {
 
 // ---------- Migrate on first run ----------
 
+function backupDatabase(dbPath) {
+  if (!fs.existsSync(dbPath)) return null;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = `${dbPath}.backup.${timestamp}`;
+  try {
+    fs.copyFileSync(dbPath, backupPath);
+    logLine('migrate', `backup criado: ${backupPath}`);
+    return backupPath;
+  } catch (err) {
+    logLine('migrate', `falha ao criar backup: ${err.message}`);
+    return null;
+  }
+}
+
+function restoreDatabase(dbPath, backupPath) {
+  if (!backupPath || !fs.existsSync(backupPath)) return;
+  try {
+    fs.copyFileSync(backupPath, dbPath);
+    logLine('migrate', `backup restaurado: ${backupPath} -> ${dbPath}`);
+  } catch (err) {
+    logLine('migrate', `falha ao restaurar backup: ${err.message}`);
+  }
+}
+
 function runMigrationsIfNeeded() {
   const dbPath = getDatabasePath();
   const schemaPath = getPrismaSchemaPath();
@@ -107,11 +131,6 @@ function runMigrationsIfNeeded() {
 
   if (isDev) {
     logLine('migrate', 'dev mode: skipping auto-migrate');
-    return Promise.resolve();
-  }
-
-  if (fs.existsSync(dbPath)) {
-    logLine('migrate', `db ja existe em ${dbPath}, pulando migrate`);
     return Promise.resolve();
   }
 
@@ -124,6 +143,7 @@ function runMigrationsIfNeeded() {
     return Promise.resolve();
   }
 
+  const backupPath = backupDatabase(dbPath);
   logLine('migrate', `rodando prisma migrate deploy (db=${dbPath})`);
 
   return new Promise((resolve, reject) => {
@@ -147,12 +167,14 @@ function runMigrationsIfNeeded() {
         logLine('migrate', 'migrate deploy OK');
         resolve();
       } else {
-        logLine('migrate', `migrate deploy FALHOU (code=${code})`);
-        reject(new Error(`prisma migrate deploy exit ${code}`));
+        logLine('migrate', `migrate deploy FALHOU (code=${code}) — restaurando backup`);
+        restoreDatabase(dbPath, backupPath);
+        reject(new Error(`prisma migrate deploy exit ${code}. Backup foi restaurado.`));
       }
     });
     proc.on('error', (err) => {
-      logLine('migrate', `erro spawn: ${err.message}`);
+      logLine('migrate', `erro spawn: ${err.message} — restaurando backup`);
+      restoreDatabase(dbPath, backupPath);
       reject(err);
     });
   });
@@ -452,7 +474,7 @@ function applyCspHeaders() {
     "img-src 'self' data: blob: http://127.0.0.1:3001 http://localhost:3001",
     "style-src 'self' 'unsafe-inline'", // Tailwind injeta inline + Next styled-jsx
     // 'unsafe-eval' apenas em dev (Next.js HMR usa eval); em prod removivel
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self'${isDev ? " 'unsafe-inline' 'unsafe-eval'" : ''}`,
     "font-src 'self' data:",
     "object-src 'none'",
     "frame-ancestors 'none'",

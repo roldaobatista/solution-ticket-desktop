@@ -2,9 +2,6 @@ import { IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
 
 export class CreatePerfilDto {
   @IsString()
-  tenantId!: string;
-
-  @IsString()
   nome!: string;
 
   @IsOptional()

@@ -8,8 +8,8 @@ import { UpdateTipoVeiculoDto } from './dto/update-tipo-veiculo.dto';
 export class TiposVeiculoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateTipoVeiculoDto) {
-    return this.prisma.tipoVeiculo.create({ data: { ...dto } });
+  async create(dto: CreateTipoVeiculoDto, tenantId: string) {
+    return this.prisma.tipoVeiculo.create({ data: { ...dto, tenantId } });
   }
 
   async findAll(tenantId?: string, search?: string) {
@@ -23,19 +23,19 @@ export class TiposVeiculoService {
     });
   }
 
-  async findOne(id: string) {
-    const entity = await this.prisma.tipoVeiculo.findUnique({ where: { id } });
+  async findOne(id: string, tenantId: string) {
+    const entity = await this.prisma.tipoVeiculo.findUnique({ where: { id, tenantId } });
     if (!entity) throw new NotFoundException('Tipo de veiculo nao encontrado');
     return entity;
   }
 
-  async update(id: string, dto: UpdateTipoVeiculoDto) {
-    await this.findOne(id);
-    return this.prisma.tipoVeiculo.update({ where: { id }, data: { ...dto } });
+  async update(id: string, dto: UpdateTipoVeiculoDto, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.tipoVeiculo.update({ where: { id, tenantId }, data: { ...dto } });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.tipoVeiculo.update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.tipoVeiculo.update({ where: { id, tenantId }, data: { ativo: false } });
   }
 }

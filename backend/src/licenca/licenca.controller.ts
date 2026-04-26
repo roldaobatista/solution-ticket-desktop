@@ -6,6 +6,7 @@ import { AtivarLicencaDto, IniciarTrialDto } from './dto/ativar-licenca.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Licenciamento')
 @Controller('licenca')
@@ -34,7 +35,7 @@ export class LicencaController {
   // Onda 1.3: ativacao de licenca exige admin autenticado.
   // Antes era @Public — qualquer processo local podia chamar e fraudar.
   @UseGuards(JwtAuthGuard)
-  @Roles('licenca:gerenciar')
+  @Roles(Permissao.LICENCA_GERENCIAR)
   @Throttle({ short: { limit: 3, ttl: 60_000 } })
   @ApiBearerAuth()
   @Post('ativar')
@@ -52,7 +53,7 @@ export class LicencaController {
   // Antes era @Public — atacante local criava trials fraudulentos para
   // qualquer (unidadeId, tenantId).
   @UseGuards(JwtAuthGuard)
-  @Roles('licenca:gerenciar')
+  @Roles(Permissao.LICENCA_GERENCIAR)
   @ApiBearerAuth()
   @Post('iniciar-trial')
   @ApiOperation({ summary: 'Inicia trial (idempotente, admin)' })

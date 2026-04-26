@@ -26,7 +26,7 @@ export async function createBalanca(data: Partial<Balanca>): Promise<Balanca> {
 
 export async function updateBalanca(id: string, data: Partial<Balanca>): Promise<Balanca> {
   if (USE_MOCK) return mockApi.updateBalanca(id, data);
-  const res = await apiClient.put(`/balancas/${id}`, data);
+  const res = await apiClient.patch(`/balancas/${id}`, data);
   return res.data;
 }
 
@@ -98,11 +98,33 @@ export async function capturarPeso(id: string): Promise<LeituraPeso> {
 
 export function getBalancaStreamUrl(id: string): string {
   const base = process.env.NEXT_PUBLIC_API_URL || '/api';
-  // RS3: EventSource nao suporta header Authorization — token vai na query.
-  // Backend (JwtStrategy) aceita ambas (header ou ?access_token=).
+  // DEPRECATED: mantido para compatibilidade, mas preferir fetchBalancaStreamUrl
   let token = '';
   if (typeof window !== 'undefined') {
     token = sessionStorage.getItem('access_token') || '';
+  }
+  const qs = token ? `?access_token=${encodeURIComponent(token)}` : '';
+  return `${base}/balancas/${id}/stream${qs}`;
+}
+
+export async function fetchBalancaStreamUrl(id: string): Promise<string> {
+  const base = process.env.NEXT_PUBLIC_API_URL || '/api';
+  // RS3: busca token SSE curto (60s) em vez de expor JWT principal na URL
+  let token = '';
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`${base}/auth/sse-token`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('access_token') || ''}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        token = data.token || '';
+      }
+    } catch {
+      // fallback: JWT principal (menos seguro, mas funcional)
+      token = sessionStorage.getItem('access_token') || '';
+    }
   }
   const qs = token ? `?access_token=${encodeURIComponent(token)}` : '';
   return `${base}/balancas/${id}/stream${qs}`;
@@ -117,9 +139,10 @@ export async function calibrarBalanca(
     const b = (await mockApi.getBalancas(1, 100)).data.find((x) => x.id === balancaId)!;
     return b;
   }
-  const res = await apiClient.post(`/balancas/${balancaId}/calibrar`, {
-    peso_referencia: pesoReferencia,
-    peso_lido: pesoLido,
+  const res = await apiClient.post(`/balancas/${balancaId}/calibracoes`, {
+    tipo: 'SPAN',
+    pesoReferencia,
+    pesoLido,
   });
   return res.data;
 }

@@ -30,6 +30,8 @@ describe('TicketController', () => {
     listarDescontos: jest.fn(),
   };
 
+  const tenantId = 'tenant-1';
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TicketController],
@@ -47,13 +49,13 @@ describe('TicketController', () => {
 
   describe('create', () => {
     it('deve criar ticket', async () => {
-      const dto = { tenantId: 't1', unidadeId: 'u1', clienteId: 'c1', produtoId: 'p1' } as any;
+      const dto = { unidadeId: 'u1', clienteId: 'c1', produtoId: 'p1' } as any;
       const ticket = { id: 'tid' };
       ticketService.create.mockResolvedValue(ticket as any);
 
-      const result = await controller.create(dto);
+      const result = await controller.create(dto, tenantId);
 
-      expect(ticketService.create).toHaveBeenCalledWith(dto);
+      expect(ticketService.create).toHaveBeenCalledWith(dto, tenantId);
       expect(result).toEqual(ticket);
     });
   });
@@ -64,9 +66,9 @@ describe('TicketController', () => {
       const tickets = [{ id: 't1' }];
       ticketService.findAll.mockResolvedValue(tickets as any);
 
-      const result = await controller.findAll(filter);
+      const result = await controller.findAll(filter, tenantId);
 
-      expect(ticketService.findAll).toHaveBeenCalledWith(filter);
+      expect(ticketService.findAll).toHaveBeenCalledWith(filter, tenantId);
       expect(result).toEqual(tickets);
     });
   });
@@ -76,9 +78,9 @@ describe('TicketController', () => {
       const ticket = { id: 't1' };
       ticketService.findOne.mockResolvedValue(ticket as any);
 
-      const result = await controller.findOne('t1');
+      const result = await controller.findOne('t1', tenantId);
 
-      expect(ticketService.findOne).toHaveBeenCalledWith('t1');
+      expect(ticketService.findOne).toHaveBeenCalledWith('t1', tenantId);
       expect(result).toEqual(ticket);
     });
   });
@@ -89,9 +91,9 @@ describe('TicketController', () => {
       const ticket = { id: 't1' };
       ticketService.update.mockResolvedValue(ticket as any);
 
-      const result = await controller.update('t1', dto);
+      const result = await controller.update('t1', dto, tenantId);
 
-      expect(ticketService.update).toHaveBeenCalledWith('t1', dto);
+      expect(ticketService.update).toHaveBeenCalledWith('t1', dto, tenantId);
       expect(result).toEqual(ticket);
     });
   });
@@ -114,9 +116,9 @@ describe('TicketController', () => {
       const passagem = { id: 'p1' };
       ticketService.registrarPassagem.mockResolvedValue(passagem as any);
 
-      const result = await controller.registrarPassagem('t1', dto);
+      const result = await controller.registrarPassagem('t1', dto, tenantId);
 
-      expect(ticketService.registrarPassagem).toHaveBeenCalledWith('t1', dto);
+      expect(ticketService.registrarPassagem).toHaveBeenCalledWith('t1', dto, tenantId);
       expect(result).toEqual(passagem);
     });
   });
@@ -126,9 +128,9 @@ describe('TicketController', () => {
       const passagens = [{ id: 'p1' }];
       passagemService.findByTicket.mockResolvedValue(passagens as any);
 
-      const result = await controller.listarPassagens('t1');
+      const result = await controller.listarPassagens('t1', tenantId);
 
-      expect(passagemService.findByTicket).toHaveBeenCalledWith('t1');
+      expect(passagemService.findByTicket).toHaveBeenCalledWith('t1', tenantId);
       expect(result).toEqual(passagens);
     });
   });
@@ -138,9 +140,14 @@ describe('TicketController', () => {
       const res = { ok: true };
       passagemService.invalidar.mockResolvedValue(res as any);
 
-      const result = await controller.invalidarPassagem('t1', 'p1', { motivo: 'erro balanca' });
+      const result = await controller.invalidarPassagem(
+        't1',
+        'p1',
+        { motivo: 'erro balanca' },
+        tenantId,
+      );
 
-      expect(passagemService.invalidar).toHaveBeenCalledWith('t1', 'p1', 'erro balanca');
+      expect(passagemService.invalidar).toHaveBeenCalledWith('t1', 'p1', 'erro balanca', tenantId);
       expect(result).toEqual(res);
     });
   });
@@ -151,9 +158,9 @@ describe('TicketController', () => {
       const ticket = { id: 't1', statusOperacional: 'FECHADO' };
       ticketService.fecharTicket.mockResolvedValue(ticket as any);
 
-      const result = await controller.fecharTicket('t1', dto);
+      const result = await controller.fecharTicket('t1', dto, tenantId);
 
-      expect(ticketService.fecharTicket).toHaveBeenCalledWith('t1', dto);
+      expect(ticketService.fecharTicket).toHaveBeenCalledWith('t1', dto, tenantId);
       expect(result).toEqual(ticket);
     });
   });
@@ -164,9 +171,9 @@ describe('TicketController', () => {
       const ticket = { id: 't1', statusOperacional: 'CANCELADO' };
       ticketService.cancelarTicket.mockResolvedValue(ticket as any);
 
-      const result = await controller.cancelarTicket('t1', dto);
+      const result = await controller.cancelarTicket('t1', dto, tenantId);
 
-      expect(ticketService.cancelarTicket).toHaveBeenCalledWith('t1', dto);
+      expect(ticketService.cancelarTicket).toHaveBeenCalledWith('t1', dto, tenantId);
       expect(result).toEqual(ticket);
     });
   });
@@ -176,10 +183,19 @@ describe('TicketController', () => {
       const ticket = { id: 't1', statusOperacional: 'EM_MANUTENCAO' };
       ticketService.solicitarManutencao.mockResolvedValue(ticket as any);
 
-      // Onda 2.1: usuarioId vem do JWT via @CurrentUser, nao do body
-      const result = await controller.solicitarManutencao('t1', { motivo: 'erro peso' }, 'u1');
+      const result = await controller.solicitarManutencao(
+        't1',
+        { motivo: 'erro peso' },
+        'u1',
+        tenantId,
+      );
 
-      expect(ticketService.solicitarManutencao).toHaveBeenCalledWith('t1', 'erro peso', 'u1');
+      expect(ticketService.solicitarManutencao).toHaveBeenCalledWith(
+        't1',
+        'erro peso',
+        'u1',
+        tenantId,
+      );
       expect(result).toEqual(ticket);
     });
   });
@@ -189,9 +205,9 @@ describe('TicketController', () => {
       const ticket = { id: 't1', statusOperacional: 'FECHADO' };
       ticketService.concluirManutencao.mockResolvedValue(ticket as any);
 
-      const result = await controller.concluirManutencao('t1', 'u1');
+      const result = await controller.concluirManutencao('t1', 'u1', tenantId);
 
-      expect(ticketService.concluirManutencao).toHaveBeenCalledWith('t1', 'u1');
+      expect(ticketService.concluirManutencao).toHaveBeenCalledWith('t1', 'u1', tenantId);
       expect(result).toEqual(ticket);
     });
   });
@@ -202,9 +218,9 @@ describe('TicketController', () => {
       const res = { id: 'desc1' };
       passagemService.adicionarDesconto.mockResolvedValue(res as any);
 
-      const result = await controller.adicionarDesconto('t1', dto);
+      const result = await controller.adicionarDesconto('t1', dto, tenantId);
 
-      expect(passagemService.adicionarDesconto).toHaveBeenCalledWith('t1', dto);
+      expect(passagemService.adicionarDesconto).toHaveBeenCalledWith('t1', dto, tenantId);
       expect(result).toEqual(res);
     });
   });
@@ -214,9 +230,9 @@ describe('TicketController', () => {
       const descontos = [{ id: 'd1' }];
       passagemService.listarDescontos.mockResolvedValue(descontos as any);
 
-      const result = await controller.listarDescontos('t1');
+      const result = await controller.listarDescontos('t1', tenantId);
 
-      expect(passagemService.listarDescontos).toHaveBeenCalledWith('t1');
+      expect(passagemService.listarDescontos).toHaveBeenCalledWith('t1', tenantId);
       expect(result).toEqual(descontos);
     });
   });
@@ -226,9 +242,9 @@ describe('TicketController', () => {
       const historico = [{ evento: 'fechamento' }];
       ticketService.getHistorico.mockResolvedValue(historico as any);
 
-      const result = await controller.getHistorico('t1');
+      const result = await controller.getHistorico('t1', tenantId);
 
-      expect(ticketService.getHistorico).toHaveBeenCalledWith('t1');
+      expect(ticketService.getHistorico).toHaveBeenCalledWith('t1', tenantId);
       expect(result).toEqual(historico);
     });
   });
@@ -238,9 +254,9 @@ describe('TicketController', () => {
       const res = { sucesso: true };
       ticketService.reimprimir.mockResolvedValue(res as any);
 
-      const result = await controller.reimprimirTicket('t1', 'u1');
+      const result = await controller.reimprimirTicket('t1', 'u1', tenantId);
 
-      expect(ticketService.reimprimir).toHaveBeenCalledWith('t1', 'u1');
+      expect(ticketService.reimprimir).toHaveBeenCalledWith('t1', tenantId, 'u1');
       expect(result).toEqual(res);
     });
   });

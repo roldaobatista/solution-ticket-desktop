@@ -8,7 +8,7 @@ import { StatusOperacional } from '../constants/enums';
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async kpis(unidadeId: string) {
+  async kpis(unidadeId: string, tenantId: string) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const mesInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -24,14 +24,15 @@ export class DashboardService {
       ticketsCanceladosHoje,
     ] = await Promise.all([
       this.prisma.ticketPesagem.count({
-        where: { unidadeId, criadoEm: { gte: hoje } },
+        where: { unidadeId, tenantId, criadoEm: { gte: hoje } },
       }),
       this.prisma.ticketPesagem.count({
-        where: { unidadeId, criadoEm: { gte: mesInicio } },
+        where: { unidadeId, tenantId, criadoEm: { gte: mesInicio } },
       }),
       this.prisma.ticketPesagem.count({
         where: {
           unidadeId,
+          tenantId,
           statusOperacional: {
             in: [StatusOperacional.EM_PESAGEM, StatusOperacional.AGUARDANDO_PASSAGEM],
           },
@@ -40,6 +41,7 @@ export class DashboardService {
       this.prisma.ticketPesagem.aggregate({
         where: {
           unidadeId,
+          tenantId,
           statusOperacional: StatusOperacional.FECHADO,
           fechadoEm: { gte: hoje },
         },
@@ -48,18 +50,20 @@ export class DashboardService {
       this.prisma.ticketPesagem.aggregate({
         where: {
           unidadeId,
+          tenantId,
           statusOperacional: StatusOperacional.FECHADO,
           fechadoEm: { gte: mesInicio },
         },
         _sum: { pesoLiquidoFinal: true },
       }),
       this.prisma.ticketPesagem.aggregate({
-        where: { unidadeId, statusOperacional: StatusOperacional.FECHADO },
+        where: { unidadeId, tenantId, statusOperacional: StatusOperacional.FECHADO },
         _avg: { pesoLiquidoFinal: true },
       }),
       this.prisma.ticketPesagem.count({
         where: {
           unidadeId,
+          tenantId,
           statusOperacional: StatusOperacional.FECHADO,
           fechadoEm: { gte: hoje },
         },
@@ -67,6 +71,7 @@ export class DashboardService {
       this.prisma.ticketPesagem.count({
         where: {
           unidadeId,
+          tenantId,
           statusOperacional: StatusOperacional.CANCELADO,
           canceladoEm: { gte: hoje },
         },
@@ -85,11 +90,13 @@ export class DashboardService {
     };
   }
 
-  async ticketsPorStatus(unidadeId: string) {
+  async ticketsPorStatus(unidadeId: string, tenantId: string) {
     const statuses = Object.values(StatusOperacional);
     const counts = await Promise.all(
       statuses.map((status) =>
-        this.prisma.ticketPesagem.count({ where: { unidadeId, statusOperacional: status } }),
+        this.prisma.ticketPesagem.count({
+          where: { unidadeId, tenantId, statusOperacional: status },
+        }),
       ),
     );
 
@@ -99,7 +106,7 @@ export class DashboardService {
     }));
   }
 
-  async pesagensPorProduto(unidadeId: string, dias: number = 30) {
+  async pesagensPorProduto(unidadeId: string, tenantId: string, dias: number = 30) {
     const dataInicio = new Date();
     dataInicio.setDate(dataInicio.getDate() - dias);
 
@@ -107,6 +114,7 @@ export class DashboardService {
       by: ['produtoId'],
       where: {
         unidadeId,
+        tenantId,
         statusOperacional: StatusOperacional.FECHADO,
         fechadoEm: { gte: dataInicio },
       },
@@ -114,7 +122,7 @@ export class DashboardService {
       _sum: { pesoLiquidoFinal: true },
     });
 
-    const produtos = await this.prisma.produto.findMany();
+    const produtos = await this.prisma.produto.findMany({ where: { tenantId } });
 
     return tickets.map((t) => ({
       produtoId: t.produtoId,
@@ -124,7 +132,7 @@ export class DashboardService {
     }));
   }
 
-  async pesagensPorCliente(unidadeId: string, dias: number = 30) {
+  async pesagensPorCliente(unidadeId: string, tenantId: string, dias: number = 30) {
     const dataInicio = new Date();
     dataInicio.setDate(dataInicio.getDate() - dias);
 
@@ -132,6 +140,7 @@ export class DashboardService {
       by: ['clienteId'],
       where: {
         unidadeId,
+        tenantId,
         statusOperacional: StatusOperacional.FECHADO,
         fechadoEm: { gte: dataInicio },
       },
@@ -139,7 +148,7 @@ export class DashboardService {
       _sum: { pesoLiquidoFinal: true },
     });
 
-    const clientes = await this.prisma.cliente.findMany();
+    const clientes = await this.prisma.cliente.findMany({ where: { tenantId } });
 
     return tickets.map((t) => ({
       clienteId: t.clienteId,
@@ -149,7 +158,7 @@ export class DashboardService {
     }));
   }
 
-  async statusBalancas(unidadeId: string) {
+  async statusBalancas(unidadeId: string, _tenantId: string) {
     const balancas = await this.prisma.balanca.findMany({
       where: { unidadeId },
       select: { id: true, nome: true, statusOnline: true, tipoEntradaSaida: true },
@@ -175,12 +184,13 @@ export class DashboardService {
     return { inicio, fim };
   }
 
-  async topClientes(unidadeId: string, mes?: string) {
+  async topClientes(unidadeId: string, tenantId: string, mes?: string) {
     const { inicio, fim } = this.mesRange(mes);
     const tickets = await this.prisma.ticketPesagem.groupBy({
       by: ['clienteId'],
       where: {
         unidadeId,
+        tenantId,
         statusOperacional: 'FECHADO',
         fechadoEm: { gte: inicio, lt: fim },
       },
@@ -191,7 +201,7 @@ export class DashboardService {
     });
 
     const clientes = await this.prisma.cliente.findMany({
-      where: { id: { in: tickets.map((t) => t.clienteId).filter(Boolean) as string[] } },
+      where: { id: { in: tickets.map((t) => t.clienteId).filter(Boolean) as string[] }, tenantId },
     });
 
     return tickets.map((t) => ({
@@ -202,12 +212,13 @@ export class DashboardService {
     }));
   }
 
-  async distribuicaoProduto(unidadeId: string, mes?: string) {
+  async distribuicaoProduto(unidadeId: string, tenantId: string, mes?: string) {
     const { inicio, fim } = this.mesRange(mes);
     const tickets = await this.prisma.ticketPesagem.groupBy({
       by: ['produtoId'],
       where: {
         unidadeId,
+        tenantId,
         statusOperacional: 'FECHADO',
         fechadoEm: { gte: inicio, lt: fim },
       },
@@ -216,7 +227,7 @@ export class DashboardService {
     });
 
     const produtos = await this.prisma.produto.findMany({
-      where: { id: { in: tickets.map((t) => t.produtoId) } },
+      where: { id: { in: tickets.map((t) => t.produtoId) }, tenantId },
     });
 
     const total = tickets.reduce((s, t) => s + Number(t._sum.pesoLiquidoFinal || 0), 0) || 1;
@@ -230,7 +241,7 @@ export class DashboardService {
     }));
   }
 
-  async evolucaoDiaria(unidadeId: string, dias: number = 7) {
+  async evolucaoDiaria(unidadeId: string, tenantId: string, dias: number = 7) {
     const resultado = [];
     const hoje = new Date();
 
@@ -244,11 +255,12 @@ export class DashboardService {
 
       const [count, pesoTotal] = await Promise.all([
         this.prisma.ticketPesagem.count({
-          where: { unidadeId, criadoEm: { gte: data, lt: amanha } },
+          where: { unidadeId, tenantId, criadoEm: { gte: data, lt: amanha } },
         }),
         this.prisma.ticketPesagem.aggregate({
           where: {
             unidadeId,
+            tenantId,
             statusOperacional: StatusOperacional.FECHADO,
             fechadoEm: { gte: data, lt: amanha },
           },

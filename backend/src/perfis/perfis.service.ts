@@ -8,9 +8,9 @@ import { UpdatePerfilDto } from './dto/update-perfil.dto';
 export class PerfisService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreatePerfilDto) {
+  async create(dto: CreatePerfilDto, tenantId: string) {
     const { permissoes, ...data } = dto;
-    const perfil = await this.prisma.perfil.create({ data });
+    const perfil = await this.prisma.perfil.create({ data: { ...data, tenantId } });
 
     if (permissoes && permissoes.length > 0) {
       await this.prisma.permissao.createMany({
@@ -23,7 +23,7 @@ export class PerfisService {
       });
     }
 
-    return this.findOne(perfil.id);
+    return this.findOne(perfil.id, tenantId);
   }
 
   async findAll(tenantId?: string) {
@@ -39,9 +39,9 @@ export class PerfisService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, tenantId: string) {
     const perfil = await this.prisma.perfil.findUnique({
-      where: { id },
+      where: { id, tenantId },
       include: {
         permissoes: true,
         _count: { select: { usuarios: true } },
@@ -51,11 +51,11 @@ export class PerfisService {
     return perfil;
   }
 
-  async update(id: string, dto: UpdatePerfilDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdatePerfilDto, tenantId: string) {
+    await this.findOne(id, tenantId);
     const { permissoes, ...data } = dto;
 
-    await this.prisma.perfil.update({ where: { id }, data });
+    await this.prisma.perfil.update({ where: { id, tenantId }, data });
 
     if (permissoes) {
       // Substitui permissoes
@@ -72,11 +72,11 @@ export class PerfisService {
       }
     }
 
-    return this.findOne(id);
+    return this.findOne(id, tenantId);
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.perfil.update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.perfil.update({ where: { id, tenantId }, data: { ativo: false } });
   }
 }

@@ -10,13 +10,14 @@ import { RegistrarPagamentoDto } from './dto/registrar-pagamento.dto';
 export class FaturaService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateFaturaDto) {
-    const numero = await this.gerarNumero(dto.tenantId);
+  async create(dto: CreateFaturaDto & { tenantId?: string }, tenantId?: string) {
+    const effectiveTenantId = tenantId ?? dto.tenantId!;
+    const numero = await this.gerarNumero(effectiveTenantId);
 
     const fatura = await this.prisma.fatura.create({
       data: {
         numero,
-        tenantId: dto.tenantId,
+        tenantId: effectiveTenantId,
         romaneioId: dto.romaneioId ?? null,
         clienteId: dto.clienteId,
         dataEmissao: new Date(dto.dataEmissao),
@@ -26,7 +27,7 @@ export class FaturaService {
       },
     });
 
-    return this.findOne(fatura.id);
+    return this.findOne(fatura.id, effectiveTenantId);
   }
 
   async findAll(tenantId: string, clienteId?: string, paging?: { page?: number; limit?: number }) {
@@ -53,9 +54,9 @@ export class FaturaService {
     return buildPaginated(data, total, page, limit);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, tenantId?: string) {
     const fatura = await this.prisma.fatura.findUnique({
-      where: { id },
+      where: tenantId ? { id, tenantId } : { id },
       include: {
         cliente: true,
         romaneio: true,
@@ -66,14 +67,19 @@ export class FaturaService {
     return fatura;
   }
 
-  async update(id: string, dto: UpdateFaturaDto) {
-    await this.findOne(id);
+  async update(id: string, tenantId: string, dto: UpdateFaturaDto) {
+    await this.findOne(id, tenantId);
     const data: Prisma.FaturaUpdateInput = {};
     if (dto.notaFiscal !== undefined) data.notaFiscal = dto.notaFiscal;
     if (dto.observacao !== undefined) data.observacao = dto.observacao;
     if (dto.totalGeral !== undefined) data.totalGeral = dto.totalGeral;
     if (dto.dataEmissao !== undefined) data.dataEmissao = new Date(dto.dataEmissao);
-    return this.prisma.fatura.update({ where: { id }, data });
+    return this.prisma.fatura.update({ where: { id, tenantId }, data });
+  }
+
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.fatura.delete({ where: { id, tenantId } });
   }
 
   async registrarPagamento(faturaId: string, dto: RegistrarPagamentoDto) {

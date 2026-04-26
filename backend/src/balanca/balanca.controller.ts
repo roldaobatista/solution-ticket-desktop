@@ -25,6 +25,8 @@ import { BalancaFilterDto } from './dto/balanca-filter.dto';
 import { RegistrarCalibracaoDto } from './dto/registrar-calibracao.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Balanças')
 @ApiBearerAuth()
@@ -39,6 +41,7 @@ export class BalancaController {
   ) {}
 
   @Post()
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Criar balanca' })
   create(@Body() dto: CreateBalancaDto) {
     return this.balancaService.create(dto);
@@ -57,18 +60,21 @@ export class BalancaController {
   }
 
   @Patch(':id')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar balanca' })
   update(@Param('id') id: string, @Body() dto: UpdateBalancaDto) {
     return this.balancaService.update(id, dto);
   }
 
   @Patch(':id/status')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar status online/offline' })
   updateStatus(@Param('id') id: string, @Body('statusOnline') statusOnline: boolean) {
     return this.balancaService.updateStatus(id, statusOnline);
   }
 
   @Delete(':id')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Remover balanca' })
   remove(@Param('id') id: string) {
     return this.balancaService.remove(id);

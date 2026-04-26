@@ -23,14 +23,15 @@ export abstract class GenericCrudService<TWhere, TCreate, TUpdate, TInclude = un
     return this.prisma[this.config.prismaModel] as any;
   }
 
-  async create(dto: TCreate) {
+  async create(dto: TCreate, tenantId?: string) {
     const data = this.config.beforeCreate ? await this.config.beforeCreate(dto) : dto;
-    return this.getModel().create({ data });
+    return this.getModel().create({ data: tenantId ? { ...data, tenantId } : data });
   }
 
-  async findAll(filter: BaseFilterDto) {
+  async findAll(filter: BaseFilterDto, tenantId?: string) {
     const where: any = {};
-    if (filter.tenantId) where.tenantId = filter.tenantId;
+    if (tenantId) where.tenantId = tenantId;
+    else if (filter.tenantId) where.tenantId = filter.tenantId;
     if (filter.search && this.config.searchFields.length) {
       if (this.config.searchFields.length === 1) {
         where[this.config.searchFields[0]] = { contains: filter.search };
@@ -64,8 +65,8 @@ export abstract class GenericCrudService<TWhere, TCreate, TUpdate, TInclude = un
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
-    const args: any = { where: { id } };
+  async findOne(id: string, tenantId?: string) {
+    const args: any = { where: tenantId ? { id, tenantId } : { id } };
     if (this.config.defaultInclude) {
       args.include = this.config.defaultInclude;
     }
@@ -74,14 +75,17 @@ export abstract class GenericCrudService<TWhere, TCreate, TUpdate, TInclude = un
     return entity;
   }
 
-  async update(id: string, dto: TUpdate) {
-    await this.findOne(id);
+  async update(id: string, dto: TUpdate, tenantId?: string) {
+    await this.findOne(id, tenantId);
     const data = this.config.beforeUpdate ? await this.config.beforeUpdate(id, dto) : dto;
-    return this.getModel().update({ where: { id }, data });
+    return this.getModel().update({ where: tenantId ? { id, tenantId } : { id }, data });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.getModel().update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId?: string) {
+    await this.findOne(id, tenantId);
+    return this.getModel().update({
+      where: tenantId ? { id, tenantId } : { id },
+      data: { ativo: false },
+    });
   }
 }

@@ -11,10 +11,6 @@ import {
 } from 'class-validator';
 
 export class CreateReciboDto {
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
   @ApiProperty({ description: 'Data do recibo (ISO)' })
   @IsDateString()
   data!: string;

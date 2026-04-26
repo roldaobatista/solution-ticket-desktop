@@ -13,10 +13,6 @@ import { Type } from 'class-transformer';
 export class CreateFaturaDto {
   @ApiProperty()
   @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
-  @IsUUID()
   clienteId!: string;
 
   @ApiPropertyOptional()

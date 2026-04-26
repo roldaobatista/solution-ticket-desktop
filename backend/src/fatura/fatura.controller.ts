@@ -3,6 +3,9 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import type { Request as ExpressRequest } from 'express';
 import { FaturaService } from './fatura.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 import { CreateFaturaDto } from './dto/create-fatura.dto';
 import { UpdateFaturaDto } from './dto/update-fatura.dto';
 import { RegistrarPagamentoDto } from './dto/registrar-pagamento.dto';
@@ -25,6 +28,7 @@ export class FaturaController {
   }
 
   @Post('pagamentos/:id/baixar')
+  @Roles(Permissao.FATURA_GERENCIAR)
   @ApiOperation({ summary: 'Baixar pagamento' })
   baixarPagamento(@Param('id') id: string, @Req() req: AuthRequest) {
     const usuarioId = req.user?.id ?? req.user?.sub ?? undefined;
@@ -32,9 +36,10 @@ export class FaturaController {
   }
 
   @Post()
+  @Roles(Permissao.FATURA_GERENCIAR)
   @ApiOperation({ summary: 'Criar fatura' })
-  create(@Body() dto: CreateFaturaDto) {
-    return this.faturaService.create(dto);
+  create(@Body() dto: CreateFaturaDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.faturaService.create(dto, tenantId);
   }
 
   @Get()
@@ -53,17 +58,23 @@ export class FaturaController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar fatura por ID' })
-  findOne(@Param('id') id: string) {
-    return this.faturaService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.faturaService.findOne(id, tenantId);
   }
 
   @Patch(':id')
+  @Roles(Permissao.FATURA_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar fatura' })
-  update(@Param('id') id: string, @Body() dto: UpdateFaturaDto) {
-    return this.faturaService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateFaturaDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.faturaService.update(id, tenantId, dto);
   }
 
   @Post(':id/pagamentos')
+  @Roles(Permissao.FATURA_GERENCIAR)
   @ApiOperation({ summary: 'Registrar pagamento da fatura' })
   registrarPagamento(@Param('id') id: string, @Body() dto: RegistrarPagamentoDto) {
     return this.faturaService.registrarPagamento(id, dto);

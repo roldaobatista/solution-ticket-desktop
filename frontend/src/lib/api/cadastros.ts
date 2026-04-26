@@ -43,7 +43,7 @@ export async function createCliente(data: Partial<Cliente>): Promise<Cliente> {
 }
 export async function updateCliente(id: string, data: Partial<Cliente>): Promise<Cliente> {
   if (USE_MOCK) return mockApi.updateCliente(id, data);
-  const res = await apiClient.put(`/clientes/${id}`, data);
+  const res = await apiClient.patch(`/clientes/${id}`, data);
   return res.data;
 }
 export async function deleteCliente(id: string): Promise<void> {
@@ -71,7 +71,7 @@ export async function updateTransportadora(
   data: Partial<Transportadora>,
 ): Promise<Transportadora> {
   if (USE_MOCK) return mockApi.updateTransportadora(id, data);
-  const res = await apiClient.put(`/transportadoras/${id}`, data);
+  const res = await apiClient.patch(`/transportadoras/${id}`, data);
   return res.data;
 }
 export async function deleteTransportadora(id: string): Promise<void> {
@@ -96,7 +96,7 @@ export async function createMotorista(data: Partial<Motorista>): Promise<Motoris
 }
 export async function updateMotorista(id: string, data: Partial<Motorista>): Promise<Motorista> {
   if (USE_MOCK) return mockApi.updateMotorista(id, data);
-  const res = await apiClient.put(`/motoristas/${id}`, data);
+  const res = await apiClient.patch(`/motoristas/${id}`, data);
   return res.data;
 }
 export async function deleteMotorista(id: string): Promise<void> {
@@ -121,7 +121,7 @@ export async function createProduto(data: Partial<Produto>): Promise<Produto> {
 }
 export async function updateProduto(id: string, data: Partial<Produto>): Promise<Produto> {
   if (USE_MOCK) return mockApi.updateProduto(id, data);
-  const res = await apiClient.put(`/produtos/${id}`, data);
+  const res = await apiClient.patch(`/produtos/${id}`, data);
   return res.data;
 }
 export async function deleteProduto(id: string): Promise<void> {
@@ -146,7 +146,7 @@ export async function createVeiculo(data: Partial<Veiculo>): Promise<Veiculo> {
 }
 export async function updateVeiculo(id: string, data: Partial<Veiculo>): Promise<Veiculo> {
   if (USE_MOCK) return mockApi.updateVeiculo(id, data);
-  const res = await apiClient.put(`/veiculos/${id}`, data);
+  const res = await apiClient.patch(`/veiculos/${id}`, data);
   return res.data;
 }
 export async function deleteVeiculo(id: string): Promise<void> {
@@ -248,7 +248,7 @@ export async function createArmazem(data: Partial<Armazem>): Promise<Armazem> {
   return res.data;
 }
 export async function updateArmazem(id: string, data: Partial<Armazem>): Promise<Armazem> {
-  const res = await apiClient.put(`/armazens/${id}`, data);
+  const res = await apiClient.patch(`/armazens/${id}`, data);
   return res.data;
 }
 export async function deleteArmazem(id: string): Promise<void> {

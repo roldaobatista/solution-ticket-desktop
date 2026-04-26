@@ -7,7 +7,13 @@ import { StatusOperacional, StatusPassagem } from '../constants/enums';
 export class PassagemService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByTicket(ticketId: string) {
+  async findByTicket(ticketId: string, tenantId: string) {
+    // Verifica se o ticket pertence ao tenant antes de listar passagens
+    const ticket = await this.prisma.ticketPesagem.findUnique({
+      where: { id: ticketId, tenantId },
+    });
+    if (!ticket) throw new NotFoundException('Ticket nao encontrado');
+
     return this.prisma.passagemPesagem.findMany({
       where: { ticketId },
       orderBy: { sequencia: 'asc' },
@@ -15,10 +21,14 @@ export class PassagemService {
     });
   }
 
-  async invalidar(ticketId: string, passagemId: string, motivo?: string) {
-    // Verifica ticket
+  async invalidar(
+    ticketId: string,
+    passagemId: string,
+    motivo: string | undefined,
+    tenantId: string,
+  ) {
     const ticket = await this.prisma.ticketPesagem.findUnique({
-      where: { id: ticketId },
+      where: { id: ticketId, tenantId },
     });
     if (!ticket) throw new NotFoundException('Ticket nao encontrado');
 
@@ -51,9 +61,9 @@ export class PassagemService {
     });
   }
 
-  async adicionarDesconto(ticketId: string, dto: AdicionarDescontoDto) {
+  async adicionarDesconto(ticketId: string, dto: AdicionarDescontoDto, tenantId: string) {
     const ticket = await this.prisma.ticketPesagem.findUnique({
-      where: { id: ticketId },
+      where: { id: ticketId, tenantId },
     });
     if (!ticket) throw new NotFoundException('Ticket nao encontrado');
 
@@ -73,7 +83,12 @@ export class PassagemService {
     });
   }
 
-  async listarDescontos(ticketId: string) {
+  async listarDescontos(ticketId: string, tenantId: string) {
+    const ticket = await this.prisma.ticketPesagem.findUnique({
+      where: { id: ticketId, tenantId },
+    });
+    if (!ticket) throw new NotFoundException('Ticket nao encontrado');
+
     return this.prisma.descontoPesagem.findMany({
       where: { ticketId },
       orderBy: { criadoEm: 'asc' },

@@ -10,13 +10,14 @@ import { UpdateRomaneioDto } from './dto/update-romaneio.dto';
 export class RomaneioService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateRomaneioDto) {
-    const numero = await this.gerarNumero(dto.tenantId);
+  async create(dto: CreateRomaneioDto & { tenantId?: string }, tenantId?: string) {
+    const effectiveTenantId = tenantId ?? dto.tenantId!;
+    const numero = await this.gerarNumero(effectiveTenantId);
 
     const romaneio = await this.prisma.romaneio.create({
       data: {
         numero,
-        tenantId: dto.tenantId,
+        tenantId: effectiveTenantId,
         clienteId: dto.clienteId,
         periodoInicio: new Date(dto.periodoInicio),
         periodoFim: new Date(dto.periodoFim),
@@ -29,7 +30,7 @@ export class RomaneioService {
       await this.vincularTickets(romaneio.id, dto.ticketIds);
     }
 
-    return this.findOne(romaneio.id);
+    return this.findOne(romaneio.id, effectiveTenantId);
   }
 
   async findAll(tenantId: string, clienteId?: string, paging?: { page?: number; limit?: number }) {
@@ -55,9 +56,9 @@ export class RomaneioService {
     return buildPaginated(data, total, page, limit);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, tenantId?: string) {
     const romaneio = await this.prisma.romaneio.findUnique({
-      where: { id },
+      where: tenantId ? { id, tenantId } : { id },
       include: {
         cliente: true,
         itens: {
@@ -82,13 +83,18 @@ export class RomaneioService {
     return romaneio;
   }
 
-  async update(id: string, dto: UpdateRomaneioDto) {
-    await this.findOne(id);
+  async update(id: string, tenantId: string, dto: UpdateRomaneioDto) {
+    await this.findOne(id, tenantId);
     const data: Prisma.RomaneioUpdateInput = {};
     if (dto.observacao !== undefined) data.observacao = dto.observacao;
     if (dto.periodoInicio !== undefined) data.periodoInicio = new Date(dto.periodoInicio);
     if (dto.periodoFim !== undefined) data.periodoFim = new Date(dto.periodoFim);
-    return this.prisma.romaneio.update({ where: { id }, data });
+    return this.prisma.romaneio.update({ where: { id, tenantId }, data });
+  }
+
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.romaneio.delete({ where: { id, tenantId } });
   }
 
   async vincularTickets(romaneioId: string, ticketIds: string[]) {

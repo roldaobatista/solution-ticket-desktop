@@ -83,7 +83,7 @@ describe('TicketService - cálculo de fechamento', () => {
       .mockResolvedValueOnce({ ...baseTicket })
       .mockResolvedValueOnce({ ...baseTicket, pesoLiquidoFinal: 12000 });
 
-    await service.fecharTicket('tk1', {});
+    await service.fecharTicket('tk1', {}, 'tenant-1');
 
     expect(prisma.ticketPesagem.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -114,7 +114,7 @@ describe('TicketService - cálculo de fechamento', () => {
       .mockResolvedValueOnce({ ...baseTicket })
       .mockResolvedValueOnce({ ...baseTicket });
 
-    await service.fecharTicket('tk1', {});
+    await service.fecharTicket('tk1', {}, 'tenant-1');
 
     expect(prisma.ticketPesagem.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -140,7 +140,7 @@ describe('TicketService - cálculo de fechamento', () => {
       .mockResolvedValueOnce({ ...baseTicket, taraCadastradaSnapshot: 7000 })
       .mockResolvedValueOnce({ ...baseTicket });
 
-    await service.fecharTicket('tk1', {});
+    await service.fecharTicket('tk1', {}, 'tenant-1');
 
     expect(prisma.ticketPesagem.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -164,13 +164,15 @@ describe('TicketService - cálculo de fechamento', () => {
       },
       { papelCalculo: 'TARA_OFICIAL', pesoCapturado: 8000, statusPassagem: 'VALIDA', sequencia: 2 },
     ]);
-    await expect(service.fecharTicket('tk1', {})).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('rejeita fechamento sem passagens válidas', async () => {
     mockTicket();
     prisma.passagemPesagem.findMany.mockResolvedValue([]);
-    await expect(service.fecharTicket('tk1', {})).rejects.toThrow(/passagens validas/i);
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toThrow(/passagens validas/i);
   });
 
   it('rejeita fechamento sem tara (sem passagem e sem snapshot)', async () => {
@@ -183,12 +185,12 @@ describe('TicketService - cálculo de fechamento', () => {
         sequencia: 1,
       },
     ]);
-    await expect(service.fecharTicket('tk1', {})).rejects.toThrow(/tara/i);
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toThrow(/tara/i);
   });
 
   it('rejeita fechamento quando ticket não está em estado fechavel', async () => {
     mockTicket({ statusOperacional: 'FECHADO' });
-    await expect(service.fecharTicket('tk1', {})).rejects.toThrow(/estado/i);
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toThrow(/estado/i);
   });
 });
 
@@ -223,13 +225,15 @@ describe('TicketService.create - bloqueio por licença', () => {
       pesagensRestantesTrial: null,
     });
     await expect(
-      service.create({
-        tenantId: 't',
-        unidadeId: 'u',
-        fluxoPesagem: 'PF2_BRUTO_TARA',
-        clienteId: 'c',
-        produtoId: 'p',
-      } as any),
+      service.create(
+        {
+          unidadeId: 'u',
+          fluxoPesagem: 'PF2_BRUTO_TARA',
+          clienteId: 'c',
+          produtoId: 'p',
+        } as any,
+        't',
+      ),
     ).rejects.toThrow(/bloqueada|EXPIRADA/i);
   });
 
@@ -239,13 +243,15 @@ describe('TicketService.create - bloqueio por licença', () => {
       pesagensRestantesTrial: 0,
     });
     await expect(
-      service.create({
-        tenantId: 't',
-        unidadeId: 'u',
-        fluxoPesagem: 'PF2_BRUTO_TARA',
-        clienteId: 'c',
-        produtoId: 'p',
-      } as any),
+      service.create(
+        {
+          unidadeId: 'u',
+          fluxoPesagem: 'PF2_BRUTO_TARA',
+          clienteId: 'c',
+          produtoId: 'p',
+        } as any,
+        't',
+      ),
     ).rejects.toThrow(/trial/i);
   });
 });
@@ -285,13 +291,15 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
 
   it('rejeita PF1 sem veiculoId nem taraReferenciaTipo MANUAL', async () => {
     await expect(
-      service.create({
-        tenantId: 't',
-        unidadeId: 'u',
-        fluxoPesagem: 'PF1_TARA_REFERENCIADA',
-        clienteId: 'c',
-        produtoId: 'p',
-      } as any),
+      service.create(
+        {
+          unidadeId: 'u',
+          fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+          clienteId: 'c',
+          produtoId: 'p',
+        } as any,
+        't',
+      ),
     ).rejects.toThrow(/PF1_TARA_REFERENCIADA exige tara/);
     expect(prisma.ticketPesagem.create).not.toHaveBeenCalled();
   });
@@ -299,51 +307,59 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
   it('rejeita PF1 quando veiculo nao tem tara cadastrada', async () => {
     prisma.veiculo.findUnique.mockResolvedValue({ id: 'v1', taraCadastrada: null });
     await expect(
-      service.create({
-        tenantId: 't',
-        unidadeId: 'u',
-        fluxoPesagem: 'PF1_TARA_REFERENCIADA',
-        clienteId: 'c',
-        produtoId: 'p',
-        veiculoId: 'v1',
-      } as any),
+      service.create(
+        {
+          unidadeId: 'u',
+          fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+          clienteId: 'c',
+          produtoId: 'p',
+          veiculoId: 'v1',
+        } as any,
+        't',
+      ),
     ).rejects.toThrow(/exige tara/);
     expect(prisma.ticketPesagem.create).not.toHaveBeenCalled();
   });
 
   it('aceita PF1 com taraReferenciaTipo=MANUAL (sem veiculo)', async () => {
-    await service.create({
-      tenantId: 't',
-      unidadeId: 'u',
-      fluxoPesagem: 'PF1_TARA_REFERENCIADA',
-      clienteId: 'c',
-      produtoId: 'p',
-      taraReferenciaTipo: 'MANUAL',
-    } as any);
+    await service.create(
+      {
+        unidadeId: 'u',
+        fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+        clienteId: 'c',
+        produtoId: 'p',
+        taraReferenciaTipo: 'MANUAL',
+      } as any,
+      't',
+    );
     expect(prisma.ticketPesagem.create).toHaveBeenCalled();
   });
 
   it('aceita PF1 com veiculo que tem taraCadastrada > 0', async () => {
     prisma.veiculo.findUnique.mockResolvedValue({ id: 'v1', taraCadastrada: 5000 });
-    await service.create({
-      tenantId: 't',
-      unidadeId: 'u',
-      fluxoPesagem: 'PF1_TARA_REFERENCIADA',
-      clienteId: 'c',
-      produtoId: 'p',
-      veiculoId: 'v1',
-    } as any);
+    await service.create(
+      {
+        unidadeId: 'u',
+        fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+        clienteId: 'c',
+        produtoId: 'p',
+        veiculoId: 'v1',
+      } as any,
+      't',
+    );
     expect(prisma.ticketPesagem.create).toHaveBeenCalled();
   });
 
   it('PF2 nao requer tara (passa sem checagem)', async () => {
-    await service.create({
-      tenantId: 't',
-      unidadeId: 'u',
-      fluxoPesagem: 'PF2_BRUTO_TARA',
-      clienteId: 'c',
-      produtoId: 'p',
-    } as any);
+    await service.create(
+      {
+        unidadeId: 'u',
+        fluxoPesagem: 'PF2_BRUTO_TARA',
+        clienteId: 'c',
+        produtoId: 'p',
+      } as any,
+      't',
+    );
     expect(prisma.ticketPesagem.create).toHaveBeenCalled();
   });
 });

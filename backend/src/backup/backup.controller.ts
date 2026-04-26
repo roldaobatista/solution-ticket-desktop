@@ -4,12 +4,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { BackupService } from './backup.service';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Backup')
 @ApiBearerAuth()
 @Controller('backup')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('config:gerenciar')
+@Roles(Permissao.CONFIG_GERENCIAR)
 export class BackupController {
   constructor(private readonly service: BackupService) {}
 

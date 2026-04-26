@@ -43,7 +43,7 @@ export class TicketService {
   // CRUD Básico
   // ============================================================
 
-  async create(dto: CreateTicketDto) {
+  async create(dto: CreateTicketDto, tenantId: string) {
     await this.licenseGuard.verificarLicenca(dto.unidadeId);
 
     let taraSnapshot: number | undefined;
@@ -85,7 +85,7 @@ export class TicketService {
       return tx.ticketPesagem.create({
         data: {
           numero,
-          tenantId: dto.tenantId,
+          tenantId: tenantId,
           unidadeId: dto.unidadeId,
           statusOperacional: StatusOperacional.ABERTO,
           statusComercial: StatusComercial.NAO_ROMANEADO,
@@ -128,10 +128,9 @@ export class TicketService {
     return ticket;
   }
 
-  async findAll(filter: TicketFilterDto) {
-    const where: Prisma.TicketPesagemWhereInput = {};
+  async findAll(filter: TicketFilterDto, tenantId: string) {
+    const where: Prisma.TicketPesagemWhereInput = { tenantId };
     if (filter.unidadeId) where.unidadeId = filter.unidadeId;
-    if (filter.tenantId) where.tenantId = filter.tenantId;
     if (filter.clienteId) where.clienteId = filter.clienteId;
     if (filter.produtoId) where.produtoId = filter.produtoId;
     if (filter.statusOperacional) where.statusOperacional = filter.statusOperacional;
@@ -172,9 +171,9 @@ export class TicketService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, tenantId: string) {
     const ticket = await this.prisma.ticketPesagem.findUnique({
-      where: { id },
+      where: { id, tenantId },
       include: {
         cliente: true,
         transportadora: true,
@@ -195,8 +194,8 @@ export class TicketService {
     return ticket;
   }
 
-  async update(id: string, dto: UpdateTicketDto) {
-    const ticket = await this.findOne(id);
+  async update(id: string, dto: UpdateTicketDto, tenantId: string) {
+    const ticket = await this.findOne(id, tenantId);
     if (
       ticket.statusOperacional === StatusOperacional.FECHADO ||
       ticket.statusOperacional === StatusOperacional.CANCELADO
@@ -205,7 +204,7 @@ export class TicketService {
     }
 
     const updated = await this.prisma.ticketPesagem.update({
-      where: { id },
+      where: { id, tenantId },
       data: { ...dto },
       include: {
         cliente: true,
@@ -228,10 +227,11 @@ export class TicketService {
   async transicionarEstado(
     ticketId: string,
     novoEstado: string,
+    tenantId: string,
     usuarioId?: string,
     motivo?: string,
   ) {
-    const ticket = await this.findOne(ticketId);
+    const ticket = await this.findOne(ticketId, tenantId);
     TicketStateMachine.validarTransicao(ticket.statusOperacional, novoEstado);
 
     const sideEffects = TicketStateMachine.getSideEffects(novoEstado);
@@ -275,16 +275,11 @@ export class TicketService {
   // PASSAGEM
   // ============================================================
 
-  async registrarPassagem(ticketId: string, dto: RegistrarPassagemDto) {
+  async registrarPassagem(ticketId: string, dto: RegistrarPassagemDto, tenantId: string) {
     // C6 (Onda 1): cálculo de sequência DENTRO da $transaction.
-    // O cálculo prévio fora da tx (passagens.length + 1) era racy:
-    // duas requests simultâneas liam o mesmo length e geravam sequências
-    // duplicadas. Agora a sequência é recontada dentro da tx e a
-    // unique constraint @@unique([ticketId,sequencia]) (Onda 1.2)
-    // protege como rede de segurança.
     return this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticketPesagem.findUnique({
-        where: { id: ticketId },
+        where: { id: ticketId, tenantId },
         include: { passagens: { orderBy: { sequencia: 'desc' }, take: 1 } },
       });
       if (!ticket) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
@@ -340,14 +335,10 @@ export class TicketService {
   // FECHAMENTO
   // ============================================================
 
-  async fecharTicket(ticketId: string, dto: FecharTicketDto) {
+  async fecharTicket(ticketId: string, dto: FecharTicketDto, tenantId: string) {
     // C5 (Onda 1): fechamento atomico em $transaction unica.
-    // Antes: update + criarSnapshot + auditoria + decrementarPesagemTrial
-    // sem transacao, deixando ticket FECHADO sem snapshot/auditoria/contador
-    // em caso de falha intermediaria. Agora ou tudo, ou nada.
-    // O evento de dominio e emitido APOS o commit (after-commit pattern).
     const result = await this.prisma.$transaction(async (tx) => {
-      const ticket = await tx.ticketPesagem.findUnique({ where: { id: ticketId } });
+      const ticket = await tx.ticketPesagem.findUnique({ where: { id: ticketId, tenantId } });
       if (!ticket) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
 
       if (!TicketStateMachine.podeFechar(ticket.statusOperacional)) {
@@ -414,15 +405,15 @@ export class TicketService {
     // After-commit: efeitos colaterais nao-transacionais (eventos de dominio)
     this.eventPublisher.emitTicketFechado(ticketId, result.tenantId);
 
-    return this.findOne(ticketId);
+    return this.findOne(ticketId, tenantId);
   }
 
   // ============================================================
   // CANCELAMENTO
   // ============================================================
 
-  async cancelarTicket(ticketId: string, dto: CancelarTicketDto) {
-    const ticket = await this.findOne(ticketId);
+  async cancelarTicket(ticketId: string, dto: CancelarTicketDto, tenantId: string) {
+    const ticket = await this.findOne(ticketId, tenantId);
 
     if (ticket.statusOperacional === StatusOperacional.CANCELADO) {
       throw new BadRequestException('Ticket ja esta cancelado');
@@ -446,6 +437,7 @@ export class TicketService {
     return this.transicionarEstado(
       ticketId,
       StatusOperacional.CANCELADO,
+      tenantId,
       dto.usuarioId,
       dto.motivo,
     );
@@ -455,8 +447,8 @@ export class TicketService {
   // MANUTENCAO
   // ============================================================
 
-  async solicitarManutencao(ticketId: string, motivo: string, usuarioId: string) {
-    const ticket = await this.findOne(ticketId);
+  async solicitarManutencao(ticketId: string, motivo: string, usuarioId: string, tenantId: string) {
+    const ticket = await this.findOne(ticketId, tenantId);
     if (ticket.statusOperacional !== StatusOperacional.FECHADO) {
       throw new BadRequestException('Manutencao so pode ser solicitada para ticket FECHADO');
     }
@@ -469,17 +461,24 @@ export class TicketService {
         'Ticket com vinculo comercial avancado nao pode sofrer manutencao sem compensacao',
       );
     }
-    return this.transicionarEstado(ticketId, StatusOperacional.EM_MANUTENCAO, usuarioId, motivo);
+    return this.transicionarEstado(
+      ticketId,
+      StatusOperacional.EM_MANUTENCAO,
+      tenantId,
+      usuarioId,
+      motivo,
+    );
   }
 
-  async concluirManutencao(ticketId: string, usuarioId: string) {
-    const ticket = await this.findOne(ticketId);
+  async concluirManutencao(ticketId: string, usuarioId: string, tenantId: string) {
+    const ticket = await this.findOne(ticketId, tenantId);
     if (ticket.statusOperacional !== StatusOperacional.EM_MANUTENCAO) {
       throw new BadRequestException('Ticket nao esta em manutencao');
     }
     return this.transicionarEstado(
       ticketId,
       StatusOperacional.FECHADO,
+      tenantId,
       usuarioId,
       'Manutencao concluida',
     );
@@ -560,8 +559,8 @@ export class TicketService {
   // REIMPRESSAO / HISTORICO / ESTATISTICAS
   // ============================================================
 
-  async reimprimir(ticketId: string, usuarioId?: string) {
-    const ticket = await this.findOne(ticketId);
+  async reimprimir(ticketId: string, tenantId: string, usuarioId?: string) {
+    const ticket = await this.findOne(ticketId, tenantId);
     if (ticket.statusOperacional !== StatusOperacional.FECHADO) {
       throw new BadRequestException('Apenas tickets fechados podem ser reimpressos');
     }
@@ -579,8 +578,8 @@ export class TicketService {
     return { sucesso: true, ticketId, numero: ticket.numero, mensagem: 'Reimpressao registrada' };
   }
 
-  async getHistorico(ticketId: string) {
-    await this.findOne(ticketId);
+  async getHistorico(ticketId: string, tenantId: string) {
+    await this.findOne(ticketId, tenantId);
     return this.prisma.auditoria.findMany({
       where: { entidade: 'ticket_pesagem', entidadeId: ticketId },
       orderBy: { dataHora: 'desc' },

@@ -14,6 +14,9 @@ import { PerfisService } from './perfis.service';
 import { CreatePerfilDto } from './dto/create-perfil.dto';
 import { UpdatePerfilDto } from './dto/update-perfil.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Perfis')
 @ApiBearerAuth()
@@ -29,26 +32,33 @@ export class PerfisController {
   }
 
   @Post()
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar perfil' })
-  create(@Body() dto: CreatePerfilDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreatePerfilDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.create(dto, tenantId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Detalhar perfil' })
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.findOne(id, tenantId);
   }
 
   @Patch(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar perfil' })
-  update(@Param('id') id: string, @Body() dto: UpdatePerfilDto) {
-    return this.service.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdatePerfilDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.service.update(id, dto, tenantId);
   }
 
   @Delete(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Desativar perfil' })
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.remove(id, tenantId);
   }
 }

@@ -42,7 +42,7 @@ describe('RelatoriosService', () => {
 
   describe('movimento', () => {
     it('aplica filtro de periodo + statusFECHADO', async () => {
-      await service.movimento('2026-04-01', '2026-04-30');
+      await service.movimento('2026-04-01', '2026-04-30', 'tenant-1');
       expect(prisma.ticketPesagem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -55,7 +55,7 @@ describe('RelatoriosService', () => {
     });
 
     it('aplica unidadeId quando informado', async () => {
-      await service.movimento('2026-04-01', '2026-04-30', 'u1');
+      await service.movimento('2026-04-01', '2026-04-30', 'tenant-1', 'u1');
       expect(prisma.ticketPesagem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ unidadeId: 'u1' }),
@@ -65,7 +65,7 @@ describe('RelatoriosService', () => {
 
     it('marca truncated quando count excede MAX', async () => {
       prisma.ticketPesagem.count.mockResolvedValue(6000);
-      const out = await service.movimento('2026-04-01', '2026-04-30');
+      const out = await service.movimento('2026-04-01', '2026-04-30', 'tenant-1');
       expect(out.truncated).toBe(true);
       expect(out.totalTickets).toBe(6000);
     });
@@ -74,7 +74,7 @@ describe('RelatoriosService', () => {
       prisma.ticketPesagem.aggregate.mockResolvedValue({
         _sum: { pesoLiquidoFinal: 1500, totalDescontos: 50, pesoBrutoApurado: 1600 },
       });
-      const out = await service.movimento('2026-04-01', '2026-04-30');
+      const out = await service.movimento('2026-04-01', '2026-04-30', 'tenant-1');
       expect(out.totalPeso).toBe(1500);
       expect(out.totalDescontos).toBe(50);
       expect(out.totalBruto).toBe(1600);
@@ -84,7 +84,7 @@ describe('RelatoriosService', () => {
   describe('pesagensAlteradas', () => {
     it('filtra por status EM_MANUTENCAO no periodo', async () => {
       prisma.ticketPesagem.findMany.mockResolvedValue([{ id: 't1' }]);
-      const out = await service.pesagensAlteradas('2026-04-01', '2026-04-30', 'u1');
+      const out = await service.pesagensAlteradas('2026-04-01', '2026-04-30', 'tenant-1', 'u1');
       expect(prisma.ticketPesagem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -100,7 +100,7 @@ describe('RelatoriosService', () => {
 
   describe('pesagensCanceladas', () => {
     it('filtra por status CANCELADO no periodo', async () => {
-      await service.pesagensCanceladas('2026-04-01', '2026-04-30');
+      await service.pesagensCanceladas('2026-04-01', '2026-04-30', 'tenant-1');
       expect(prisma.ticketPesagem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -118,7 +118,7 @@ describe('RelatoriosService', () => {
         { balancaId: 'b1', _count: { id: 12 }, _sum: { pesoCapturado: 30000 } },
       ]);
       prisma.balanca.findMany.mockResolvedValue([{ id: 'b1', nome: 'Balanca Norte' }]);
-      const out = await service.passagensPorBalanca('2026-04-01', '2026-04-30');
+      const out = await service.passagensPorBalanca('2026-04-01', '2026-04-30', 'tenant-1');
       expect(out).toEqual([
         { balancaId: 'b1', balancaNome: 'Balanca Norte', totalPassagens: 12, pesoTotal: 30000 },
       ]);
@@ -128,12 +128,12 @@ describe('RelatoriosService', () => {
       prisma.passagemPesagem.groupBy.mockResolvedValue([
         { balancaId: 'orfa', _count: { id: 1 }, _sum: { pesoCapturado: 100 } },
       ]);
-      const out = await service.passagensPorBalanca('2026-04-01', '2026-04-30');
+      const out = await service.passagensPorBalanca('2026-04-01', '2026-04-30', 'tenant-1');
       expect(out[0].balancaNome).toBe('Desconhecida');
     });
 
     it('aplica filtro por unidade no where da passagem e da balanca', async () => {
-      await service.passagensPorBalanca('2026-04-01', '2026-04-30', 'u1');
+      await service.passagensPorBalanca('2026-04-01', '2026-04-30', 'tenant-1', 'u1');
       expect(prisma.passagemPesagem.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ balanca: { unidadeId: 'u1' } }),

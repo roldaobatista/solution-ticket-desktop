@@ -3,10 +3,6 @@ import { Type } from 'class-transformer';
 import { IsBoolean, IsDateString, IsInt, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreateTabelaFreteDto {
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()

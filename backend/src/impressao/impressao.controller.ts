@@ -4,6 +4,8 @@ import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger'
 import { ImpressaoService } from './impressao.service';
 import { errorMessage } from '../common/error-message.util';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 // Onda 2.6: JwtAuthGuard adicionado.
 @ApiTags('Impressão')
@@ -50,12 +52,14 @@ export class ImpressaoController {
   }
 
   @Post('erros/:id/reimprimir')
+  @Roles(Permissao.TICKET_REIMPRIMIR)
   @ApiOperation({ summary: 'Reimprime o ticket associado ao erro' })
   reimprimir(@Param('id') id: string) {
     return this.service.reimprimirErro(id);
   }
 
   @Post('erros/:id/resolver')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Marca erro como resolvido' })
   marcarResolvido(@Param('id') id: string) {
     return this.service.marcarResolvido(id);
@@ -76,6 +80,7 @@ export class ImpressaoController {
   }
 
   @Post('ticket/:ticketId/escpos/imprimir')
+  @Roles(Permissao.TICKET_REIMPRIMIR)
   @ApiOperation({ summary: 'Imprime ticket ESC/POS diretamente na porta' })
   async imprimirEscpos(
     @Param('ticketId') ticketId: string,
@@ -91,6 +96,7 @@ export class ImpressaoController {
   }
 
   @Post('ticket/:ticketId/escpos/salvar')
+  @Roles(Permissao.TICKET_REIMPRIMIR)
   @ApiOperation({ summary: 'Salva buffer ESC/POS em arquivo temporário' })
   async salvarEscpos(
     @Param('ticketId') ticketId: string,

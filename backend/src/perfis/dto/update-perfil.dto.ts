@@ -3,10 +3,6 @@ import { IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
 export class UpdatePerfilDto {
   @IsOptional()
   @IsString()
-  tenantId?: string;
-
-  @IsOptional()
-  @IsString()
   nome?: string;
 
   @IsOptional()

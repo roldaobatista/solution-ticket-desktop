@@ -101,12 +101,13 @@
       "icon": "assets/icon.ico",
       "artifactName": "Solution-Ticket-Setup-${version}.exe",
       "publisherName": "Solution Ticket",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true,
+      "sign": "./sign.js"
     },
     "publish": [
       {
         "provider": "github",
-        "owner": "rolda",
+        "owner": "roldaobatista",
         "repo": "solution-ticket-desktop",
         "releaseType": "release"
       }
