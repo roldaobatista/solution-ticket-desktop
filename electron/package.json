@@ -101,12 +101,7 @@
       "icon": "assets/icon.ico",
       "artifactName": "Solution-Ticket-Setup-${version}.exe",
       "publisherName": "Solution Ticket",
-      "signAndEditExecutable": true,
-      "signtoolOptions": {
-        "signingHashAlgorithms": [
-          "sha256"
-        ]
-      }
+      "signAndEditExecutable": false
     },
     "publish": [
       {

@@ -1,7 +1,14 @@
 const { app, BrowserWindow, Menu, shell, dialog, session } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const { spawn } = require('child_process');
+const http = require('http');
 const log = require('electron-log/main');
+const { setupAutoUpdate } = require('./updater');
 
-// Onda 4: electron-log com rotação (max 5MB, 5 arquivos histórico)
+// Onda 4: electron-log com rotação (max 5MB, 1 arquivo .old.log).
+// IMPORTANTE: archiveLogFn é chamada em runtime quando o arquivo atinge maxSize,
+// portanto path/fs precisam estar requeridos ANTES da definição (Onda 1, C2).
 log.initialize();
 log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.file.archiveLogFn = (file) => {
@@ -21,17 +28,12 @@ if (!gotTheLock) {
   process.exit(0);
 }
 
-app.on('second-instance', (_event, _argv, _workingDirectory) => {
+app.on('second-instance', () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
   }
 });
-const path = require('path');
-const { spawn } = require('child_process');
-const http = require('http');
-const fs = require('fs');
-const { setupAutoUpdate } = require('./updater');
 
 const isDev = !app.isPackaged;
 
@@ -501,35 +503,40 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', () => {
-  app.isQuitting = true;
-});
-
-app.on('quit', () => {
-  if (backendProcess) {
+// Onda 1.5 (C1): UM unico handler before-quit que coordena shutdown
+// graceful do backend E frontend. Antes havia dois handlers conflitantes
+// e um app.on('quit') redundante que causavam loop e kill nao-graceful
+// do frontend.
+async function gracefulKill(name, proc, timeoutMs = 3000) {
+  if (!proc || proc.killed) return;
+  try {
+    logLine('shutdown', `enviando SIGTERM para ${name}`);
+    proc.kill('SIGTERM');
+  } catch (err) {
+    logLine('shutdown', `erro SIGTERM ${name}: ${err.message}`);
+  }
+  await new Promise((resolve) => setTimeout(resolve, timeoutMs));
+  if (!proc.killed) {
+    logLine('shutdown', `${name} nao respondeu, forcando SIGKILL`);
     try {
-      backendProcess.kill();
+      proc.kill('SIGKILL');
     } catch {}
   }
-  if (frontendProcess) {
-    try {
-      frontendProcess.kill();
-    } catch {}
-  }
-});
+}
 
-// Onda 2: graceful shutdown — envia SIGTERM e aguarda antes de kill forçado
+let shutdownInProgress = false;
+
 app.on('before-quit', async (event) => {
-  if (backendProcess && !backendProcess.killed) {
-    event.preventDefault();
-    logLine('shutdown', 'solicitando graceful shutdown do backend...');
-    backendProcess.kill('SIGTERM');
-    // Aguarda ate 3s para o backend fechar graciosamente
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    if (!backendProcess.killed) {
-      logLine('shutdown', 'backend nao respondeu, forçando kill');
-      backendProcess.kill('SIGKILL');
-    }
-    app.quit();
-  }
+  if (shutdownInProgress) return;
+  if (!backendProcess && !frontendProcess) return;
+  shutdownInProgress = true;
+  app.isQuitting = true;
+  event.preventDefault();
+  logLine('shutdown', 'iniciando graceful shutdown...');
+  await Promise.all([
+    gracefulKill('backend', backendProcess),
+    gracefulKill('frontend', frontendProcess),
+  ]);
+  logLine('shutdown', 'completo');
+  app.exit(0);
 });
