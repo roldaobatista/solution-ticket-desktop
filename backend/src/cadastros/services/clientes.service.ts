@@ -10,7 +10,7 @@ import { validarPessoaFiscal, normalizarDocumento, TipoPessoa } from '../../comm
 export class ClientesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateClienteDto) {
+  async create(dto: CreateClienteDto, tenantId: string) {
     const tipoPessoa: TipoPessoa = (dto.tipoPessoa ?? 'PJ') as TipoPessoa;
     validarPessoaFiscal({
       tipoPessoa,
@@ -20,15 +20,15 @@ export class ClientesService {
     return this.prisma.cliente.create({
       data: {
         ...dto,
+        tenantId,
         tipoPessoa,
         documento: normalizarDocumento(dto.documento),
       },
     });
   }
 
-  async findAll(filter: BaseFilterDto) {
-    const where: Prisma.ClienteWhereInput = {};
-    if (filter.tenantId) where.tenantId = filter.tenantId;
+  async findAll(filter: BaseFilterDto, tenantId: string) {
+    const where: Prisma.ClienteWhereInput = { tenantId };
     if (filter.search) {
       where.OR = [
         { razaoSocial: { contains: filter.search } },
@@ -49,14 +49,14 @@ export class ClientesService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
-    const entity = await this.prisma.cliente.findUnique({ where: { id } });
+  async findOne(id: string, tenantId: string) {
+    const entity = await this.prisma.cliente.findFirst({ where: { id, tenantId } });
     if (!entity) throw new NotFoundException('Cliente não encontrado');
     return entity;
   }
 
-  async update(id: string, dto: UpdateClienteDto) {
-    const atual = await this.findOne(id);
+  async update(id: string, dto: UpdateClienteDto, tenantId: string) {
+    const atual = await this.findOne(id, tenantId);
     if (
       dto.tipoPessoa !== undefined ||
       dto.documento !== undefined ||
@@ -77,8 +77,8 @@ export class ClientesService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
     return this.prisma.cliente.update({ where: { id }, data: { ativo: false } });
   }
 }

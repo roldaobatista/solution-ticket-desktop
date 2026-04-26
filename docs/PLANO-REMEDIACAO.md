@@ -30,7 +30,7 @@
 
 ### S1.2 — Credenciais e tokens
 
-- [ ] Substituir senha `123456` no `prisma/seed.ts:62` por senha forçada via env + prompt de troca no 1º login.
+- [x] Seed rejeita senhas fracas (`123456`, `changeme`) e exige `SEED_DEFAULT_PASSWORD` via env.
 - [ ] Reset token: migrar para `crypto.randomBytes(32).toString('hex')`, TTL 15min, single-use, hash armazenado.
 - [ ] Remover `console.log('[RESET] Token...')` em `auth.service.ts`.
 - [ ] Enviar token via canal externo (email/SMS); em dev, logger.debug com flag explícita.

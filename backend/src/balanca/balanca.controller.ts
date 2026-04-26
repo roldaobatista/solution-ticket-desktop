@@ -126,8 +126,8 @@ export class BalancaController {
 
   @Get(':id/status')
   @ApiOperation({ summary: 'Status da conexão com a balança' })
-  status(@Param('id') id: string) {
-    return this.connService.getStatus(id);
+  status(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.balancaService.findOne(id, tenantId).then(() => this.connService.getStatus(id));
   }
 
   @Post(':id/testar')
@@ -145,7 +145,8 @@ export class BalancaController {
 
   @Post(':id/desconectar')
   @ApiOperation({ summary: 'Encerra a conexão contínua' })
-  async desconectar(@Param('id') id: string) {
+  async desconectar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    await this.balancaService.findOne(id, tenantId);
     await this.connService.desconectar(id);
     return { ok: true };
   }
@@ -161,25 +162,42 @@ export class BalancaController {
     @Param('id') id: string,
     @Body() dto: RegistrarCalibracaoDto,
     @CurrentUser('id') usuarioId: string,
+    @CurrentUser('tenantId') tenantId: string,
   ) {
-    return this.calibracaoService.registrar(id, {
-      tipo: dto.tipo,
-      pesoReferencia: dto.pesoReferencia,
-      pesoLido: dto.pesoLido,
-      observacao: dto.observacao,
-      usuarioId,
-    });
+    return this.calibracaoService.registrar(
+      id,
+      {
+        tipo: dto.tipo,
+        pesoReferencia: dto.pesoReferencia,
+        pesoLido: dto.pesoLido,
+        observacao: dto.observacao,
+        usuarioId,
+      },
+      tenantId,
+    );
   }
 
   @Get(':id/calibracoes')
   @ApiOperation({ summary: 'Historico de calibracoes da balanca' })
-  listarCalibracoes(@Param('id') id: string, @Query('limite') limite?: string) {
-    return this.calibracaoService.listar(id, limite ? parseInt(limite, 10) : 50);
+  listarCalibracoes(
+    @Param('id') id: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('limite') limite?: string,
+  ) {
+    return this.calibracaoService.listar(id, tenantId, limite ? parseInt(limite, 10) : 50);
   }
 
   @Get(':id/calibracoes/status')
   @ApiOperation({ summary: 'Status de vencimento da ultima calibracao' })
-  statusCalibracao(@Param('id') id: string, @Query('diasMaximo') diasMaximo?: string) {
-    return this.calibracaoService.statusVencimento(id, diasMaximo ? parseInt(diasMaximo, 10) : 180);
+  statusCalibracao(
+    @Param('id') id: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('diasMaximo') diasMaximo?: string,
+  ) {
+    return this.calibracaoService.statusVencimento(
+      id,
+      tenantId,
+      diasMaximo ? parseInt(diasMaximo, 10) : 180,
+    );
   }
 }

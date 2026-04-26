@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, shell, dialog, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const http = require('http');
 const log = require('electron-log/main');
@@ -125,12 +126,31 @@ const ALLOWED_ENV_KEYS = new Set([
   'ELECTRON_RUN_AS_NODE',
 ]);
 
+function getJwtSecretPath() {
+  return path.join(app.getPath('userData'), '.jwt-secret');
+}
+
+function ensureJwtSecret() {
+  const secretPath = getJwtSecretPath();
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (fs.existsSync(secretPath)) {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  }
+  const secret = crypto.randomBytes(64).toString('hex');
+  fs.writeFileSync(secretPath, secret);
+  logLine('boot', `JWT_SECRET gerado em ${secretPath}`);
+  return secret;
+}
+
 function buildEnv(extra = {}) {
   const base = {};
   for (const key of Object.keys(process.env)) {
     if (ALLOWED_ENV_KEYS.has(key)) {
       base[key] = process.env[key];
     }
+  }
+  if (!base.JWT_SECRET) {
+    base.JWT_SECRET = ensureJwtSecret();
   }
   return { ...base, ...extra };
 }

@@ -1,12 +1,19 @@
 import { apiClient, resolveUnidadeId, mesQuery, USE_MOCK } from './client';
 import { DashboardKpis, PesagensPorPeriodo, TopClienteVolume, DistribuicaoProduto } from '@/types';
 import { mockApi } from '../mock-api';
+import {
+  mapDashboardKpis,
+  mapPesagensPorPeriodo,
+  mapStatusBalanca,
+  mapTopCliente,
+  mapDistribuicaoProduto,
+} from './mappers';
 
 export async function getDashboardKpis(unidadeId?: string): Promise<DashboardKpis> {
   if (USE_MOCK) return mockApi.getDashboardKpis();
   const uid = resolveUnidadeId(unidadeId);
   const res = await apiClient.get(`/dashboard/kpis/${uid}`);
-  return res.data;
+  return mapDashboardKpis(res.data);
 }
 
 export async function getPesagensPorPeriodo(
@@ -16,7 +23,8 @@ export async function getPesagensPorPeriodo(
   if (USE_MOCK) return mockApi.getPesagensPorPeriodo(periodo);
   const uid = resolveUnidadeId(unidadeId);
   const res = await apiClient.get(`/dashboard/evolucao-diaria/${uid}`, { params: { periodo } });
-  return res.data;
+  const arr = Array.isArray(res.data) ? res.data : [];
+  return arr.map(mapPesagensPorPeriodo);
 }
 
 export async function getTicketsPorStatus(
@@ -25,7 +33,8 @@ export async function getTicketsPorStatus(
   if (USE_MOCK) return [];
   const uid = resolveUnidadeId(unidadeId);
   const res = await apiClient.get(`/dashboard/tickets-por-status/${uid}`);
-  return res.data;
+  const d = res.data;
+  return Array.isArray(d) ? d : d?.data || [];
 }
 
 export async function getPesagensPorProduto(
@@ -34,7 +43,8 @@ export async function getPesagensPorProduto(
   if (USE_MOCK) return [];
   const uid = resolveUnidadeId(unidadeId);
   const res = await apiClient.get(`/dashboard/pesagens-por-produto/${uid}`);
-  return res.data;
+  const d = res.data;
+  return Array.isArray(d) ? d : d?.data || [];
 }
 
 export async function getPesagensPorCliente(
@@ -43,7 +53,8 @@ export async function getPesagensPorCliente(
   if (USE_MOCK) return [];
   const uid = resolveUnidadeId(unidadeId);
   const res = await apiClient.get(`/dashboard/pesagens-por-cliente/${uid}`);
-  return res.data;
+  const d = res.data;
+  return Array.isArray(d) ? d : d?.data || [];
 }
 
 export async function getStatusBalancas(
@@ -52,7 +63,8 @@ export async function getStatusBalancas(
   if (USE_MOCK) return [];
   const uid = resolveUnidadeId(unidadeId);
   const res = await apiClient.get(`/dashboard/status-balancas/${uid}`);
-  return res.data;
+  const arr = Array.isArray(res.data) ? res.data : [];
+  return arr.map(mapStatusBalanca);
 }
 
 export async function getTopClientesVolume(periodo = 'mes'): Promise<TopClienteVolume[]> {
@@ -62,7 +74,7 @@ export async function getTopClientesVolume(periodo = 'mes'): Promise<TopClienteV
   const mes = mesQuery(periodo);
   const res = await apiClient.get(`/dashboard/top-clientes/${uid}`, { params: mes ? { mes } : {} });
   const arr = Array.isArray(res.data) ? res.data : [];
-  return arr as unknown as TopClienteVolume[];
+  return arr.map(mapTopCliente);
 }
 
 export async function getDistribuicaoProduto(periodo = 'mes'): Promise<DistribuicaoProduto[]> {
@@ -74,5 +86,5 @@ export async function getDistribuicaoProduto(periodo = 'mes'): Promise<Distribui
     params: mes ? { mes } : {},
   });
   const arr = Array.isArray(res.data) ? res.data : [];
-  return arr as unknown as DistribuicaoProduto[];
+  return arr.map(mapDistribuicaoProduto);
 }

@@ -1,4 +1,4 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, IsNumber, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const FLUXO_PESAGEM_VALUES = [
@@ -77,6 +77,8 @@ export class CreateTicketDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsNumber()
+  @Min(0)
   pesoNf?: number;
 
   @ApiPropertyOptional({ enum: MODO_COMERCIAL_VALUES })

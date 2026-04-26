@@ -97,11 +97,13 @@ pnpm dist:win
 
 ### Login do app (após seed)
 
-| Usuário    | E-mail                     | Senha    | Perfil        |
-| ---------- | -------------------------- | -------- | ------------- |
-| admin      | `admin@solutionticket.com` | `123456` | Administrador |
-| operador   | `joao@solutionticket.com`  | `123456` | Operador      |
-| supervisor | `maria@solutionticket.com` | `123456` | Supervisor    |
+A senha padrão dos usuários de seed é definida pela variável de ambiente `SEED_DEFAULT_PASSWORD`. O seed rejeita senhas fracas como `123456` ou `changeme`.
+
+| Usuário    | E-mail                     | Perfil        |
+| ---------- | -------------------------- | ------------- |
+| admin      | `admin@solutionticket.com` | Administrador |
+| operador   | `joao@solutionticket.com`  | Operador      |
+| supervisor | `maria@solutionticket.com` | Supervisor    |
 
 ### Banco de dados
 

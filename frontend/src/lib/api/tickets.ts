@@ -1,6 +1,7 @@
-import { apiClient, toPaginated, USE_MOCK } from './client';
+import { apiClient, USE_MOCK } from './client';
 import { TicketPesagem, PassagemPesagem, PaginatedResponse } from '@/types';
 import { mockApi } from '../mock-api';
+import { mapTicket, mapPassagem, mapPaginatedTickets } from './mappers';
 
 export async function getTickets(
   page?: number,
@@ -12,31 +13,31 @@ export async function getTickets(
   const res = await apiClient.get('/tickets', {
     params: { page, limit, search, statusOperacional },
   });
-  return toPaginated(res.data, page ?? 1, limit ?? 10);
+  return mapPaginatedTickets(res.data);
 }
 
 export async function getTicketById(id: string): Promise<TicketPesagem> {
   if (USE_MOCK) return mockApi.getTicketById(id);
   const res = await apiClient.get(`/tickets/${id}`);
-  return res.data;
+  return mapTicket(res.data);
 }
 
 export async function createTicket(data: Partial<TicketPesagem>): Promise<TicketPesagem> {
   if (USE_MOCK) return mockApi.createTicket(data);
   const res = await apiClient.post('/tickets', data);
-  return res.data;
+  return mapTicket(res.data);
 }
 
 export async function fecharTicket(id: string): Promise<TicketPesagem> {
   if (USE_MOCK) return mockApi.fecharTicket(id);
   const res = await apiClient.post(`/tickets/${id}/fechar`);
-  return res.data;
+  return mapTicket(res.data);
 }
 
 export async function cancelarTicket(id: string, motivo: string): Promise<TicketPesagem> {
   if (USE_MOCK) return mockApi.cancelarTicket(id, motivo);
   const res = await apiClient.post(`/tickets/${id}/cancelar`, { motivo });
-  return res.data;
+  return mapTicket(res.data);
 }
 
 export async function registrarPassagem(
@@ -45,7 +46,7 @@ export async function registrarPassagem(
 ): Promise<PassagemPesagem> {
   if (USE_MOCK) return mockApi.registrarPassagem(ticketId, data);
   const res = await apiClient.post(`/tickets/${ticketId}/passagens`, data);
-  return res.data;
+  return mapPassagem(res.data);
 }
 
 export async function getTicketsFechados(
@@ -57,7 +58,7 @@ export async function getTicketsFechados(
   const res = await apiClient.get('/tickets', {
     params: { page, limit, search, statusOperacional: 'FECHADO' },
   });
-  return toPaginated(res.data, page ?? 1, limit ?? 10);
+  return mapPaginatedTickets(res.data);
 }
 
 export async function solicitarManutencaoTicket(
@@ -66,7 +67,7 @@ export async function solicitarManutencaoTicket(
 ): Promise<TicketPesagem> {
   if (USE_MOCK) return mockApi.getTicketById(id) as Promise<TicketPesagem>;
   const res = await apiClient.post(`/tickets/${id}/manutencao/solicitar`, data);
-  return res.data;
+  return mapTicket(res.data);
 }
 
 export async function concluirManutencaoTicket(
@@ -75,7 +76,7 @@ export async function concluirManutencaoTicket(
 ): Promise<TicketPesagem> {
   if (USE_MOCK) return mockApi.getTicketById(id) as Promise<TicketPesagem>;
   const res = await apiClient.post(`/tickets/${id}/manutencao/concluir`, data);
-  return res.data;
+  return mapTicket(res.data);
 }
 
 export async function updateTicketManutencao(
@@ -91,7 +92,7 @@ export async function updateTicketManutencao(
 export async function reimprimirTicket(id: string): Promise<TicketPesagem> {
   if (USE_MOCK) return mockApi.getTicketById(id) as Promise<TicketPesagem>;
   const res = await apiClient.post(`/tickets/${id}/reimprimir`);
-  return res.data;
+  return mapTicket(res.data);
 }
 
 export async function getHistoricoTicket(id: string): Promise<

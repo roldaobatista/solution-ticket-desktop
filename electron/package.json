@@ -101,8 +101,7 @@
       "icon": "assets/icon.ico",
       "artifactName": "Solution-Ticket-Setup-${version}.exe",
       "publisherName": "Solution Ticket",
-      "signAndEditExecutable": true,
-      "sign": "./sign.js"
+      "signAndEditExecutable": true
     },
     "publish": [
       {

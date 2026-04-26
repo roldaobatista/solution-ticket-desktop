@@ -19,18 +19,21 @@ export class CameraService {
    * Recebe imagem em base64 (data URL ou puro), persiste no disco e
    * registra metadata no banco vinculado ao ticket/passagem.
    */
-  async salvar(input: {
-    ticketId: string;
-    passagemId?: string;
-    base64: string;
-    origem?: 'WEBCAM' | 'IP_CAMERA' | 'OCR';
-    placaDetectada?: string;
-  }) {
+  async salvar(
+    input: {
+      ticketId: string;
+      passagemId?: string;
+      base64: string;
+      origem?: 'WEBCAM' | 'IP_CAMERA' | 'OCR';
+      placaDetectada?: string;
+    },
+    tenantId: string,
+  ) {
     if (!input.base64 || input.base64.length < 100) {
       throw new BadRequestException('Imagem ausente ou inválida.');
     }
-    const ticket = await this.prisma.ticketPesagem.findUnique({
-      where: { id: input.ticketId },
+    const ticket = await this.prisma.ticketPesagem.findFirst({
+      where: { id: input.ticketId, tenantId },
     });
     if (!ticket) throw new NotFoundException(`Ticket ${input.ticketId} não encontrado.`);
 
@@ -62,16 +65,29 @@ export class CameraService {
     });
   }
 
-  async listarPorTicket(ticketId: string) {
+  async listarPorTicket(ticketId: string, tenantId: string) {
+    const ticket = await this.prisma.ticketPesagem.findFirst({
+      where: { id: ticketId, tenantId },
+      select: { id: true },
+    });
+    if (!ticket) throw new NotFoundException(`Ticket ${ticketId} não encontrado`);
     return this.prisma.fotoPesagem.findMany({
       where: { ticketId },
       orderBy: { capturadoEm: 'asc' },
     });
   }
 
-  async obterArquivo(id: string): Promise<{ buffer: Buffer; mime: string; filename: string }> {
+  async obterArquivo(
+    id: string,
+    tenantId: string,
+  ): Promise<{ buffer: Buffer; mime: string; filename: string }> {
     const foto = await this.prisma.fotoPesagem.findUnique({ where: { id } });
     if (!foto) throw new NotFoundException(`Foto ${id} não encontrada`);
+    const ticket = await this.prisma.ticketPesagem.findFirst({
+      where: { id: foto.ticketId, tenantId },
+      select: { id: true },
+    });
+    if (!ticket) throw new NotFoundException(`Foto ${id} não encontrada`);
     if (!fs.existsSync(foto.caminhoArquivo)) {
       throw new NotFoundException(`Arquivo físico ausente: ${foto.caminhoArquivo}`);
     }
@@ -81,9 +97,14 @@ export class CameraService {
     return { buffer, mime, filename: path.basename(foto.caminhoArquivo) };
   }
 
-  async excluir(id: string) {
+  async excluir(id: string, tenantId: string) {
     const foto = await this.prisma.fotoPesagem.findUnique({ where: { id } });
     if (!foto) throw new NotFoundException(`Foto ${id} não encontrada`);
+    const ticket = await this.prisma.ticketPesagem.findFirst({
+      where: { id: foto.ticketId, tenantId },
+      select: { id: true },
+    });
+    if (!ticket) throw new NotFoundException(`Foto ${id} não encontrada`);
     try {
       if (fs.existsSync(foto.caminhoArquivo)) fs.unlinkSync(foto.caminhoArquivo);
     } catch (err) {

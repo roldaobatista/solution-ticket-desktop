@@ -11,7 +11,7 @@ import { UserFilterDto } from './dto/user-filter.dto';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, tenantId: string) {
     const existente = await this.prisma.usuario.findUnique({
       where: { email: dto.email },
     });
@@ -23,7 +23,7 @@ export class UsersService {
 
     const usuario = await this.prisma.usuario.create({
       data: {
-        tenantId: dto.tenantId,
+        tenantId,
         nome: dto.nome,
         email: dto.email,
         senhaHash,
@@ -54,10 +54,8 @@ export class UsersService {
     return usuario;
   }
 
-  async findAll(filter: UserFilterDto) {
-    const where: Prisma.UsuarioWhereInput = {};
-
-    if (filter.tenantId) where.tenantId = filter.tenantId;
+  async findAll(filter: UserFilterDto, tenantId: string) {
+    const where: Prisma.UsuarioWhereInput = { tenantId };
     if (filter.nome) where.nome = { contains: filter.nome };
     if (filter.email) where.email = { contains: filter.email };
     if (filter.ativo !== undefined) where.ativo = filter.ativo;
@@ -91,9 +89,9 @@ export class UsersService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { id },
+  async findOne(id: string, tenantId: string) {
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { id, tenantId },
       select: {
         id: true,
         nome: true,
@@ -113,8 +111,8 @@ export class UsersService {
     return usuario;
   }
 
-  async update(id: string, dto: UpdateUserDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateUserDto, tenantId: string) {
+    await this.findOne(id, tenantId);
 
     const data: Prisma.UsuarioUpdateInput = {};
     if (dto.nome) data.nome = dto.nome;
@@ -147,8 +145,8 @@ export class UsersService {
     return usuario;
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
     await this.prisma.usuarioPerfil.deleteMany({ where: { usuarioId: id } });
     await this.prisma.usuario.delete({ where: { id } });
     return { message: 'Usuário removido com sucesso' };

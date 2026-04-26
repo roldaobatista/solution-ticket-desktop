@@ -8,7 +8,14 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 function generateTraceId(): string {
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  // W3C trace-context: 00-<32-hex-trace-id>-<16-hex-parent-id>-01
+  const traceId = Array.from({ length: 32 }, () =>
+    Math.floor(Math.random() * 16).toString(16),
+  ).join('');
+  const parentId = Array.from({ length: 16 }, () =>
+    Math.floor(Math.random() * 16).toString(16),
+  ).join('');
+  return `00-${traceId}-${parentId}-01`;
 }
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';

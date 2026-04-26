@@ -6,6 +6,7 @@ import { errorMessage } from '../common/error-message.util';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Permissao } from '../constants/permissoes';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 // Onda 2.6: JwtAuthGuard adicionado.
 @ApiTags('Impressão')
@@ -30,10 +31,11 @@ export class ImpressaoController {
     @Query('template') template: string,
     @Query('layout') layoutLegado: string,
     @Res() res: Response,
+    @CurrentUser('tenantId') tenantId: string,
   ) {
     const tpl = template || layoutLegado;
     try {
-      const buffer = await this.service.gerarTicketPdf(ticketId, tpl);
+      const buffer = await this.service.gerarTicketPdf(ticketId, tenantId, tpl);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="ticket-${ticketId}.pdf"`);
       res.send(buffer);
@@ -46,31 +48,35 @@ export class ImpressaoController {
   @Get('erros')
   @ApiOperation({ summary: 'Lista erros de impressão' })
   @ApiQuery({ name: 'resolvido', required: false, type: Boolean })
-  listarErros(@Query('resolvido') resolvido?: string) {
+  listarErros(@CurrentUser('tenantId') tenantId: string, @Query('resolvido') resolvido?: string) {
     const flag = resolvido === undefined ? undefined : resolvido === 'true';
-    return this.service.listarErros(flag);
+    return this.service.listarErros(tenantId, flag);
   }
 
   @Post('erros/:id/reimprimir')
   @Roles(Permissao.TICKET_REIMPRIMIR)
   @ApiOperation({ summary: 'Reimprime o ticket associado ao erro' })
-  reimprimir(@Param('id') id: string) {
-    return this.service.reimprimirErro(id);
+  reimprimir(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.reimprimirErro(id, tenantId);
   }
 
   @Post('erros/:id/resolver')
   @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Marca erro como resolvido' })
-  marcarResolvido(@Param('id') id: string) {
-    return this.service.marcarResolvido(id);
+  marcarResolvido(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.marcarResolvido(id, tenantId);
   }
 
   // ESC/POS endpoints (Onda 3)
   @Get('ticket/:ticketId/escpos')
   @ApiOperation({ summary: 'Gera buffer ESC/POS do ticket (base64)' })
-  async gerarEscpos(@Param('ticketId') ticketId: string, @Res() res: Response) {
+  async gerarEscpos(
+    @Param('ticketId') ticketId: string,
+    @Res() res: Response,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
     try {
-      const buffer = await this.service.gerarTicketEscposBuffer(ticketId);
+      const buffer = await this.service.gerarTicketEscposBuffer(ticketId, tenantId);
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Disposition', `attachment; filename="ticket-${ticketId}.bin"`);
       res.send(buffer);
@@ -86,9 +92,10 @@ export class ImpressaoController {
     @Param('ticketId') ticketId: string,
     @Body() body: { porta: string },
     @Res() res: Response,
+    @CurrentUser('tenantId') tenantId: string,
   ) {
     try {
-      const ok = await this.service.imprimirTicketEscpos(ticketId, body.porta);
+      const ok = await this.service.imprimirTicketEscpos(ticketId, tenantId, body.porta);
       res.json({ sucesso: ok });
     } catch (err: unknown) {
       res.status(500).json({ erro: errorMessage(err, 'Falha ao imprimir ESC/POS') });
@@ -102,9 +109,10 @@ export class ImpressaoController {
     @Param('ticketId') ticketId: string,
     @Body() body: { nome?: string },
     @Res() res: Response,
+    @CurrentUser('tenantId') tenantId: string,
   ) {
     try {
-      const filePath = await this.service.salvarTicketEscpos(ticketId, body.nome);
+      const filePath = await this.service.salvarTicketEscpos(ticketId, tenantId, body.nome);
       res.json({ sucesso: true, arquivo: filePath });
     } catch (err: unknown) {
       res.status(500).json({ erro: errorMessage(err, 'Falha ao salvar ESC/POS') });

@@ -1,7 +1,8 @@
-import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PrismaService } from './prisma/prisma.service';
 import { Public } from './common/decorators/public.decorator';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 const bootedAt = new Date();
 
@@ -42,7 +43,7 @@ export class AppController {
     return { status: 'ok', services: { database: db } };
   }
 
-  @Public()
+  @UseGuards(JwtAuthGuard)
   @Get('metrics')
   @ApiOperation({ summary: 'Métricas de negócio agregadas (não-Prometheus)' })
   async metrics() {

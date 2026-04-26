@@ -86,7 +86,7 @@ describe('TicketService - cálculo de fechamento', () => {
       .mockResolvedValueOnce({ ...baseTicket })
       .mockResolvedValueOnce({ ...baseTicket, pesoLiquidoFinal: 12000 });
 
-    await service.fecharTicket('tk1', {}, 'tenant-1');
+    await service.fecharTicket('tk1', {}, 'tenant-1', 'user-1');
 
     expect(prisma.ticketPesagem.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -117,7 +117,7 @@ describe('TicketService - cálculo de fechamento', () => {
       .mockResolvedValueOnce({ ...baseTicket })
       .mockResolvedValueOnce({ ...baseTicket });
 
-    await service.fecharTicket('tk1', {}, 'tenant-1');
+    await service.fecharTicket('tk1', {}, 'tenant-1', 'user-1');
 
     expect(prisma.ticketPesagem.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -143,7 +143,7 @@ describe('TicketService - cálculo de fechamento', () => {
       .mockResolvedValueOnce({ ...baseTicket, taraCadastradaSnapshot: 7000 })
       .mockResolvedValueOnce({ ...baseTicket });
 
-    await service.fecharTicket('tk1', {}, 'tenant-1');
+    await service.fecharTicket('tk1', {}, 'tenant-1', 'user-1');
 
     expect(prisma.ticketPesagem.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -167,7 +167,7 @@ describe('TicketService - cálculo de fechamento', () => {
       },
       { papelCalculo: 'TARA_OFICIAL', pesoCapturado: 8000, statusPassagem: 'VALIDA', sequencia: 2 },
     ]);
-    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toBeInstanceOf(
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1', 'user-1')).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -175,7 +175,9 @@ describe('TicketService - cálculo de fechamento', () => {
   it('rejeita fechamento sem passagens válidas', async () => {
     mockTicket();
     prisma.passagemPesagem.findMany.mockResolvedValue([]);
-    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toThrow(/passagens validas/i);
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1', 'user-1')).rejects.toThrow(
+      /passagens validas/i,
+    );
   });
 
   it('rejeita fechamento sem tara (sem passagem e sem snapshot)', async () => {
@@ -188,12 +190,12 @@ describe('TicketService - cálculo de fechamento', () => {
         sequencia: 1,
       },
     ]);
-    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toThrow(/tara/i);
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1', 'user-1')).rejects.toThrow(/tara/i);
   });
 
   it('rejeita fechamento quando ticket não está em estado fechavel', async () => {
     mockTicket({ statusOperacional: 'FECHADO' });
-    await expect(service.fecharTicket('tk1', {}, 'tenant-1')).rejects.toThrow(/estado/i);
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1', 'user-1')).rejects.toThrow(/estado/i);
   });
 });
 

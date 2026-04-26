@@ -6,6 +6,7 @@ import {
   IsUUID,
   IsNumber,
   IsDateString,
+  Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -51,6 +52,7 @@ export class RegistrarPassagemDto {
 
   @ApiProperty()
   @IsNumber()
+  @Min(0)
   pesoCapturado!: number;
 
   @ApiPropertyOptional()
@@ -61,10 +63,6 @@ export class RegistrarPassagemDto {
   @ApiProperty()
   @IsUUID()
   balancaId!: string;
-
-  @ApiProperty()
-  @IsUUID()
-  usuarioId!: string;
 
   @ApiProperty({ enum: ORIGEM_LEITURA_VALUES })
   @IsString()

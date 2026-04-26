@@ -1,4 +1,4 @@
-import { apiClient, toPaginated, USE_MOCK } from './client';
+import { apiClient, USE_MOCK } from './client';
 import {
   Balanca,
   BalancaStatus,
@@ -7,6 +7,7 @@ import {
   TestarConexaoResult,
 } from '@/types';
 import { mockApi } from '../mock-api';
+import { mapBalanca, mapPaginated } from './mappers';
 
 export async function getBalancas(
   page?: number,
@@ -15,19 +16,19 @@ export async function getBalancas(
 ): Promise<PaginatedResponse<Balanca>> {
   if (USE_MOCK) return mockApi.getBalancas(page, limit, search);
   const res = await apiClient.get('/balancas', { params: { page, limit, search } });
-  return toPaginated(res.data, page ?? 1, limit ?? 10);
+  return mapPaginated(res.data, mapBalanca);
 }
 
 export async function createBalanca(data: Partial<Balanca>): Promise<Balanca> {
   if (USE_MOCK) return mockApi.createBalanca(data);
   const res = await apiClient.post('/balancas', data);
-  return res.data;
+  return mapBalanca(res.data);
 }
 
 export async function updateBalanca(id: string, data: Partial<Balanca>): Promise<Balanca> {
   if (USE_MOCK) return mockApi.updateBalanca(id, data);
   const res = await apiClient.patch(`/balancas/${id}`, data);
-  return res.data;
+  return mapBalanca(res.data);
 }
 
 export async function deleteBalanca(id: string): Promise<void> {
@@ -43,7 +44,7 @@ export async function getBalancaById(id: string): Promise<Balanca> {
     return found;
   }
   const res = await apiClient.get(`/balancas/${id}`);
-  return res.data;
+  return mapBalanca(res.data);
 }
 
 export async function getBalancaPeso(id: string): Promise<LeituraPeso> {
@@ -142,5 +143,5 @@ export async function calibrarBalanca(
     pesoReferencia,
     pesoLido,
   });
-  return res.data;
+  return mapBalanca(res.data);
 }

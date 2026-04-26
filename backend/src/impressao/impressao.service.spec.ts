@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EscposPrinterService } from './escpos/escpos-printer.service';
 
 interface PrismaMock {
-  ticketPesagem: { findUnique: jest.Mock };
+  ticketPesagem: { findFirst: jest.Mock; findMany: jest.Mock };
   configuracaoOperacionalUnidade: { findFirst: jest.Mock };
   erroImpressao: {
     create: jest.Mock;
@@ -17,7 +17,7 @@ interface PrismaMock {
 
 function makePrismaMock(): PrismaMock {
   return {
-    ticketPesagem: { findUnique: jest.fn() },
+    ticketPesagem: { findFirst: jest.fn(), findMany: jest.fn() },
     configuracaoOperacionalUnidade: { findFirst: jest.fn() },
     erroImpressao: {
       create: jest.fn().mockResolvedValue({}),
@@ -53,8 +53,8 @@ describe('ImpressaoService', () => {
 
   describe('gerarTicketPdf', () => {
     it('lanca NotFound quando ticket nao existe', async () => {
-      prisma.ticketPesagem.findUnique.mockResolvedValue(null);
-      await expect(service.gerarTicketPdf('xx')).rejects.toThrow(NotFoundException);
+      prisma.ticketPesagem.findFirst.mockResolvedValue(null);
+      await expect(service.gerarTicketPdf('xx', 'tenant')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -87,17 +87,23 @@ describe('ImpressaoService', () => {
   });
 
   describe('listarErros', () => {
-    it('sem filtro retorna where vazio', async () => {
-      await service.listarErros();
-      expect(prisma.erroImpressao.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: {}, take: 200 }),
-      );
+    it('sem filtro retorna lista vazia quando nao ha tickets do tenant', async () => {
+      prisma.ticketPesagem.findMany.mockResolvedValue([]);
+      const out = await service.listarErros('tenant');
+      expect(out).toEqual([]);
+      expect(prisma.erroImpressao.findMany).not.toHaveBeenCalled();
     });
 
     it('com filtro resolvido aplica where', async () => {
-      await service.listarErros(false);
+      prisma.ticketPesagem.findMany.mockResolvedValue([{ id: 't1' }]);
+      await service.listarErros('tenant', false);
       expect(prisma.erroImpressao.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { resolvido: false } }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: [{ resolvido: false }, { ticketId: { in: ['t1'] } }],
+          }),
+          take: 200,
+        }),
       );
     });
   });
@@ -105,12 +111,12 @@ describe('ImpressaoService', () => {
   describe('reimprimirErro', () => {
     it('lanca NotFound quando erro nao existe', async () => {
       prisma.erroImpressao.findUnique.mockResolvedValue(null);
-      await expect(service.reimprimirErro('id')).rejects.toThrow(NotFoundException);
+      await expect(service.reimprimirErro('id', 'tenant')).rejects.toThrow(NotFoundException);
     });
 
     it('lanca NotFound quando erro nao tem ticketId', async () => {
       prisma.erroImpressao.findUnique.mockResolvedValue({ id: 'e1', ticketId: null });
-      await expect(service.reimprimirErro('e1')).rejects.toThrow(NotFoundException);
+      await expect(service.reimprimirErro('e1', 'tenant')).rejects.toThrow(NotFoundException);
     });
 
     it('marca como resolvido em sucesso e incrementa tentativas', async () => {
@@ -119,8 +125,9 @@ describe('ImpressaoService', () => {
         ticketId: 't1',
         template: 'TICKET002',
       });
+      prisma.ticketPesagem.findFirst.mockResolvedValue({ id: 't1' });
       jest.spyOn(service, 'gerarTicketPdf').mockResolvedValue(Buffer.from('pdf'));
-      const out = await service.reimprimirErro('e1');
+      const out = await service.reimprimirErro('e1', 'tenant');
       expect(out).toEqual({ ok: true });
       expect(prisma.erroImpressao.update).toHaveBeenCalledWith({
         where: { id: 'e1' },
@@ -138,8 +145,9 @@ describe('ImpressaoService', () => {
         ticketId: 't1',
         template: 'TICKET002',
       });
+      prisma.ticketPesagem.findFirst.mockResolvedValue({ id: 't1' });
       jest.spyOn(service, 'gerarTicketPdf').mockRejectedValue(new Error('falhou'));
-      const out = await service.reimprimirErro('e1');
+      const out = await service.reimprimirErro('e1', 'tenant');
       expect(out.ok).toBe(false);
       expect(out.erro).toContain('falhou');
       expect(prisma.erroImpressao.update).toHaveBeenCalledWith({
@@ -151,7 +159,9 @@ describe('ImpressaoService', () => {
 
   describe('marcarResolvido', () => {
     it('atualiza resolvido=true com data atual', async () => {
-      await service.marcarResolvido('e1');
+      prisma.erroImpressao.findUnique.mockResolvedValue({ id: 'e1', ticketId: 't1' });
+      prisma.ticketPesagem.findFirst.mockResolvedValue({ id: 't1' });
+      await service.marcarResolvido('e1', 'tenant');
       expect(prisma.erroImpressao.update).toHaveBeenCalledWith({
         where: { id: 'e1' },
         data: expect.objectContaining({ resolvido: true, resolvidoEm: expect.any(Date) }),

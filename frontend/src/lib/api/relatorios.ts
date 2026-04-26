@@ -6,6 +6,7 @@ import {
   PesagemExcluida,
 } from '@/types';
 import { mockApi } from '../mock-api';
+import { mapMovimentacaoRelatorio, mapPesagemAlterada, mapPesagemExcluida } from './mappers';
 
 export async function getRelatorioMovimentacao(
   filtros: FiltroRelatorioValues,
@@ -13,7 +14,8 @@ export async function getRelatorioMovimentacao(
   if (USE_MOCK) return mockApi.getRelatorioMovimentacao(filtros);
   const res = await apiClient.get('/relatorios/movimento', { params: filtros });
   const d = res.data;
-  return Array.isArray(d) ? d : d?.data || [];
+  const arr = Array.isArray(d) ? d : d?.data || [];
+  return arr.map(mapMovimentacaoRelatorio);
 }
 
 export async function exportarRelatorioMovimentacaoPdf(
@@ -34,7 +36,8 @@ export async function getPesagensAlteradas(
   if (USE_MOCK) return mockApi.getPesagensAlteradas(filtros);
   const res = await apiClient.get('/relatorios/alteradas', { params: filtros });
   const d = res.data;
-  return Array.isArray(d) ? d : d?.data || [];
+  const arr = Array.isArray(d) ? d : d?.data || [];
+  return arr.map(mapPesagemAlterada);
 }
 
 export async function exportarRelatorioAlteradasPdf(filtros: FiltroRelatorioValues): Promise<Blob> {
@@ -52,7 +55,8 @@ export async function getPesagensExcluidas(
   if (USE_MOCK) return mockApi.getPesagensExcluidas(filtros);
   const res = await apiClient.get('/relatorios/canceladas', { params: filtros });
   const d = res.data;
-  return Array.isArray(d) ? d : d?.data || [];
+  const arr = Array.isArray(d) ? d : d?.data || [];
+  return arr.map(mapPesagemExcluida);
 }
 
 export async function exportarRelatorioCanceladasPdf(

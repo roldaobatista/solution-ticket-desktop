@@ -6,9 +6,4 @@ export class CancelarTicketDto {
   @IsString()
   @IsNotEmpty()
   motivo!: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
-  usuarioId?: string;
 }

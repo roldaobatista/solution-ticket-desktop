@@ -23,7 +23,7 @@ export class ImpressaoListener {
   async handleTicketFechado(event: TicketFechadoEvent) {
     this.logger.debug(`Ticket fechado: ${event.ticketId}`);
     try {
-      await this.impressaoService.gerarTicketPdf(event.ticketId);
+      await this.impressaoService.gerarTicketPdf(event.ticketId, event.tenantId);
     } catch (err: unknown) {
       this.logger.error(`Falha ao gerar PDF pós-fechamento: ${event.ticketId}`, err);
     }

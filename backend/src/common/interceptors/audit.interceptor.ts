@@ -3,39 +3,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuditoriaService } from '../../auditoria/auditoria.service';
 import { Logger } from '@nestjs/common';
-
-const SENSITIVE_FIELDS = new Set([
-  'senha',
-  'senhaHash',
-  'password',
-  'token',
-  'access_token',
-  'authorization',
-  'chave',
-  'license',
-  'apiKey',
-  'api_key',
-  'secret',
-]);
-
-function scrubBody(body: unknown): unknown {
-  if (!body || typeof body !== 'object') return body;
-  if (Array.isArray(body)) return body.map(scrubBody);
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(body)) {
-    if (SENSITIVE_FIELDS.has(key.toLowerCase())) {
-      result[key] = '[REDACTED]';
-    } else if (typeof value === 'string' && value.length > 1000) {
-      // Capa payloads grandes (ex: base64 de imagem)
-      result[key] = value.substring(0, 200) + '...[TRUNCATED]';
-    } else if (typeof value === 'object' && value !== null) {
-      result[key] = scrubBody(value);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
+import { scrubPii } from '../pii.util';
 
 function redactUrl(url: string): string {
   try {
@@ -72,7 +40,7 @@ export class AuditInterceptor implements NestInterceptor {
             if (!user?.tenantId) return;
 
             const safeUrl = redactUrl(rawUrl);
-            const safeBody = scrubBody(request.body);
+            const safeBody = scrubPii(request.body);
 
             await this.auditoriaService.registrar({
               entidade: this.extractEntity(safeUrl),

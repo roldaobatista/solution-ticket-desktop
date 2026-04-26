@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsInt, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsBoolean, IsIn } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateBalancaDto {
@@ -17,9 +17,34 @@ export class UpdateBalancaDto {
   @IsString()
   modelo?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    enum: [
+      'serial',
+      'rs232',
+      'rs485',
+      'tcp',
+      'tcpip',
+      'tcp/ip',
+      'ethernet',
+      'modbus',
+      'modbus-rtu',
+      'modbus-tcp',
+    ],
+  })
   @IsOptional()
   @IsString()
+  @IsIn([
+    'serial',
+    'rs232',
+    'rs485',
+    'tcp',
+    'tcpip',
+    'tcp/ip',
+    'ethernet',
+    'modbus',
+    'modbus-rtu',
+    'modbus-tcp',
+  ])
   protocolo?: string;
 
   @ApiPropertyOptional()

@@ -116,9 +116,9 @@ describe('TicketController', () => {
       const passagem = { id: 'p1' };
       ticketService.registrarPassagem.mockResolvedValue(passagem as any);
 
-      const result = await controller.registrarPassagem('t1', dto, tenantId);
+      const result = await controller.registrarPassagem('t1', dto, tenantId, 'u1');
 
-      expect(ticketService.registrarPassagem).toHaveBeenCalledWith('t1', dto, tenantId);
+      expect(ticketService.registrarPassagem).toHaveBeenCalledWith('t1', dto, tenantId, 'u1');
       expect(result).toEqual(passagem);
     });
   });
@@ -154,26 +154,26 @@ describe('TicketController', () => {
 
   describe('fecharTicket', () => {
     it('deve fechar ticket', async () => {
-      const dto = { usuarioId: 'u1' } as any;
+      const dto = {} as any;
       const ticket = { id: 't1', statusOperacional: 'FECHADO' };
       ticketService.fecharTicket.mockResolvedValue(ticket as any);
 
-      const result = await controller.fecharTicket('t1', dto, tenantId);
+      const result = await controller.fecharTicket('t1', dto, tenantId, 'u1');
 
-      expect(ticketService.fecharTicket).toHaveBeenCalledWith('t1', dto, tenantId);
+      expect(ticketService.fecharTicket).toHaveBeenCalledWith('t1', dto, tenantId, 'u1');
       expect(result).toEqual(ticket);
     });
   });
 
   describe('cancelarTicket', () => {
     it('deve cancelar ticket', async () => {
-      const dto = { usuarioId: 'u1', motivo: 'erro' } as any;
+      const dto = { motivo: 'erro' } as any;
       const ticket = { id: 't1', statusOperacional: 'CANCELADO' };
       ticketService.cancelarTicket.mockResolvedValue(ticket as any);
 
-      const result = await controller.cancelarTicket('t1', dto, tenantId);
+      const result = await controller.cancelarTicket('t1', dto, tenantId, 'u1');
 
-      expect(ticketService.cancelarTicket).toHaveBeenCalledWith('t1', dto, tenantId);
+      expect(ticketService.cancelarTicket).toHaveBeenCalledWith('t1', dto, tenantId, 'u1');
       expect(result).toEqual(ticket);
     });
   });

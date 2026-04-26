@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsNumber, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AdicionarDescontoDto {
@@ -14,6 +14,7 @@ export class AdicionarDescontoDto {
 
   @ApiProperty()
   @IsNumber()
+  @Min(0)
   valor!: number;
 
   @ApiPropertyOptional()

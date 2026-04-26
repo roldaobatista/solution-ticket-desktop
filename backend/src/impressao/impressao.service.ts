@@ -19,9 +19,12 @@ export class ImpressaoService {
     return TEMPLATE_REGISTRY;
   }
 
-  private async carregarTicket(ticketId: string): Promise<TicketComRelacoes | null> {
-    return this.prisma.ticketPesagem.findUnique({
-      where: { id: ticketId },
+  private async carregarTicket(
+    ticketId: string,
+    tenantId: string,
+  ): Promise<TicketComRelacoes | null> {
+    return this.prisma.ticketPesagem.findFirst({
+      where: { id: ticketId, tenantId },
       ...ticketComRelacoesArgs,
     });
   }
@@ -37,8 +40,8 @@ export class ImpressaoService {
     }
   }
 
-  async gerarTicketPdf(ticketId: string, template?: string): Promise<Buffer> {
-    const ticket = await this.carregarTicket(ticketId);
+  async gerarTicketPdf(ticketId: string, tenantId: string, template?: string): Promise<Buffer> {
+    const ticket = await this.carregarTicket(ticketId, tenantId);
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
 
     const tpl = template || (await this.resolverTemplatePadrao(ticket));
@@ -76,9 +79,17 @@ export class ImpressaoService {
     }
   }
 
-  async listarErros(resolvido?: boolean) {
+  async listarErros(tenantId: string, resolvido?: boolean) {
+    const tickets = await this.prisma.ticketPesagem.findMany({
+      where: { tenantId },
+      select: { id: true },
+    });
+    const ticketIds = tickets.map((t) => t.id);
+    if (ticketIds.length === 0) return [];
     return this.prisma.erroImpressao.findMany({
-      where: resolvido === undefined ? {} : { resolvido },
+      where: {
+        AND: [resolvido === undefined ? {} : { resolvido }, { ticketId: { in: ticketIds } }],
+      },
       orderBy: { criadoEm: 'desc' },
       take: 200,
     });
@@ -88,8 +99,8 @@ export class ImpressaoService {
   // ESC/POS — Impressão nativa em impressoras térmicas (Onda 3)
   // ============================================================
 
-  async gerarTicketEscposBuffer(ticketId: string): Promise<Buffer> {
-    const ticket = await this.carregarTicket(ticketId);
+  async gerarTicketEscposBuffer(ticketId: string, tenantId: string): Promise<Buffer> {
+    const ticket = await this.carregarTicket(ticketId, tenantId);
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
 
     const data: TicketEscposData = {
@@ -121,24 +132,31 @@ export class ImpressaoService {
     return gerarTicketEscpos(data);
   }
 
-  async imprimirTicketEscpos(ticketId: string, porta: string): Promise<boolean> {
-    const buffer = await this.gerarTicketEscposBuffer(ticketId);
+  async imprimirTicketEscpos(ticketId: string, tenantId: string, porta: string): Promise<boolean> {
+    const buffer = await this.gerarTicketEscposBuffer(ticketId, tenantId);
     return this.escposPrinter.imprimir(buffer, porta);
   }
 
-  async salvarTicketEscpos(ticketId: string, nome?: string): Promise<string> {
-    const buffer = await this.gerarTicketEscposBuffer(ticketId);
+  async salvarTicketEscpos(ticketId: string, tenantId: string, nome?: string): Promise<string> {
+    const buffer = await this.gerarTicketEscposBuffer(ticketId, tenantId);
     return this.escposPrinter.salvarParaArquivo(buffer, nome);
   }
 
-  async reimprimirErro(id: string): Promise<{ ok: boolean; erro?: string }> {
+  async reimprimirErro(id: string, tenantId: string): Promise<{ ok: boolean; erro?: string }> {
     const erro = await this.prisma.erroImpressao.findUnique({ where: { id } });
     if (!erro) throw new NotFoundException('Erro de impressão não encontrado');
     if (!erro.ticketId) {
       throw new NotFoundException('Erro não tem ticketId associado');
     }
+    const ticket = await this.prisma.ticketPesagem.findFirst({
+      where: { id: erro.ticketId, tenantId },
+      select: { id: true },
+    });
+    if (!ticket) {
+      throw new NotFoundException('Erro de impressão não encontrado');
+    }
     try {
-      await this.gerarTicketPdf(erro.ticketId, erro.template || undefined);
+      await this.gerarTicketPdf(erro.ticketId, tenantId, erro.template || undefined);
       await this.prisma.erroImpressao.update({
         where: { id },
         data: { resolvido: true, resolvidoEm: new Date(), tentativas: { increment: 1 } },
@@ -156,7 +174,18 @@ export class ImpressaoService {
     }
   }
 
-  async marcarResolvido(id: string) {
+  async marcarResolvido(id: string, tenantId: string) {
+    const erro = await this.prisma.erroImpressao.findUnique({ where: { id } });
+    if (!erro) throw new NotFoundException('Erro de impressão não encontrado');
+    if (erro.ticketId) {
+      const ticket = await this.prisma.ticketPesagem.findFirst({
+        where: { id: erro.ticketId, tenantId },
+        select: { id: true },
+      });
+      if (!ticket) {
+        throw new NotFoundException('Erro de impressão não encontrado');
+      }
+    }
     return this.prisma.erroImpressao.update({
       where: { id },
       data: { resolvido: true, resolvidoEm: new Date() },
@@ -164,8 +193,8 @@ export class ImpressaoService {
   }
 
   // Mantido por compatibilidade: HTML básico (não usado pelo novo fluxo)
-  async gerarTicketHtml(ticketId: string) {
-    const ticket = await this.carregarTicket(ticketId);
+  async gerarTicketHtml(ticketId: string, tenantId: string) {
+    const ticket = await this.carregarTicket(ticketId, tenantId);
     if (!ticket) return { erro: 'Ticket não encontrado' };
     return {
       numero: ticket.numero,

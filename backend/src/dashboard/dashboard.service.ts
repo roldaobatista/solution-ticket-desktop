@@ -158,9 +158,9 @@ export class DashboardService {
     }));
   }
 
-  async statusBalancas(unidadeId: string, _tenantId: string) {
+  async statusBalancas(unidadeId: string, tenantId: string) {
     const balancas = await this.prisma.balanca.findMany({
-      where: { unidadeId },
+      where: { unidadeId, tenantId },
       select: { id: true, nome: true, statusOnline: true, tipoEntradaSaida: true },
     });
 

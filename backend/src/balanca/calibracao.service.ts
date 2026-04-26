@@ -28,8 +28,8 @@ export class CalibracaoService {
     return this.prisma;
   }
 
-  async registrar(balancaId: string, input: RegistrarCalibracaoInput) {
-    const balanca = await this.prisma.balanca.findUnique({ where: { id: balancaId } });
+  async registrar(balancaId: string, input: RegistrarCalibracaoInput, tenantId: string) {
+    const balanca = await this.prisma.balanca.findFirst({ where: { id: balancaId, tenantId } });
     if (!balanca) throw new NotFoundException('Balanca nao encontrada');
 
     if (!['ZERO', 'SPAN', 'MULTIPONTO'].includes(input.tipo)) {
@@ -68,17 +68,17 @@ export class CalibracaoService {
     });
   }
 
-  async listar(balancaId: string, limite = 50) {
+  async listar(balancaId: string, tenantId: string, limite = 50) {
     return this.db.calibracaoBalanca.findMany({
-      where: { balancaId },
+      where: { balancaId, balanca: { tenantId } },
       orderBy: { realizadoEm: 'desc' },
       take: Math.min(Math.max(limite, 1), 200),
     });
   }
 
-  async ultimaCalibracao(balancaId: string) {
+  async ultimaCalibracao(balancaId: string, tenantId: string) {
     return this.db.calibracaoBalanca.findFirst({
-      where: { balancaId },
+      where: { balancaId, balanca: { tenantId } },
       orderBy: { realizadoEm: 'desc' },
     });
   }
@@ -87,8 +87,8 @@ export class CalibracaoService {
    * Alerta se a ultima calibracao foi ha mais de N dias (default 180).
    * Util para a UI mostrar badge "calibracao vencida".
    */
-  async statusVencimento(balancaId: string, diasMaximo = 180) {
-    const ultima = await this.ultimaCalibracao(balancaId);
+  async statusVencimento(balancaId: string, tenantId: string, diasMaximo = 180) {
+    const ultima = await this.ultimaCalibracao(balancaId, tenantId);
     if (!ultima) return { temCalibracao: false, vencida: true, ultimaEm: null };
     const diasDesde = (Date.now() - ultima.realizadoEm.getTime()) / (1000 * 60 * 60 * 24);
     return {

@@ -73,8 +73,9 @@ export class TicketController {
     @Param('id') id: string,
     @Body() dto: RegistrarPassagemDto,
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') usuarioId: string,
   ) {
-    return this.ticketService.registrarPassagem(id, dto, tenantId);
+    return this.ticketService.registrarPassagem(id, dto, tenantId, usuarioId);
   }
 
   @Get(':id/passagens')
@@ -103,8 +104,9 @@ export class TicketController {
     @Param('id') id: string,
     @Body() dto: FecharTicketDto,
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') usuarioId: string,
   ) {
-    return this.ticketService.fecharTicket(id, dto, tenantId);
+    return this.ticketService.fecharTicket(id, dto, tenantId, usuarioId);
   }
 
   // Cancelamento
@@ -115,8 +117,9 @@ export class TicketController {
     @Param('id') id: string,
     @Body() dto: CancelarTicketDto,
     @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') usuarioId: string,
   ) {
-    return this.ticketService.cancelarTicket(id, dto, tenantId);
+    return this.ticketService.cancelarTicket(id, dto, tenantId, usuarioId);
   }
 
   // Manutencao — usuarioId vem do JWT (Onda 2.1, ALTO seguranca)

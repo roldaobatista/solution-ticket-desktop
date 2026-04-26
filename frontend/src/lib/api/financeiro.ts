@@ -1,4 +1,4 @@
-import { apiClient, toPaginated, USE_MOCK } from './client';
+import { apiClient, USE_MOCK } from './client';
 import {
   Fatura,
   PagamentoFatura,
@@ -10,6 +10,7 @@ import {
   PaginatedResponse,
 } from '@/types';
 import { mockApi } from '../mock-api';
+import { mapFatura, mapPagamentoFatura, mapTicket, mapPaginated } from './mappers';
 
 export async function getFaturas(
   page?: number,
@@ -17,13 +18,13 @@ export async function getFaturas(
 ): Promise<PaginatedResponse<Fatura>> {
   if (USE_MOCK) return mockApi.getFaturas(page, limit);
   const res = await apiClient.get('/faturas', { params: { page, limit } });
-  return toPaginated(res.data, page ?? 1, limit ?? 10);
+  return mapPaginated(res.data, mapFatura);
 }
 
 export async function getFaturaById(id: string): Promise<Fatura> {
   if (USE_MOCK) return mockApi.getFaturaById(id);
   const res = await apiClient.get(`/faturas/${id}`);
-  return res.data;
+  return mapFatura(res.data);
 }
 
 export async function createFatura(data: {
@@ -34,7 +35,7 @@ export async function createFatura(data: {
 }): Promise<Fatura> {
   if (USE_MOCK) return mockApi.createFatura(data);
   const res = await apiClient.post('/faturas', data);
-  return res.data;
+  return mapFatura(res.data);
 }
 
 export async function cancelarFatura(id: string, motivo: string): Promise<Fatura> {
@@ -43,7 +44,7 @@ export async function cancelarFatura(id: string, motivo: string): Promise<Fatura
     status: 'CANCELADA',
     motivoCancelamento: motivo,
   });
-  return res.data;
+  return mapFatura(res.data);
 }
 
 export async function getTicketsPendentesFaturamento(
@@ -55,7 +56,8 @@ export async function getTicketsPendentesFaturamento(
       params: { status: 'FECHADO', faturado: false, cliente_id, limit: 1000 },
     });
     const d = res.data;
-    return Array.isArray(d) ? d : d?.data || [];
+    const arr = Array.isArray(d) ? d : d?.data || [];
+    return arr.map(mapTicket);
   } catch {
     return [];
   }
@@ -100,13 +102,13 @@ export async function createPagamento(
   const faturaId = data.faturaId || data.fatura_id;
   if (!faturaId) throw new Error('faturaId e obrigatorio para registrar pagamento');
   const res = await apiClient.post(`/faturas/${faturaId}/pagamentos`, data);
-  return res.data;
+  return mapPagamentoFatura(res.data);
 }
 
 export async function baixarPagamento(id: string): Promise<PagamentoFatura> {
   if (USE_MOCK) return mockApi.baixarPagamento(id);
   const res = await apiClient.post(`/faturas/pagamentos/${id}/baixar`);
-  return res.data;
+  return mapPagamentoFatura(res.data);
 }
 
 export async function getFormasPagamento(): Promise<FormaPagamento[]> {

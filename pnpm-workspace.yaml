@@ -13,4 +13,3 @@ overrides:
   file-type: ^21.3.2
   uuid: ^11.1.0
   postcss: ^8.5.10
-  "@nestjs/core": ^11.1.19

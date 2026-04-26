@@ -12,7 +12,6 @@ import {
   StatusOperacional,
   StatusComercial,
   FluxoPesagem,
-  PapelCalculo,
   StatusPassagem,
   ModoComercial,
 } from '../constants/enums';
@@ -278,7 +277,12 @@ export class TicketService {
   // PASSAGEM
   // ============================================================
 
-  async registrarPassagem(ticketId: string, dto: RegistrarPassagemDto, tenantId: string) {
+  async registrarPassagem(
+    ticketId: string,
+    dto: RegistrarPassagemDto,
+    tenantId: string,
+    usuarioId: string,
+  ) {
     // C6 (Onda 1): cálculo de sequência DENTRO da $transaction.
     return this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticketPesagem.findUnique({
@@ -320,7 +324,7 @@ export class TicketService {
           pesoCapturado: dto.pesoCapturado,
           dataHora: dto.dataHora || new Date(),
           balancaId: dto.balancaId,
-          usuarioId: dto.usuarioId,
+          usuarioId,
           origemLeitura: dto.origemLeitura,
           indicadorEstabilidade: dto.indicadorEstabilidade || null,
           sequenceNoDispositivo: dto.sequenceNoDispositivo || null,
@@ -338,7 +342,7 @@ export class TicketService {
   // FECHAMENTO
   // ============================================================
 
-  async fecharTicket(ticketId: string, dto: FecharTicketDto, tenantId: string) {
+  async fecharTicket(ticketId: string, dto: FecharTicketDto, tenantId: string, usuarioId: string) {
     // C5 (Onda 1): fechamento atomico em $transaction unica.
     const result = await this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticketPesagem.findUnique({ where: { id: ticketId, tenantId } });
@@ -396,7 +400,7 @@ export class TicketService {
             })),
           }),
           estadoNovo: JSON.stringify({ statusOperacional: StatusOperacional.FECHADO, ...calculo }),
-          usuarioId: dto.usuarioId || null,
+          usuarioId: usuarioId || null,
         },
       });
 
@@ -415,7 +419,12 @@ export class TicketService {
   // CANCELAMENTO
   // ============================================================
 
-  async cancelarTicket(ticketId: string, dto: CancelarTicketDto, tenantId: string) {
+  async cancelarTicket(
+    ticketId: string,
+    dto: CancelarTicketDto,
+    tenantId: string,
+    usuarioId: string,
+  ) {
     const ticket = await this.findOne(ticketId, tenantId);
 
     if (ticket.statusOperacional === StatusOperacional.CANCELADO) {
@@ -441,7 +450,7 @@ export class TicketService {
       ticketId,
       StatusOperacional.CANCELADO,
       tenantId,
-      dto.usuarioId,
+      usuarioId,
       dto.motivo,
     );
   }

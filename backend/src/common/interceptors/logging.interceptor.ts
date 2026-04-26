@@ -55,9 +55,9 @@ export class LoggingInterceptor implements NestInterceptor {
     const reqId = req.requestId ?? '-';
     const safeUrl = req.url ? redactUrl(req.url) : '-';
 
-    // SEC-006: contexto de tenant e usuario no Sentry
+    // SEC-006: contexto de tenant e usuario no Sentry (sem PII)
     if (req.user) {
-      Sentry.setUser({ id: req.user.id, email: req.user.email });
+      Sentry.setUser({ id: req.user.id });
       if (req.user.tenantId) {
         Sentry.setTag('tenantId', req.user.tenantId);
       }

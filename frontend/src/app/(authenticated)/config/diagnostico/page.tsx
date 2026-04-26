@@ -15,7 +15,6 @@ import Link from 'next/link';
 import { getDiagnostico, getLogsRecentes } from '@/lib/api';
 import { ConfigSection } from '@/components/config/ConfigShared';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 export default function ConfigDiagnosticoPage() {
   const qc = useQueryClient();
