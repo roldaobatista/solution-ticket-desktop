@@ -29,6 +29,9 @@ export class DigitronParser implements IBalancaParser {
     if (fator > 1) peso = peso / fator;
     if (this.config.invertePeso) peso = -peso;
 
-    return { leitura: { peso, estavel: true, bruto: slice }, restante };
+    // Onda 1.7 (C9): Digitron padrao nao expoe byte de status — service
+    // decide via janela movel (estavel:true hardcoded permitia travar
+    // peso de caminhao em movimento).
+    return { leitura: { peso, estavel: false, bruto: slice }, restante };
   }
 }

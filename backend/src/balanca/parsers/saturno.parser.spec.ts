@@ -1,12 +1,14 @@
 import { SaturnoParser } from './saturno.parser';
 
 describe('SaturnoParser', () => {
-  it('decodifica STX...ETX como estável', () => {
+  // Onda 1.7 (C9): Saturno nao expoe byte de status — parser sempre retorna
+  // estavel:false e a estabilidade e validada pela janela movel no service.
+  it('decodifica STX...ETX retornando estavel:false (delegado ao service)', () => {
     const parser = new SaturnoParser({});
     const trama = Buffer.concat([Buffer.from([0x02]), Buffer.from('012345'), Buffer.from([0x03])]);
     const { leitura } = parser.parse(trama);
     expect(leitura!.peso).toBe(12345);
-    expect(leitura!.estavel).toBe(true);
+    expect(leitura!.estavel).toBe(false);
   });
 
   it('decodifica linha simples terminada em LF como instável', () => {

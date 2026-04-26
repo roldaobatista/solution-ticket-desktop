@@ -7,9 +7,10 @@ describe('AutoDetectService', () => {
     const buf = Buffer.concat([Buffer.from('D000.318'), Buffer.from([0x0d])]);
     const candidatos = service.detectar(buf);
     expect(candidatos.length).toBeGreaterThan(0);
-    // Múltiplos parsers podem aceitar tramas curtas; verifica que Digitron está entre os top 3.
-    const top3 = candidatos.slice(0, 3);
-    const tem = top3.some((c) => /Digitron|Genérica/i.test(c.preset.fabricante));
+    // Onda 1.7 (C9): apos remocao de estavel:true hardcoded, varios parsers
+    // ficam com confianca similar para tramas curtas. Verifica que Digitron
+    // ou Generica esta no top 5 (limite do detectar()).
+    const tem = candidatos.some((c) => /Digitron|Genérica/i.test(c.preset.fabricante));
     expect(tem).toBe(true);
   });
 

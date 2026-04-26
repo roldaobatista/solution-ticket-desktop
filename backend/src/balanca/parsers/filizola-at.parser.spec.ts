@@ -6,7 +6,9 @@ describe('FilizolaAtParser', () => {
     const trama = Buffer.concat([Buffer.from('@002.448'), Buffer.from([0x0d])]);
     const { leitura, restante } = parser.parse(trama);
     expect(leitura!.peso).toBeCloseTo(2.448, 3);
-    expect(leitura!.estavel).toBe(true);
+    // Onda 1.7 (C9): Filizola-AT sem byte de status retorna estavel:false;
+    // service decide via janela movel.
+    expect(leitura!.estavel).toBe(false);
     expect(restante.length).toBe(0);
   });
 

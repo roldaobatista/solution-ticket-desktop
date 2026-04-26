@@ -250,7 +250,11 @@ export class BalancaConnectionService implements OnModuleDestroy {
     if (conexao.historico.length > BalancaConnectionService.JANELA_ESTAVEL) {
       conexao.historico.shift();
     }
-    if (leitura.estavel) return; // parser já indicou
+    // Onda 1.7 (C9): parser estavel:true e definitivo (byte de status real).
+    // Quando parser retorna false (sem status confiavel), exige-se janela
+    // movel completa dentro da tolerancia. Antes alguns parsers retornavam
+    // true hardcoded, permitindo travar peso instavel para ticket.
+    if (leitura.estavel) return;
     if (conexao.historico.length < BalancaConnectionService.JANELA_ESTAVEL) return;
     const min = Math.min(...conexao.historico);
     const max = Math.max(...conexao.historico);

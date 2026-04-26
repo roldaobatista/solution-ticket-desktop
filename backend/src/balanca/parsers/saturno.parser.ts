@@ -18,7 +18,9 @@ export class SaturnoParser implements IBalancaParser {
         .toString('latin1')
         .trim();
       const restante = buffer.subarray(etx + 1);
-      return this.extrair(body, restante, true);
+      // Onda 1.7 (C9): Saturno nao possui byte de status documentado —
+      // service decide estabilidade via janela movel (estavel=false ate validar).
+      return this.extrair(body, restante, false);
     }
     // Fallback: linha terminada em LF
     const lf = buffer.indexOf(0x0a);

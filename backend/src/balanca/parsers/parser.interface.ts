@@ -1,5 +1,10 @@
 export interface LeituraPeso {
   peso: number;
+  // Onda 1.7 (C9): protocolos sem byte de status devem retornar false aqui —
+  // o BalancaConnectionService entao avalia via janela movel
+  // (toleranciaEstabilidade, janelaEstabilidade) antes de travar peso para ticket.
+  // Antes alguns parsers retornavam true hardcoded, permitindo travar peso
+  // de caminhao em movimento.
   estavel: boolean;
   bruto: string;
 }

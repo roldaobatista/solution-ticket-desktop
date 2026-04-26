@@ -30,8 +30,10 @@ export class Toledo2090Parser implements IBalancaParser {
     if (fator > 1) peso = peso / fator;
     if (this.config.invertePeso) peso = -peso;
 
-    // 2090 não envia status — heurística: peso > 0 e estável seria definido
-    // por janela móvel no service. Aqui deixamos true como default (streaming).
-    return { leitura: { peso, estavel: true, bruto: text }, restante };
+    // Onda 1.7 (C9): 2090 nao envia byte de status — estabilidade indefinida
+    // no parser. O service decide via janela movel (toleranciaEstabilidade,
+    // janelaEstabilidade configuraveis por balanca). Antes retornava
+    // estavel:true hardcoded, permitindo travar peso de caminhao em movimento.
+    return { leitura: { peso, estavel: false, bruto: text }, restante };
   }
 }

@@ -31,6 +31,8 @@ export class FilizolaAtParser implements IBalancaParser {
     if (fator > 1) peso = peso / fator;
     if (this.config.invertePeso) peso = -peso;
 
-    return { leitura: { peso, estavel: true, bruto: slice }, restante };
+    // Onda 1.7 (C9): sem byte de status — service decide via janela movel
+    // antes de travar peso para ticket.
+    return { leitura: { peso, estavel: false, bruto: slice }, restante };
   }
 }
