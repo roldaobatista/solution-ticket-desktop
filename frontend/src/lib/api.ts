@@ -47,3 +47,5 @@ export * from './api/indicador';
 export * from './api/camera';
 // Onda 5.2 — historico de calibracoes por balanca.
 export * from './api/calibracao';
+// Onda — backup do banco SQLite (manual + auto).
+export * from './api/backup';
