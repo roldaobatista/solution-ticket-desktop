@@ -362,6 +362,8 @@ model IndicadorPesagem {
   tickets  TicketPesagem[]
   balancas Balanca[]
 
+  @@unique([tenantId, descricao], name: "indicador_tenant_descricao_unique")
+  @@index([tenantId])
   @@map("indicador_pesagem")
 }
 
@@ -487,6 +489,7 @@ model ConfiguracaoOperacionalUnidade {
   empresa Empresa @relation(fields: [empresaId], references: [id])
   unidade Unidade @relation(fields: [unidadeId], references: [id])
 
+  @@unique([unidadeId], name: "configuracao_unidade_unique")
   @@map("configuracao_operacional_unidade")
 }
 
@@ -595,6 +598,7 @@ model TicketPesagem {
   snapshotsComercial SnapshotComercialTicket[]
   romaneios          ItemRomaneio[]
 
+  @@unique([unidadeId, numero], name: "ticket_unidade_numero_unique")
   @@index([tenantId])
   @@index([unidadeId])
   @@index([clienteId])
@@ -639,6 +643,7 @@ model PassagemPesagem {
   balanca Balanca       @relation(fields: [balancaId], references: [id])
   usuario Usuario       @relation(fields: [usuarioId], references: [id])
 
+  @@unique([ticketId, sequencia], name: "passagem_ticket_sequencia_unique")
   @@index([ticketId])
   @@index([balancaId])
   @@index([usuarioId])
@@ -806,6 +811,7 @@ model Romaneio {
   itens   ItemRomaneio[]
   faturas Fatura[]
 
+  @@unique([tenantId, numero], name: "romaneio_tenant_numero_unique")
   @@index([tenantId])
   @@index([clienteId])
   @@index([status])
@@ -854,6 +860,7 @@ model Fatura {
   romaneio   Romaneio?         @relation(fields: [romaneioId], references: [id])
   pagamentos PagamentoFatura[]
 
+  @@unique([tenantId, numero], name: "fatura_tenant_numero_unique")
   @@index([tenantId])
   @@index([clienteId])
   @@index([status])
