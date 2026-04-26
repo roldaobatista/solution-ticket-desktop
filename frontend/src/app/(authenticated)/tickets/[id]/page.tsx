@@ -300,8 +300,8 @@ export default function TicketDetailPage({ params }: PageProps) {
       content: (
         <div className="py-4">
           <div className="relative">
-            {statusTimeline.map((step, index) => (
-              <div key={index} className="flex items-start gap-4 mb-6">
+            {statusTimeline.map((step) => (
+              <div key={step.label} className="flex items-start gap-4 mb-6">
                 <div
                   className={cn(
                     'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
@@ -401,8 +401,8 @@ export default function TicketDetailPage({ params }: PageProps) {
       <Card>
         <CardContent className="pt-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {infoItems.map((item, index) => (
-              <div key={index} className="flex items-start gap-2">
+            {infoItems.map((item) => (
+              <div key={item.label} className="flex items-start gap-2">
                 <div className="text-slate-400 mt-0.5">{item.icon}</div>
                 <div>
                   <p className="text-xs text-slate-500">{item.label}</p>

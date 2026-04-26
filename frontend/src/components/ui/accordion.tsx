@@ -22,7 +22,7 @@ export function Accordion({ items, className }: AccordionProps) {
       {items.map((item, index) => {
         const isOpen = openIndex === index;
         return (
-          <div key={index}>
+          <div key={item.title}>
             <button
               onClick={() => setOpenIndex(isOpen ? null : index)}
               className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors"
