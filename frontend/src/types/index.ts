@@ -387,6 +387,15 @@ export interface ConfiguracaoOperacional {
   manter_preview_aberto: boolean;
   observacao_habilitada: boolean;
   manter_tara_cadastrada: boolean;
+  // Campos avancados (Onda — config reorganizado)
+  modelo_ticket_padrao?: string | null;
+  logomarca_padrao?: string | null;
+  logomarca_relatorio?: string | null;
+  label_adicional_1?: string | null;
+  label_adicional_2?: string | null;
+  rodape_texto?: string | null;
+  balanca_padrao_entrada?: string | null;
+  balanca_padrao_saida?: string | null;
 }
 
 export interface DashboardKpis {
