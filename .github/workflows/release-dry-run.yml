@@ -1,0 +1,55 @@
+name: Release Dry-Run
+
+on:
+  push:
+    tags:
+      - 'test-release/v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows-dry-run:
+    name: Build Electron (Windows) — Dry Run
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Build all
+        run: pnpm build:all
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3001/api
+          NEXT_PUBLIC_USE_MOCK: 'false'
+
+      - name: Build installer (dry-run)
+        run: pnpm dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_RELEASE: 'true'
+
+      - name: Verify artifact exists
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path release/*.exe | Select-Object -First 1
+          if (-not $exe) { throw "Nenhum .exe encontrado em release/" }
+          Write-Host "Artefato gerado: $($exe.Name) — $($exe.Length) bytes"
+
+      - name: Upload artifact (dry-run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: solution-ticket-windows-dry-run
+          path: release/*.exe
+          retention-days: 5

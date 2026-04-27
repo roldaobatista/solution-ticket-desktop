@@ -31,24 +31,45 @@ Configuração em `electron/package.json` já preparada:
 "win": {
   "publisherName": "Solution Ticket",
   "signAndEditExecutable": true,
+  "sign": "sign.js",
   "signtoolOptions": { "signingHashAlgorithms": ["sha256"] }
 }
 ```
 
+O script `electron/sign.js` atua como **gate de release**:
+
+- Em `CI_RELEASE=true`, exige `WIN_CSC_LINK` e `WIN_CSC_KEY_PASSWORD`.
+- Sem essas variáveis, o build falha em release.
+- Em builds locais/dev, pula o signing com aviso no log.
+
 Para ativar:
 
 1. Adquirir **certificado EV Code Signing** (DigiCert/Sectigo, ~US$ 300/ano + token USB ou HSM).
-2. Em ambiente local (ou self-hosted runner com HSM):
-   ```env
-   CSC_LINK=path/to/cert.pfx     # ou USB/HSM via signtool
-   CSC_KEY_PASSWORD=...
-   ```
+2. Configure os secrets no GitHub Actions:
+   - `WIN_CSC_LINK` — caminho ou URL do certificado `.p12`/`.pfx`
+   - `WIN_CSC_KEY_PASSWORD` — senha do certificado
 3. Em GitHub Actions hosted runners NÃO é possível usar EV USB. Opções:
    - Self-hosted runner com token físico conectado (recomendado).
    - Cloud HSM (Azure Key Vault, DigiCert KeyLocker) com `signtool` apontando para ele.
 4. Validar: o instalador deve mostrar "Solution Ticket" como editor verificado em `Right-click → Properties → Digital Signatures`.
 
 Sem code signing, o Windows SmartScreen exibe "Editor desconhecido" e exige clique extra do usuário. Funcional, mas pior UX.
+
+### Dry-run de release
+
+Antes de criar uma tag `v*`, valide o pipeline com uma tag de teste:
+
+```bash
+git tag test-release/v0.0.0
+git push origin test-release/v0.0.0
+```
+
+O workflow `.github/workflows/release-dry-run.yml` executa o build completo sem publicar no GitHub Releases. Após validação, delete a tag:
+
+```bash
+git push --delete origin test-release/v0.0.0
+git tag -d test-release/v0.0.0
+```
 
 ## Provider config (GitHub)
 
