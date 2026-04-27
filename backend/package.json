@@ -40,10 +40,10 @@
     "coverageDirectory": "../coverage",
     "coverageThreshold": {
       "global": {
-        "statements": 25,
-        "branches": 27,
-        "functions": 22,
-        "lines": 26
+        "statements": 50,
+        "branches": 45,
+        "functions": 45,
+        "lines": 50
       }
     },
     "testEnvironment": "node",
@@ -77,6 +77,7 @@
     "modbus-serial": "^8.0.25",
     "multer": "^2.1.1",
     "nestjs-pino": "^4",
+    "nodemailer": "^8.0.6",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
@@ -100,8 +101,9 @@
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/multer": "^1.4.13",
+    "@types/multer": "^2.0.0",
     "@types/node": "^20.11.0",
+    "@types/nodemailer": "^8.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/pdfkit": "^0.17.6",

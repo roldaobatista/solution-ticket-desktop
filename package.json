@@ -28,6 +28,7 @@
     "test": "pnpm --filter ./backend test",
     "test:e2e": "pnpm --filter ./backend test:e2e",
     "ci": "pnpm format:check && pnpm lint:check && pnpm typecheck:all && pnpm test && pnpm build:all",
+    "ci:full": "pnpm format:check && pnpm lint:check && pnpm typecheck:all && pnpm test && pnpm --filter ./frontend test && pnpm --filter ./frontend test:e2e && pnpm build:all && pnpm --filter ./electron dist",
     "prepare": "husky"
   },
   "lint-staged": {
