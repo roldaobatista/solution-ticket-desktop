@@ -1,5 +1,5 @@
 /**
- * Utilitario de scrubbing de PII e segredos para logs.
+ * Utilitario unificado de scrubbing de PII e segredos para logs/auditoria/Sentry.
  *
  * Mascara, recursivamente, valores cujo nome de campo casa com a lista
  * SENSITIVE_KEYS (case-insensitive). Tambem mascara JWTs detectados
@@ -9,10 +9,12 @@
  *   logger.log({ req: scrubPii(req.body), userId });
  */
 const SENSITIVE_KEYS = new Set([
+  // Credenciais e tokens
   'password',
   'senha',
   'senhaatual',
   'novasenha',
+  'senhahash',
   'token',
   'accesstoken',
   'refreshtoken',
@@ -22,13 +24,56 @@ const SENSITIVE_KEYS = new Set([
   'apikey',
   'api_key',
   'secret',
-  'fingerprint',
+  'cookie',
+  'chave',
+  'chavelicenciamento',
+  'chavevalidacao',
+  'chavehash',
+  // Identificacao pessoal
   'cpf',
   'cnpj',
   'rg',
+  'documento',
   'inscricaoestadual',
+  'inscricaomunicipal',
+  'email',
+  'telefone',
+  'celular',
+  'fax',
+  'whatsapp',
+  // Endereco
+  'endereco',
+  'logradouro',
+  'bairro',
+  'cidade',
+  'cep',
+  'complemento',
+  'numeroendereco',
+  // Dados veiculares e operacionais
+  'placa',
+  'cnh',
+  'renavam',
+  'chassi',
+  // Dados empresariais / pessoais
+  'razaosocial',
+  'nomefantasia',
+  'nomecompleto',
+  'nomecomercial',
+  'responsavel',
+  'contato',
+  'contatos',
+  // Financeiros
   'cardnumber',
   'cvv',
+  'ccv',
+  'numerocartao',
+  'validadecartao',
+  'contabancaria',
+  'agencia',
+  'pix',
+  // Hardware / licenca
+  'fingerprint',
+  'fingerprintdispositivo',
 ]);
 
 const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -36,7 +81,7 @@ const REDACTED = '[REDACTED]';
 const MAX_DEPTH = 6;
 
 function isSensitiveKey(name: string): boolean {
-  return SENSITIVE_KEYS.has(name.toLowerCase());
+  return SENSITIVE_KEYS.has(name.toLowerCase().replace(/[_\s-]/g, ''));
 }
 
 function scrubScalar(value: unknown): unknown {
