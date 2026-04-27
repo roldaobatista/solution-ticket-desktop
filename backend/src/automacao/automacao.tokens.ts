@@ -1,0 +1,1 @@
+export const AUTOMACAO_ADAPTER = Symbol('AUTOMACAO_ADAPTER');
