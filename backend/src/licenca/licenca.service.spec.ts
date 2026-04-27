@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { LicencaService, StatusLicenca } from './licenca.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CrlService } from './crl.service';
 import * as fingerprintUtil from './fingerprint.util';
 import {
   TEST_PUBLIC_KEY,
@@ -29,8 +30,17 @@ describe('LicencaService', () => {
 
     jest.spyOn(fingerprintUtil, 'obterFingerprint').mockReturnValue(FAKE_FP);
 
+    const crlMock: Partial<CrlService> = {
+      isRevogado: () => false,
+      setPublicKey: () => {},
+    };
+
     const module = await Test.createTestingModule({
-      providers: [LicencaService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        LicencaService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: CrlService, useValue: crlMock },
+      ],
     }).compile();
 
     service = module.get(LicencaService);
@@ -76,12 +86,20 @@ describe('LicencaService', () => {
       );
     });
 
-    it('ativa com chave vitalícia (sem expiração)', async () => {
+    it('rejeita chave sem expiracao (F-029)', async () => {
       const chave = gerarChaveRSA({ fingerprints: [FAKE_FP], validadeSegundos: null });
       prisma.licencaInstalacao.findFirst.mockResolvedValue(null);
-      const r = await service.ativar({ unidadeId: 'u1', tenantId: 't1', chave });
-      expect(r.status).toBe(StatusLicenca.ATIVA);
-      expect(r.expira).toBeNull();
+      await expect(service.ativar({ unidadeId: 'u1', tenantId: 't1', chave })).rejects.toThrow(
+        /exp/i,
+      );
+    });
+
+    it('rejeita chave sem jti (F-029)', async () => {
+      const chave = gerarChaveRSA({ fingerprints: [FAKE_FP], jti: null });
+      prisma.licencaInstalacao.findFirst.mockResolvedValue(null);
+      await expect(service.ativar({ unidadeId: 'u1', tenantId: 't1', chave })).rejects.toThrow(
+        /jti/i,
+      );
     });
 
     it('ativa com expiração definida', async () => {

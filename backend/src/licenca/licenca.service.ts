@@ -5,6 +5,7 @@ import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../prisma/prisma.service';
 import { obterFingerprint } from './fingerprint.util';
 import { errorMessage } from '../common/error-message.util';
+import { CrlService } from './crl.service';
 
 export const StatusLicenca = {
   TRIAL: 'TRIAL',
@@ -28,7 +29,9 @@ interface LicencaPayload {
   fingerprints: string[];
   plan: 'PADRAO' | 'PRO';
   maxMaquinas?: number;
-  exp?: number;
+  // F-029: exp e jti agora obrigatorios para suportar CRL e expiracao forcada.
+  exp: number;
+  jti: string;
   iat: number;
   version: number;
 }
@@ -38,7 +41,10 @@ export class LicencaService implements OnModuleInit {
   private readonly logger = new Logger(LicencaService.name);
   private publicKey!: string;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crl: CrlService,
+  ) {}
 
   onModuleInit() {
     // S2.1: prioriza chave injetada via env (build-time secret / CI) sobre
@@ -53,6 +59,7 @@ export class LicencaService implements OnModuleInit {
         this.logger.log(
           'Chave pública de licenciamento carregada via env (LICENSE_PUBLIC_KEY_B64).',
         );
+        this.crl.setPublicKey(this.publicKey);
         return;
       } catch (e) {
         this.logger.error(
@@ -69,6 +76,7 @@ export class LicencaService implements OnModuleInit {
     }
     this.publicKey = fs.readFileSync(p, 'utf8');
     this.logger.log('Chave pública de licenciamento carregada de disco (dev/local).');
+    this.crl.setPublicKey(this.publicKey);
   }
 
   getFingerprint(): string {
@@ -172,6 +180,20 @@ export class LicencaService implements OnModuleInit {
       throw new BadRequestException('Chave com payload invalido.');
     }
 
+    // F-029: exp e jti obrigatorios.
+    if (!payload.exp) {
+      await this.registrarAtivacaoInvalida(params.unidadeId, fingerprint, 'sem_expiracao');
+      throw new BadRequestException(
+        'Chave invalida: campo exp (expiracao) e obrigatorio. Gere nova chave com validade.',
+      );
+    }
+    if (!payload.jti) {
+      await this.registrarAtivacaoInvalida(params.unidadeId, fingerprint, 'sem_jti');
+      throw new BadRequestException(
+        'Chave invalida: campo jti (identificador) e obrigatorio para suporte a revogacao.',
+      );
+    }
+
     if (!payload.fingerprints.includes(fingerprint)) {
       await this.registrarAtivacaoInvalida(params.unidadeId, fingerprint, 'fingerprint_divergente');
       throw new BadRequestException(
@@ -179,9 +201,15 @@ export class LicencaService implements OnModuleInit {
       );
     }
 
-    if (payload.exp && payload.exp * 1000 < Date.now()) {
+    if (payload.exp * 1000 < Date.now()) {
       await this.registrarAtivacaoInvalida(params.unidadeId, fingerprint, 'expirada');
       throw new BadRequestException('Chave expirada.');
+    }
+
+    // F-029: CRL offline.
+    if (this.crl.isRevogado(payload.jti)) {
+      await this.registrarAtivacaoInvalida(params.unidadeId, fingerprint, 'revogada');
+      throw new BadRequestException('Chave revogada. Solicite uma nova chave ao fornecedor.');
     }
 
     const existente = await this.prisma.licencaInstalacao.findFirst({
@@ -201,6 +229,7 @@ export class LicencaService implements OnModuleInit {
           statusLicenca: StatusLicenca.ATIVA,
           tipoLicenca: payload.plan,
           chaveLicenciamentoHash: chaveHash,
+          chaveJti: payload.jti,
           ativadoEm: new Date(),
           expiraEm: expiraEm ?? undefined,
         },
@@ -214,6 +243,7 @@ export class LicencaService implements OnModuleInit {
           statusLicenca: StatusLicenca.ATIVA,
           fingerprintDispositivo: fingerprint,
           chaveLicenciamentoHash: chaveHash,
+          chaveJti: payload.jti,
           ativadoEm: new Date(),
           expiraEm: expiraEm ?? undefined,
         },
@@ -290,7 +320,39 @@ export class LicencaService implements OnModuleInit {
         pesagensRestantes: null,
         ativadoEm: null,
         expira: null,
+        trialIniciadoEm: null,
+        limitePesagensTrial: null,
+        chaveValidacaoHash: null,
+        chaveLicenciamentoHash: null,
+        bloqueadoEm: null,
+        motivoBloqueio: null,
       };
+    }
+
+    // F-029: bloqueio por CRL (revogacao offline). Aplica antes da
+    // verificacao de expiracao para que jti revogado fique BLOQUEADA.
+    if (
+      licenca.statusLicenca === StatusLicenca.ATIVA &&
+      this.crl.isRevogado(licenca.chaveJti ?? undefined)
+    ) {
+      await this.prisma.licencaInstalacao.update({
+        where: { id: licenca.id },
+        data: {
+          statusLicenca: StatusLicenca.BLOQUEADA,
+          bloqueadoEm: new Date(),
+          motivoBloqueio: 'jti revogado via CRL',
+        },
+      });
+      await this.prisma.eventoLicenciamento.create({
+        data: {
+          licencaInstalacaoId: licenca.id,
+          tipoEvento: TipoEventoLicenciamento.BLOQUEADA,
+          statusAnterior: StatusLicenca.ATIVA,
+          statusNovo: StatusLicenca.BLOQUEADA,
+          payloadResumido: JSON.stringify({ motivo: 'crl', jti: licenca.chaveJti }),
+        },
+      });
+      licenca.statusLicenca = StatusLicenca.BLOQUEADA;
     }
 
     // Expiracao por data (ATIVA com exp)
@@ -353,6 +415,12 @@ export class LicencaService implements OnModuleInit {
       pesagensRestantes: licenca.pesagensRestantesTrial,
       ativadoEm: licenca.ativadoEm,
       expira: licenca.expiraEm,
+      trialIniciadoEm: licenca.trialIniciadoEm,
+      limitePesagensTrial: licenca.limitePesagensTrial,
+      chaveValidacaoHash: licenca.chaveValidacaoHash,
+      chaveLicenciamentoHash: licenca.chaveLicenciamentoHash,
+      bloqueadoEm: licenca.bloqueadoEm,
+      motivoBloqueio: licenca.motivoBloqueio,
     };
   }
 

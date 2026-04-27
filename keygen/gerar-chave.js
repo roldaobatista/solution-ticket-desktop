@@ -13,6 +13,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 function parseArgs(argv) {
@@ -70,23 +71,34 @@ if (!fs.existsSync(privatePath)) {
 const privateKey = fs.readFileSync(privatePath, 'utf8');
 
 const now = Math.floor(Date.now() / 1000);
+
+// F-029: validade-dias e jti agora obrigatorios.
+if (!args['validade-dias'] || args['validade-dias'] === 'true') {
+  console.error(
+    'Erro: --validade-dias e obrigatorio (F-029). Licencas vitalicias nao sao mais suportadas.',
+  );
+  process.exit(1);
+}
+const dias = parseInt(args['validade-dias'], 10);
+if (!Number.isFinite(dias) || dias <= 0) {
+  console.error('Erro: --validade-dias deve ser um inteiro > 0');
+  process.exit(1);
+}
+
+const jti = args.jti && args.jti !== 'true' ? String(args.jti) : crypto.randomUUID();
+
 const payload = {
   fingerprints,
   plan: plano,
   maxMaquinas: maquinas,
   iat: now,
+  exp: now + dias * 86400,
+  jti,
   version: 1,
 };
 
 const signOptions = { algorithm: 'RS256' };
-if (args['validade-dias'] && args['validade-dias'] !== 'true') {
-  const dias = parseInt(args['validade-dias'], 10);
-  if (!Number.isFinite(dias) || dias <= 0) {
-    console.error('Erro: --validade-dias deve ser um inteiro > 0');
-    process.exit(1);
-  }
-  payload.exp = now + dias * 86400;
-}
 
 const token = jwt.sign(payload, privateKey, signOptions);
+console.error(`[gerar-chave] jti=${jti} exp=${new Date(payload.exp * 1000).toISOString()}`);
 console.log(token);

@@ -20,7 +20,12 @@ export class TicketLicenseGuard {
       where: { unidadeId },
     });
 
-    if (!licenca) return; // Sem licença = sem restrição
+    // F-001: fail-closed — sem licença ou trial explícito, bloqueia operações de ticket
+    if (!licenca) {
+      throw new ForbiddenException(
+        'Nenhuma licença encontrada para esta unidade. Inicie o trial ou ative uma licença para continuar.',
+      );
+    }
 
     const statusBloqueantes = ['EXPIRADA', 'BLOQUEADA', 'INVALIDA'];
     if (statusBloqueantes.includes(licenca.statusLicenca)) {
@@ -29,14 +34,16 @@ export class TicketLicenseGuard {
       );
     }
 
-    if (
-      licenca.statusLicenca === 'TRIAL' &&
-      licenca.pesagensRestantesTrial !== null &&
-      licenca.pesagensRestantesTrial <= 0
-    ) {
-      throw new ForbiddenException(
-        'Periodo de trial expirado (limite de pesagens atingido). Ative sua licença para continuar.',
-      );
+    if (licenca.statusLicenca === 'TRIAL') {
+      const trialExpirouData = licenca.trialExpiraEm && new Date() > licenca.trialExpiraEm;
+      const trialExpirouPesagens =
+        licenca.pesagensRestantesTrial !== null && licenca.pesagensRestantesTrial <= 0;
+
+      if (trialExpirouData || trialExpirouPesagens) {
+        throw new ForbiddenException(
+          'Periodo de trial expirado. Ative sua licença para continuar.',
+        );
+      }
     }
   }
 
@@ -51,9 +58,10 @@ export class TicketLicenseGuard {
       return;
     if (licenca.pesagensRestantesTrial <= 0) return;
 
+    // F-013: decremento atômico para evitar race condition
     await client.licencaInstalacao.update({
       where: { id: licenca.id },
-      data: { pesagensRestantesTrial: licenca.pesagensRestantesTrial - 1 },
+      data: { pesagensRestantesTrial: { decrement: 1 } },
     });
   }
 }

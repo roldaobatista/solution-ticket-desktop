@@ -6,10 +6,6 @@ export class AtivarLicencaDto {
   @IsUUID()
   unidadeId!: string;
 
-  @ApiProperty({ description: 'Id do tenant proprietario da unidade' })
-  @IsUUID()
-  tenantId!: string;
-
   @ApiProperty({ description: 'Chave de licenca (JWT RS256)' })
   @IsString()
   @IsNotEmpty()
@@ -25,8 +21,4 @@ export class IniciarTrialDto {
   @ApiProperty()
   @IsUUID()
   unidadeId!: string;
-
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
 }
