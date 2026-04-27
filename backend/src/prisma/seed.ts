@@ -645,24 +645,9 @@ async function main() {
   });
   console.log('Configuracao operacional created');
 
-  // 19. Licenca
-  const trialExpira = new Date();
-  trialExpira.setDate(trialExpira.getDate() + 15);
-
-  await prisma.licencaInstalacao.create({
-    data: {
-      unidadeId: unidade.id,
-      tenantId: tenant.id,
-      tipoLicenca: 'TRIAL',
-      statusLicenca: StatusLicenca.TRIAL,
-      fingerprintDispositivo: 'fp-demo-001',
-      trialIniciadoEm: new Date(),
-      trialExpiraEm: trialExpira,
-      limitePesagensTrial: 100,
-      pesagensRestantesTrial: 100,
-    },
-  });
-  console.log('Licenca created');
+  // 19. Licenca: seed NÃO cria trial automaticamente (F-027).
+  // O onboarding da aplicação guiará o usuário a iniciar trial com fingerprint real.
+  console.log('Licenca: nenhuma criada no seed (onboarding demanda trial real)');
 
   // 20. Tickets com passagens
   const allUsuarios = await prisma.usuario.findMany();
