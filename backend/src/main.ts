@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 import type { Request, Response, NextFunction } from 'express';
 import { ensureUserDataDir, getDatabaseUrl } from './common/desktop-paths';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { scrubPii } from './common/pii.util';
 // ResponseTransformInterceptor ja e registrado via APP_INTERCEPTOR em
 // common.module.ts. Importar duas vezes (DI + useGlobalInterceptors)
 // gerava envelope duplo {success,data:{success,data,timestamp},timestamp}
@@ -15,43 +16,6 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 interface RequestWithId extends Request {
   requestId?: string;
-}
-
-// S2.4: chaves PII que devem ser removidas antes de enviar a Sentry.
-const SENSITIVE_KEYS = new Set([
-  'password',
-  'senha',
-  'senhaatual',
-  'novasenha',
-  'senhahash',
-  'token',
-  'accesstoken',
-  'refreshtoken',
-  'authorization',
-  'cookie',
-  'jwt',
-  'cpf',
-  'cnpj',
-  'rg',
-  'chave',
-  'chavelicenciamento',
-  'apikey',
-  'secret',
-]);
-
-function scrubPii<T>(value: T, depth = 0): T {
-  if (depth > 8 || value == null) return value;
-  if (Array.isArray(value)) {
-    return value.map((v) => scrubPii(v, depth + 1)) as unknown as T;
-  }
-  if (typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? '[REDACTED]' : scrubPii(v, depth + 1);
-    }
-    return out as unknown as T;
-  }
-  return value;
 }
 
 function initSentry(logger: Logger) {
@@ -73,8 +37,8 @@ function initSentry(logger: Logger) {
         }
         if (event.request.cookies) event.request.cookies = { redacted: '[REDACTED]' };
       }
-      if (event.extra) event.extra = scrubPii(event.extra);
-      if (event.contexts) event.contexts = scrubPii(event.contexts);
+      if (event.extra) event.extra = scrubPii(event.extra) as typeof event.extra;
+      if (event.contexts) event.contexts = scrubPii(event.contexts) as typeof event.contexts;
       return event;
     },
   });
@@ -152,7 +116,9 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
+      // F-026: conversao implicita removida para evitar coercoes silenciosas
+      // (ex: 'true' -> true em campos sem intencao). DTOs de query/param que
+      // precisam de Number/Boolean usam @Type(() => Number) ou @Transform.
     }),
   );
 

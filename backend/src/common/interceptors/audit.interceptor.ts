@@ -40,19 +40,24 @@ export class AuditInterceptor implements NestInterceptor {
             if (!user?.tenantId) return;
 
             const safeUrl = redactUrl(rawUrl);
-            const safeBody = scrubPii(request.body);
+            // F-009: minimizar payload de auditoria — nao armazenar body completo
+            const entidade = this.extractEntity(safeUrl);
+            const entidadeId = request.params?.id || respData?.id || 'unknown';
+            const acao = this.extractAction(safeUrl);
+
+            const estadoNovo: Record<string, unknown> = { entidade, acao, id: entidadeId };
+            if (method === 'PUT' || method === 'PATCH') {
+              // Em updates, registrar apenas que houve alteracao (sem body completo)
+              estadoNovo.alterado = true;
+            }
 
             await this.auditoriaService.registrar({
-              entidade: this.extractEntity(safeUrl),
-              entidadeId: request.params?.id || respData?.id || 'unknown',
-              evento: `${method.toLowerCase()}.${this.extractAction(safeUrl)}`,
+              entidade,
+              entidadeId,
+              evento: `${method.toLowerCase()}.${acao}`,
               usuarioId: user?.id,
               tenantId: user.tenantId,
-              estadoNovo: JSON.stringify({
-                method,
-                url: safeUrl,
-                body: safeBody,
-              }),
+              estadoNovo: JSON.stringify(estadoNovo),
             });
           } catch (err) {
             this.logger.error(`Falha ao registrar auditoria: ${(err as Error).message}`);
