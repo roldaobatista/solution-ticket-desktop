@@ -26,7 +26,7 @@ export default function EsqueciSenhaPage() {
     try {
       await requestPasswordReset(email);
       setInfo(
-        'Se o e-mail existir, um token foi gerado. Verifique os logs do sistema ou entre em contato com o administrador.',
+        'Se o e-mail existir, enviamos um token de recuperação para a caixa de entrada. Verifique seu e-mail (incluindo a pasta de spam) e informe o token abaixo. Caso o SMTP ainda não esteja configurado, peça o token ao administrador.',
       );
       setEtapa('token');
     } catch (e: unknown) {
@@ -95,12 +95,11 @@ export default function EsqueciSenhaPage() {
                 </div>
               )}
               <Input
-                label="Token (6 digitos)"
+                label="Token de recuperação"
                 type="text"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 required
-                maxLength={6}
               />
               <Input
                 label="Nova senha"
