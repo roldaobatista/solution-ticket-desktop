@@ -432,11 +432,12 @@ function createMainWindow(url) {
     return { action: 'deny' };
   });
 
-  // S3: bloquear navegação para URLs fora do app (http://127.0.0.1)
+  // S3: bloquear navegação para URLs fora do app (http://127.0.0.1:3000)
   mainWindow.webContents.on('will-navigate', (event, navUrl) => {
     try {
       const u = new URL(navUrl);
-      const allowed = u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+      const allowed =
+        (u.hostname === '127.0.0.1' || u.hostname === 'localhost') && u.port === '3000';
       if (!allowed) {
         event.preventDefault();
         logLine('security', `will-navigate bloqueado: ${navUrl}`);

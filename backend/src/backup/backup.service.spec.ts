@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { BackupService } from './backup.service';
 
 describe('BackupService — assertSafeBackupFilename (S0.1)', () => {
-  const service = new BackupService({} as never);
+  const service = new BackupService({} as never, {} as never);
   const assertSafe = (f: string) =>
     (
       service as unknown as { assertSafeBackupFilename: (f: string) => void }

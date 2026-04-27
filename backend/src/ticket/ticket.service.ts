@@ -77,13 +77,12 @@ export class TicketService {
 
     const ticket = await this.prisma.$transaction(async (tx) => {
       const year = new Date().getFullYear();
-      const count = await tx.ticketPesagem.count({
-        where: {
-          unidadeId: dto.unidadeId,
-          criadoEm: { gte: new Date(year, 0, 1), lte: new Date(year, 11, 31, 23, 59, 59) },
-        },
+      const contador = await tx.ticketContador.upsert({
+        where: { ticket_contador_unidade_ano_unique: { unidadeId: dto.unidadeId, ano: year } },
+        update: { ultimoNumero: { increment: 1 } },
+        create: { unidadeId: dto.unidadeId, ano: year, ultimoNumero: 1 },
       });
-      const numero = `TK-${year}-${String(count + 1).padStart(4, '0')}`;
+      const numero = `TK-${year}-${String(contador.ultimoNumero).padStart(4, '0')}`;
       return tx.ticketPesagem.create({
         data: {
           numero,
@@ -283,6 +282,12 @@ export class TicketService {
     tenantId: string,
     usuarioId: string,
   ) {
+    const ticketPre = await this.prisma.ticketPesagem.findUnique({
+      where: { id: ticketId, tenantId },
+      select: { unidadeId: true },
+    });
+    if (!ticketPre) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
+    await this.licenseGuard.verificarLicenca(ticketPre.unidadeId);
     // C6 (Onda 1): cálculo de sequência DENTRO da $transaction.
     return this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticketPesagem.findUnique({
@@ -343,6 +348,12 @@ export class TicketService {
   // ============================================================
 
   async fecharTicket(ticketId: string, dto: FecharTicketDto, tenantId: string, usuarioId: string) {
+    const ticketPre = await this.prisma.ticketPesagem.findUnique({
+      where: { id: ticketId, tenantId },
+    });
+    if (!ticketPre) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
+    await this.licenseGuard.verificarLicenca(ticketPre.unidadeId);
+
     // C5 (Onda 1): fechamento atomico em $transaction unica.
     const result = await this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticketPesagem.findUnique({ where: { id: ticketId, tenantId } });

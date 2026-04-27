@@ -70,7 +70,6 @@ export async function setupTestApp(): Promise<TestAppContext> {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
     }),
   );
   await app.init();

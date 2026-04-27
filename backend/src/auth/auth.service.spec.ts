@@ -4,6 +4,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -13,7 +14,7 @@ describe('AuthService', () => {
   beforeEach(async () => {
     prisma = {
       usuario: {
-        findUnique: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn().mockResolvedValue({}),
       },
       permissao: { findMany: jest.fn().mockResolvedValue([]) },
@@ -33,6 +34,10 @@ describe('AuthService', () => {
           provide: JwtService,
           useValue: { sign: jest.fn().mockReturnValue('token-fake') },
         },
+        {
+          provide: MailerService,
+          useValue: { sendMail: jest.fn().mockResolvedValue({ ok: true }) },
+        },
       ],
     }).compile();
 
@@ -43,7 +48,7 @@ describe('AuthService', () => {
   describe('validateUser', () => {
     it('valida credenciais corretas e reseta tentativas', async () => {
       const senhaHash = await bcrypt.hash('senha123', 4);
-      prisma.usuario.findUnique.mockResolvedValue({
+      prisma.usuario.findFirst.mockResolvedValue({
         id: 'u1',
         email: 'a@b.com',
         senhaHash,
@@ -61,14 +66,14 @@ describe('AuthService', () => {
     });
 
     it('rejeita usuário inexistente', async () => {
-      prisma.usuario.findUnique.mockResolvedValue(null);
+      prisma.usuario.findFirst.mockResolvedValue(null);
       await expect(service.validateUser('x@x.com', 'a')).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
     });
 
     it('rejeita usuário inativo', async () => {
-      prisma.usuario.findUnique.mockResolvedValue({
+      prisma.usuario.findFirst.mockResolvedValue({
         id: 'u1',
         senhaHash: 'x',
         ativo: false,
@@ -82,7 +87,7 @@ describe('AuthService', () => {
 
     it('rejeita conta bloqueada', async () => {
       const futuro = new Date(Date.now() + 60_000);
-      prisma.usuario.findUnique.mockResolvedValue({
+      prisma.usuario.findFirst.mockResolvedValue({
         id: 'u1',
         senhaHash: 'x',
         ativo: true,
@@ -94,7 +99,7 @@ describe('AuthService', () => {
 
     it('incrementa tentativas quando senha inválida', async () => {
       const senhaHash = await bcrypt.hash('certa', 4);
-      prisma.usuario.findUnique.mockResolvedValue({
+      prisma.usuario.findFirst.mockResolvedValue({
         id: 'u1',
         email: 'a@b.com',
         senhaHash,
@@ -117,7 +122,7 @@ describe('AuthService', () => {
 
     it('aplica bloqueadoAte ao atingir 5 tentativas (Onda 2.2)', async () => {
       const senhaHash = await bcrypt.hash('certa', 4);
-      prisma.usuario.findUnique.mockResolvedValue({
+      prisma.usuario.findFirst.mockResolvedValue({
         id: 'u1',
         email: 'a@b.com',
         senhaHash,
@@ -137,14 +142,14 @@ describe('AuthService', () => {
 
   describe('requestPasswordReset', () => {
     it('retorna ok=true sem revelar se e-mail existe (enumeration)', async () => {
-      prisma.usuario.findUnique.mockResolvedValue(null);
+      prisma.usuario.findFirst.mockResolvedValue(null);
       const r = await service.requestPasswordReset('inexistente@x.com');
       expect(r).toEqual({ ok: true });
       expect(prisma.tokenReset.create).not.toHaveBeenCalled();
     });
 
     it('persiste apenas o HASH do token, nunca o token bruto', async () => {
-      prisma.usuario.findUnique.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+      prisma.usuario.findFirst.mockResolvedValue({ id: 'u1', email: 'a@b.com', tenantId: 't1' });
       await service.requestPasswordReset('a@b.com');
       expect(prisma.tokenReset.create).toHaveBeenCalledTimes(1);
       const createArg = prisma.tokenReset.create.mock.calls[0][0];
@@ -154,7 +159,7 @@ describe('AuthService', () => {
     });
 
     it('seta expiraEm ~15 minutos no futuro', async () => {
-      prisma.usuario.findUnique.mockResolvedValue({ id: 'u1', email: 'a@b.com' });
+      prisma.usuario.findFirst.mockResolvedValue({ id: 'u1', email: 'a@b.com', tenantId: 't1' });
       const antes = Date.now();
       await service.requestPasswordReset('a@b.com');
       const { expiraEm } = prisma.tokenReset.create.mock.calls[0][0].data;

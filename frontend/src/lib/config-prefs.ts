@@ -26,16 +26,8 @@ export interface SegurancaPrefs {
   exigirConfirmacaoCancelamento: boolean;
 }
 
-export interface NotificacoesPrefs {
-  emailErrosImpressao: boolean;
-  emailBackupFalha: boolean;
-  emailEnderecos: string; // CSV
-  webhookUrl: string;
-}
-
 const KEY_UI = 'ui_prefs_v1';
 const KEY_SEG = 'seg_prefs_v1';
-const KEY_NOT = 'not_prefs_v1';
 
 const UI_DEFAULT: UiPrefs = {
   tema: 'claro',
@@ -49,12 +41,6 @@ const SEG_DEFAULT: SegurancaPrefs = {
   bloqueioInatividadeMin: 0,
   ocultarSenhasNaImpressao: true,
   exigirConfirmacaoCancelamento: true,
-};
-const NOT_DEFAULT: NotificacoesPrefs = {
-  emailErrosImpressao: false,
-  emailBackupFalha: false,
-  emailEnderecos: '',
-  webhookUrl: '',
 };
 
 function load<T>(key: string, def: T): T {
@@ -87,10 +73,4 @@ export const segurancaPrefs = {
   load: () => load(KEY_SEG, SEG_DEFAULT),
   save: (v: SegurancaPrefs) => save(KEY_SEG, v),
   default: SEG_DEFAULT,
-};
-
-export const notificacoesPrefs = {
-  load: () => load(KEY_NOT, NOT_DEFAULT),
-  save: (v: NotificacoesPrefs) => save(KEY_NOT, v),
-  default: NOT_DEFAULT,
 };

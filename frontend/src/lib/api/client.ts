@@ -33,7 +33,7 @@ apiClient.interceptors.request.use(
       const token = sessionStorage.getItem('access_token');
       if (token) config.headers.Authorization = `Bearer ${token}`;
     }
-    config.headers.traceparent = `00-${generateTraceId()}-00-01`;
+    config.headers.traceparent = generateTraceId();
     return config;
   },
   (error) => Promise.reject(error),

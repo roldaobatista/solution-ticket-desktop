@@ -27,7 +27,10 @@ export interface GerarChaveOptions {
   fingerprints: string[];
   plan?: 'PADRAO' | 'PRO';
   maxMaquinas?: number;
-  validadeSegundos?: number | null; // null = vitalícia
+  // F-029: validade-dias e jti agora obrigatorios; null aqui pula o campo
+  // para permitir testes que verificam a rejeicao de chaves sem exp/jti.
+  validadeSegundos?: number | null;
+  jti?: string | null;
   privateKey?: string;
 }
 
@@ -40,8 +43,11 @@ export function gerarChaveRSA(opts: GerarChaveOptions): string {
     iat: now,
     version: 1,
   };
-  if (opts.validadeSegundos != null) {
-    payload.exp = now + opts.validadeSegundos;
+  if (opts.validadeSegundos !== null) {
+    payload.exp = now + (opts.validadeSegundos ?? 86400 * 365);
+  }
+  if (opts.jti !== null) {
+    payload.jti = opts.jti ?? crypto.randomUUID();
   }
   return jwt.sign(payload, opts.privateKey ?? TEST_PRIVATE_KEY, { algorithm: 'RS256' });
 }

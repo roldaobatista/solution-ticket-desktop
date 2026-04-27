@@ -5,6 +5,8 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { getUserDataDir, getDatabasePath } from '../common/desktop-paths';
 import { PrismaService } from '../prisma/prisma.service';
+import { PrismaClient } from '@prisma/client';
+import { NotificacaoService } from '../mailer/notificacao.service';
 
 const DAILY_RETENTION = 30;
 const MONTHLY_RETENTION = 12;
@@ -22,7 +24,10 @@ export interface BackupInfo {
 export class BackupService {
   private readonly logger = new Logger(BackupService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificacao: NotificacaoService,
+  ) {}
 
   private get backupsDir(): string {
     return path.join(getUserDataDir(), 'backups');
@@ -57,7 +62,26 @@ export class BackupService {
         this.applyRetention(this.monthlyDir, MONTHLY_RETENTION);
       }
     } catch (err) {
-      this.logger.error(`Backup diário falhou: ${(err as Error).message}`);
+      const msg = (err as Error).message;
+      this.logger.error(`Backup diário falhou: ${msg}`);
+      await this.notificarFalhaBackup(msg);
+    }
+  }
+
+  private async notificarFalhaBackup(mensagem: string) {
+    try {
+      const tenants = await this.notificacao.listarTenantsComAlertaBackup();
+      for (const tenantId of tenants) {
+        await this.notificacao.notificar(tenantId, {
+          evento: 'falha_backup',
+          assunto: '[Solution Ticket] Falha no backup automatico',
+          texto: `O backup diario nao pode ser concluido.\n\nDetalhes: ${mensagem}`,
+          html: `<p>O backup diario nao pode ser concluido.</p><p><strong>Detalhes:</strong> ${mensagem}</p>`,
+          dados: { mensagem, momento: new Date().toISOString() },
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`Falha ao notificar erro de backup: ${(err as Error).message}`);
     }
   }
 
@@ -191,7 +215,31 @@ export class BackupService {
         return { ok: false, details: 'sha256 divergente' };
       }
     }
-    return { ok: true, details: 'sha256 ok' };
+
+    // F-016: PRAGMA integrity_check em cópia temporária
+    const tempPath = `${target.path}.integrity-check.tmp`;
+    try {
+      fs.copyFileSync(target.path, tempPath);
+      const tempDb = new PrismaClient({
+        datasourceUrl: `file:${tempPath}`,
+      });
+      const result = (await tempDb.$queryRawUnsafe('PRAGMA integrity_check;')) as Array<{
+        integrity_check: string;
+      }>;
+      await tempDb.$disconnect();
+      const check = result?.[0]?.integrity_check;
+      if (check !== 'ok') {
+        return { ok: false, details: `integrity_check falhou: ${check}` };
+      }
+      return { ok: true, details: 'sha256 ok + integrity_check ok' };
+    } catch (err) {
+      this.logger.error(`integrity_check erro: ${(err as Error).message}`);
+      return { ok: false, details: `integrity_check erro: ${(err as Error).message}` };
+    } finally {
+      try {
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      } catch {}
+    }
   }
 
   private hashFile(p: string): Promise<string> {

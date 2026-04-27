@@ -348,8 +348,11 @@ export interface Usuario {
 }
 
 export interface Licenca {
-  id: string;
+  id?: string;
   status_licenca: string;
+  plano?: string | null;
+  fingerprint?: string | null;
+  dias_restantes?: number | null;
   trial_iniciado_em?: string;
   trial_expira_em?: string;
   limite_pesagens_trial?: number;
@@ -357,6 +360,7 @@ export interface Licenca {
   chave_validacao_hash?: string;
   chave_licenciamento_hash?: string;
   ativado_em?: string;
+  expira_em?: string;
   bloqueado_em?: string;
   motivo_bloqueio?: string;
 }

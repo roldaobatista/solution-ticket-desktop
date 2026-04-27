@@ -4,9 +4,10 @@ import { ImpressaoController } from './impressao.controller';
 import { ImpressaoListener } from './impressao.listener';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EscposPrinterService } from './escpos/escpos-printer.service';
+import { MailerModule } from '../mailer/mailer.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, MailerModule],
   controllers: [ImpressaoController],
   providers: [ImpressaoService, ImpressaoListener, EscposPrinterService],
   exports: [ImpressaoService, EscposPrinterService],

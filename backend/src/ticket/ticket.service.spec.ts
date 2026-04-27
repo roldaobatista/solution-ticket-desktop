@@ -38,7 +38,18 @@ describe('TicketService - cálculo de fechamento', () => {
       },
       descontoPesagem: { findMany: jest.fn().mockResolvedValue([]) },
       auditoria: { create: jest.fn().mockResolvedValue({}) },
-      licencaInstalacao: { findFirst: jest.fn().mockResolvedValue(null), update: jest.fn() },
+      licencaInstalacao: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'lic-1',
+          statusLicenca: 'ATIVA',
+          pesagensRestantesTrial: null,
+          trialExpiraEm: null,
+        }),
+        update: jest.fn(),
+      },
+      ticketContador: {
+        upsert: jest.fn().mockResolvedValue({ ultimoNumero: 1 }),
+      },
       snapshotComercialTicket: { create: jest.fn().mockResolvedValue({}) },
       tabelaPrecoProdutoCliente: { findFirst: jest.fn().mockResolvedValue(null) },
       tabelaPrecoProduto: { findFirst: jest.fn().mockResolvedValue(null) },
@@ -140,6 +151,7 @@ describe('TicketService - cálculo de fechamento', () => {
       },
     ]);
     prisma.ticketPesagem.findUnique
+      .mockResolvedValueOnce({ ...baseTicket, taraCadastradaSnapshot: 7000 })
       .mockResolvedValueOnce({ ...baseTicket, taraCadastradaSnapshot: 7000 })
       .mockResolvedValueOnce({ ...baseTicket });
 
@@ -285,7 +297,17 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
       unidade: { findFirst: jest.fn().mockResolvedValue({ id: 'u' }) },
       cliente: { findFirst: jest.fn().mockResolvedValue({ id: 'c' }) },
       produto: { findFirst: jest.fn().mockResolvedValue({ id: 'p' }) },
-      licencaInstalacao: { findFirst: jest.fn().mockResolvedValue(null) },
+      licencaInstalacao: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'lic-1',
+          statusLicenca: 'ATIVA',
+          pesagensRestantesTrial: null,
+          trialExpiraEm: null,
+        }),
+      },
+      ticketContador: {
+        upsert: jest.fn().mockResolvedValue({ ultimoNumero: 1 }),
+      },
       veiculo: { findUnique: jest.fn(), findFirst: jest.fn().mockResolvedValue({ id: 'v' }) },
       $transaction: jest.fn((fn: (tx: typeof prisma) => unknown) => fn(prisma)),
     };

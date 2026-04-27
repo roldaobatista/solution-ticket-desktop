@@ -411,6 +411,25 @@ export function mapPagamentoFatura(raw: any): PagamentoFatura {
 // Generic paginated mapper
 // ---------------------------------------------------------------------------
 
+export function mapLicenca(raw: any) {
+  return {
+    id: raw.id,
+    status_licenca: raw.status,
+    plano: raw.plan,
+    fingerprint: raw.fingerprint,
+    dias_restantes: raw.diasRestantes,
+    pesagens_restantes_trial: raw.pesagensRestantes,
+    ativado_em: raw.ativadoEm,
+    expira_em: raw.expira,
+    trial_iniciado_em: raw.trialIniciadoEm,
+    limite_pesagens_trial: raw.limitePesagensTrial,
+    chave_validacao_hash: raw.chaveValidacaoHash,
+    chave_licenciamento_hash: raw.chaveLicenciamentoHash,
+    bloqueado_em: raw.bloqueadoEm,
+    motivo_bloqueio: raw.motivoBloqueio,
+  };
+}
+
 export function mapPaginated<T>(raw: any, mapItem: (item: any) => T) {
   const data = Array.isArray(raw.data) ? raw.data.map(mapItem) : [];
   return {

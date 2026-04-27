@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { requireJwtSecret } from './jwt-secret';
+import { MailerModule } from '../mailer/mailer.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { requireJwtSecret } from './jwt-secret';
         },
       }),
     }),
+    MailerModule,
   ],
   providers: [AuthService, JwtStrategy, LocalStrategy],
   controllers: [AuthController],

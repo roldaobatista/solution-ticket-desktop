@@ -21,6 +21,8 @@ interface ConexaoAtiva {
   emitter: EventEmitter;
   status: BalancaStatus;
   historico: number[];
+  toleranciaEstabilidade: number;
+  janelaEstabilidade: number;
 }
 
 /**
@@ -104,6 +106,9 @@ export class BalancaConnectionService implements OnModuleDestroy {
       emitter: new EventEmitter(),
       status: { online: false, erro: null, ultimaLeitura: null, ultimaLeituraEm: null },
       historico: [],
+      toleranciaEstabilidade:
+        balanca.toleranciaEstabilidade ?? BalancaConnectionService.TOLERANCIA_ESTAVEL,
+      janelaEstabilidade: balanca.janelaEstabilidade ?? BalancaConnectionService.JANELA_ESTAVEL,
     };
 
     adapter.on('data', (chunk: Buffer) => this.processarChunk(conexao, chunk));
@@ -251,7 +256,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
 
   private aplicarEstabilidade(conexao: ConexaoAtiva, leitura: { peso: number; estavel: boolean }) {
     conexao.historico.push(leitura.peso);
-    if (conexao.historico.length > BalancaConnectionService.JANELA_ESTAVEL) {
+    if (conexao.historico.length > conexao.janelaEstabilidade) {
       conexao.historico.shift();
     }
     // Onda 1.7 (C9): parser estavel:true e definitivo (byte de status real).
@@ -259,10 +264,10 @@ export class BalancaConnectionService implements OnModuleDestroy {
     // movel completa dentro da tolerancia. Antes alguns parsers retornavam
     // true hardcoded, permitindo travar peso instavel para ticket.
     if (leitura.estavel) return;
-    if (conexao.historico.length < BalancaConnectionService.JANELA_ESTAVEL) return;
+    if (conexao.historico.length < conexao.janelaEstabilidade) return;
     const min = Math.min(...conexao.historico);
     const max = Math.max(...conexao.historico);
-    if (max - min <= BalancaConnectionService.TOLERANCIA_ESTAVEL) {
+    if (max - min <= conexao.toleranciaEstabilidade) {
       leitura.estavel = true;
     }
   }

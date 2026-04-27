@@ -7,6 +7,7 @@ import {
 } from '@nestjs/terminus';
 import { PrismaService } from '../prisma/prisma.service';
 import { Public } from '../common/decorators/public.decorator';
+import { getUserDataDir } from '../common/desktop-paths';
 
 @Controller('health')
 export class HealthController {
@@ -25,7 +26,7 @@ export class HealthController {
   check() {
     return this.health.check([
       () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
-      () => this.disk.checkStorage('disk', { thresholdPercent: 0.9, path: '/' }),
+      () => this.disk.checkStorage('disk', { thresholdPercent: 0.9, path: getUserDataDir() }),
       async () => {
         await this.prisma.$queryRaw`SELECT 1`;
         return { database: { status: 'up' } };

@@ -12,11 +12,12 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateUserDto, tenantId: string) {
-    const existente = await this.prisma.usuario.findUnique({
-      where: { email: dto.email },
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    const existente = await this.prisma.usuario.findFirst({
+      where: { email: normalizedEmail, tenantId },
     });
     if (existente) {
-      throw new ConflictException('Email já cadastrado');
+      throw new ConflictException('Email já cadastrado neste tenant');
     }
 
     const senhaHash = await bcrypt.hash(dto.senha, BCRYPT_COST_PROD);
@@ -25,7 +26,7 @@ export class UsersService {
       data: {
         tenantId,
         nome: dto.nome,
-        email: dto.email,
+        email: normalizedEmail,
         senhaHash,
         ativo: dto.ativo ?? true,
       },
@@ -116,7 +117,7 @@ export class UsersService {
 
     const data: Prisma.UsuarioUpdateInput = {};
     if (dto.nome) data.nome = dto.nome;
-    if (dto.email) data.email = dto.email;
+    if (dto.email) data.email = dto.email.toLowerCase().trim();
     if (dto.ativo !== undefined) data.ativo = dto.ativo;
     if (dto.senha) data.senhaHash = await bcrypt.hash(dto.senha, BCRYPT_COST_PROD);
 

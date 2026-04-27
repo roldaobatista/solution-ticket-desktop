@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
 import { BCRYPT_COST_PROD } from './bcrypt-cost';
 import { validarPoliticaSenha } from './password-policy';
 
@@ -32,11 +33,13 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly mailer: MailerService,
   ) {}
 
   async validateUser(email: string, senha: string) {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { email },
+    const normalizedEmail = email.toLowerCase().trim();
+    const usuario = await this.prisma.usuario.findFirst({
+      where: { email: normalizedEmail },
       include: { perfis: { include: { perfil: true } } },
     });
 
@@ -142,7 +145,8 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     // Tempo aproximadamente constante + resposta neutra para evitar enumeration de e-mails.
-    const usuario = await this.prisma.usuario.findUnique({ where: { email } });
+    const normalizedEmail = email.toLowerCase().trim();
+    const usuario = await this.prisma.usuario.findFirst({ where: { email: normalizedEmail } });
     if (usuario) {
       const rawToken = crypto.randomBytes(32).toString('hex');
       const tokenHash = hashResetToken(rawToken);
@@ -153,9 +157,19 @@ export class AuthService {
       if (process.env.NODE_ENV !== 'production') {
         this.logger.debug(`reset token emitido (dev) usuario=${usuario.id}`);
       }
-      // TODO: enviar rawToken por email/SMS no canal externo (SMTP/provider).
+      // F-005: envia token bruto por e-mail se SMTP estiver configurado.
       // O token bruto NUNCA é persistido nem logado em produção.
-      void rawToken;
+      if (usuario.tenantId) {
+        const mailResult = await this.mailer.sendMail(usuario.tenantId, {
+          to: usuario.email,
+          subject: 'Recuperacao de Senha - Solution Ticket',
+          text: `Voce solicitou a recuperacao de senha.\n\nToken: ${rawToken}\n\nEste token expira em 15 minutos.`,
+          html: `<p>Voce solicitou a recuperacao de senha.</p><p><strong>Token:</strong> <code>${rawToken}</code></p><p>Este token expira em 15 minutos.</p>`,
+        });
+        if (!mailResult.ok) {
+          this.logger.warn(`Falha ao enviar e-mail de recuperacao: ${mailResult.error}`);
+        }
+      }
     }
     return { ok: true };
   }
