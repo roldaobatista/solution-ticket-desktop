@@ -37,7 +37,10 @@ export class ComercialController {
 
   @Get('preco-produto')
   @ApiOperation({ summary: 'Listar tabelas de preco por produto' })
-  findAllPrecoProduto(@Query('tenantId') tenantId: string, @Query('produtoId') produtoId?: string) {
+  findAllPrecoProduto(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('produtoId') produtoId?: string,
+  ) {
     return this.comercialService.findAllTabelaPrecoProduto(tenantId, produtoId);
   }
 
@@ -65,7 +68,10 @@ export class ComercialController {
 
   @Get('preco-cliente')
   @ApiOperation({ summary: 'Listar tabelas de preco por cliente' })
-  findAllPrecoCliente(@Query('tenantId') tenantId: string, @Query('clienteId') clienteId?: string) {
+  findAllPrecoCliente(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('clienteId') clienteId?: string,
+  ) {
     return this.comercialService.findAllTabelaPrecoCliente(tenantId, clienteId);
   }
 
@@ -90,7 +96,7 @@ export class ComercialController {
 
   @Get('frete')
   @ApiOperation({ summary: 'Listar tabelas de frete' })
-  findAllFrete(@Query('tenantId') tenantId: string) {
+  findAllFrete(@CurrentUser('tenantId') tenantId: string) {
     return this.comercialService.findAllTabelaFrete(tenantId);
   }
 
@@ -115,7 +121,10 @@ export class ComercialController {
 
   @Get('umidade')
   @ApiOperation({ summary: 'Listar tabelas de umidade' })
-  findAllUmidade(@Query('tenantId') tenantId: string, @Query('produtoId') produtoId?: string) {
+  findAllUmidade(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('produtoId') produtoId?: string,
+  ) {
     return this.comercialService.findAllTabelaUmidade(tenantId, produtoId);
   }
 
@@ -133,7 +142,7 @@ export class ComercialController {
   // Saldos por cliente (credito - debito agregando faturas)
   @Get('saldos')
   @ApiOperation({ summary: 'Saldos por cliente' })
-  getSaldos(@Query('clienteId') clienteId?: string, @Query('tenantId') tenantId?: string) {
+  getSaldos(@CurrentUser('tenantId') tenantId: string, @Query('clienteId') clienteId?: string) {
     return this.comercialService.getSaldos(tenantId, clienteId);
   }
 
@@ -141,10 +150,11 @@ export class ComercialController {
   @ApiOperation({ summary: 'Extrato do cliente (JSON)' })
   getExtrato(
     @Param('clienteId') clienteId: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('inicio') inicio?: string,
     @Query('fim') fim?: string,
   ) {
-    return this.comercialService.getExtrato(clienteId, inicio, fim);
+    return this.comercialService.getExtrato(clienteId, tenantId, inicio, fim);
   }
 
   // Onda 5.4: extrato em PDF (paridade PesoLog).
@@ -152,11 +162,12 @@ export class ComercialController {
   @ApiOperation({ summary: 'Extrato do cliente em PDF' })
   async getExtratoPdf(
     @Param('clienteId') clienteId: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Res() res: Response,
     @Query('inicio') inicio?: string,
     @Query('fim') fim?: string,
   ) {
-    const buffer = await this.comercialService.gerarExtratoPdf(clienteId, inicio, fim);
+    const buffer = await this.comercialService.gerarExtratoPdf(clienteId, tenantId, inicio, fim);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="extrato-${clienteId}.pdf"`);
     res.send(buffer);
@@ -165,16 +176,17 @@ export class ComercialController {
   @Get('precos/historico')
   @ApiOperation({ summary: 'Historico de alteracoes de preco' })
   getHistoricoPreco(
+    @CurrentUser('tenantId') tenantId: string,
     @Query('produtoId') produtoId?: string,
     @Query('clienteId') clienteId?: string,
   ) {
-    return this.comercialService.getHistoricoPreco(produtoId, clienteId);
+    return this.comercialService.getHistoricoPreco(tenantId, produtoId, clienteId);
   }
 
   // Snapshot
   @Get('snapshot/:ticketId')
   @ApiOperation({ summary: 'Buscar snapshot comercial do ticket' })
-  getSnapshot(@Param('ticketId') ticketId: string) {
-    return this.comercialService.getSnapshot(ticketId);
+  getSnapshot(@Param('ticketId') ticketId: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.comercialService.getSnapshot(ticketId, tenantId);
   }
 }

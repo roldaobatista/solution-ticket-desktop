@@ -3,6 +3,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { createParser } from '../balanca/parsers/parser.factory';
 import { IndicadorService } from './indicador.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 interface TestarConfigBody {
   bytes: string; // hex
@@ -19,7 +22,7 @@ interface AnnotateBody {
 }
 
 interface CriarFromCaptureBody {
-  tenantId: string;
+  tenantId?: string;
   fabricante: string;
   modelo: string;
   descricao?: string;
@@ -104,30 +107,33 @@ export class IndicadorWizardController {
   }
 
   @Post('criar')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Cria novo indicador a partir do wizard (após teste OK)' })
-  async criar(@Body() body: CriarFromCaptureBody) {
+  async criar(@Body() body: CriarFromCaptureBody, @CurrentUser('tenantId') tenantId: string) {
     const descricao = body.descricao || `${body.fabricante} - ${body.modelo}`;
-    return this.service.create({
-      tenantId: body.tenantId,
-      fabricante: body.fabricante,
-      modelo: body.modelo,
-      descricao,
-      protocolo: body.protocolo,
-      parserTipo: body.parserTipo,
-      baudrate: body.serial.baudRate,
-      databits: body.serial.dataBits,
-      stopbits: body.serial.stopBits,
-      parity: body.serial.parity,
-      flowControl: body.serial.flowControl,
-      inicioPeso: body.inicioPeso,
-      tamanhoPeso: body.tamanhoPeso,
-      marcador: body.marcador,
-      fator: body.fator,
-      invertePeso: body.invertePeso,
-      atraso: body.atraso,
-      exemploTrama: body.bytesCapturados,
-      notas: body.notas,
-    });
+    return this.service.create(
+      {
+        fabricante: body.fabricante,
+        modelo: body.modelo,
+        descricao,
+        protocolo: body.protocolo,
+        parserTipo: body.parserTipo,
+        baudrate: body.serial.baudRate,
+        databits: body.serial.dataBits,
+        stopbits: body.serial.stopBits,
+        parity: body.serial.parity,
+        flowControl: body.serial.flowControl,
+        inicioPeso: body.inicioPeso,
+        tamanhoPeso: body.tamanhoPeso,
+        marcador: body.marcador,
+        fator: body.fator,
+        invertePeso: body.invertePeso,
+        atraso: body.atraso,
+        exemploTrama: body.bytesCapturados,
+        notas: body.notas,
+      },
+      tenantId,
+    );
   }
 
   private classify(b: number): string {

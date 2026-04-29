@@ -1,7 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { IndicadorService, IndicadorInput } from './indicador.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Indicadores de Balança')
 @ApiBearerAuth()
@@ -12,36 +15,44 @@ export class IndicadorController {
 
   @Get()
   @ApiOperation({ summary: 'Lista indicadores (presets builtin + customizados)' })
-  list(@Query('tenantId') tenantId: string) {
+  list(@CurrentUser('tenantId') tenantId: string) {
     return this.service.list(tenantId);
   }
 
   @Get(':id')
-  byId(@Param('id') id: string) {
-    return this.service.findById(id);
+  byId(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.findById(id, tenantId);
   }
 
   @Post()
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Cria indicador customizado' })
-  create(@Body() body: IndicadorInput) {
-    return this.service.create(body);
+  create(@Body() body: IndicadorInput, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.create(body, tenantId);
   }
 
   @Put(':id')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Atualiza indicador (incluindo builtin — só campos)' })
-  update(@Param('id') id: string, @Body() body: Partial<IndicadorInput>) {
-    return this.service.update(id, body);
+  update(
+    @Param('id') id: string,
+    @Body() body: Partial<IndicadorInput>,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.service.update(id, body, tenantId);
   }
 
   @Delete(':id')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Soft-delete (rejeita builtin)' })
-  delete(@Param('id') id: string) {
-    return this.service.delete(id);
+  delete(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.delete(id, tenantId);
   }
 
   @Post('seed-builtins')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Seed dos 23 presets builtin (idempotente)' })
-  seed(@Body() body: { tenantId: string }) {
-    return this.service.seedBuiltins(body.tenantId);
+  seed(@CurrentUser('tenantId') tenantId: string) {
+    return this.service.seedBuiltins(tenantId);
   }
 }

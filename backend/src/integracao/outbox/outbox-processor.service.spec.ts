@@ -63,6 +63,8 @@ describe('OutboxProcessorService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    logs.log.mockResolvedValue(undefined);
+    prisma.integracaoExternalLink.upsert.mockResolvedValue({ id: 'link-1' });
   });
 
   function makeService() {
@@ -106,6 +108,32 @@ describe('OutboxProcessorService', () => {
     expect(logs.log).toHaveBeenCalledWith(expect.objectContaining({ status: 'sent' }));
   });
 
+  it('marca evento como sent mesmo se log de sucesso falhar', async () => {
+    outbox.dequeue.mockResolvedValue({ id: 'evt-1' });
+    prisma.integracaoOutbox.findUnique.mockResolvedValue(baseEvent);
+    connector.push.mockResolvedValue({ ok: true, externalId: 'remote-1' });
+    logs.log.mockRejectedValue(new Error('log indisponivel'));
+    outbox.markSent.mockResolvedValue({ id: 'evt-1', status: 'sent' });
+
+    const result = await makeService().processNext();
+
+    expect(outbox.markSent).toHaveBeenCalledWith('evt-1');
+    expect(result).toEqual({ processed: true, eventId: 'evt-1', status: 'sent' });
+  });
+
+  it('marca evento como sent mesmo se external link falhar', async () => {
+    outbox.dequeue.mockResolvedValue({ id: 'evt-1' });
+    prisma.integracaoOutbox.findUnique.mockResolvedValue(baseEvent);
+    connector.push.mockResolvedValue({ ok: true, externalId: 'remote-1' });
+    prisma.integracaoExternalLink.upsert.mockRejectedValue(new Error('link indisponivel'));
+    outbox.markSent.mockResolvedValue({ id: 'evt-1', status: 'sent' });
+
+    const result = await makeService().processNext();
+
+    expect(outbox.markSent).toHaveBeenCalledWith('evt-1');
+    expect(result).toEqual({ processed: true, eventId: 'evt-1', status: 'sent' });
+  });
+
   it('classifica falha de negocio sem retry tecnico', async () => {
     outbox.dequeue.mockResolvedValue({ id: 'evt-1' });
     prisma.integracaoOutbox.findUnique.mockResolvedValue(baseEvent);
@@ -124,7 +152,12 @@ describe('OutboxProcessorService', () => {
 
     const result = await makeService().processNext();
 
-    expect(outbox.markFailed).toHaveBeenCalledWith('evt-1', expect.any(Error), 'business');
+    expect(outbox.markFailed).toHaveBeenCalledWith(
+      'evt-1',
+      expect.any(Error),
+      'business',
+      undefined,
+    );
     expect(result).toEqual({
       processed: true,
       eventId: 'evt-1',

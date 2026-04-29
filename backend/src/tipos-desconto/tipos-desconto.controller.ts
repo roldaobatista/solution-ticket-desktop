@@ -12,11 +12,10 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TiposDescontoService } from './tipos-desconto.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import {
-  CreateTipoDescontoDto,
-  SeedTiposDescontoDto,
-  UpdateTipoDescontoDto,
-} from './dto/create-tipo-desconto.dto';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
+import { CreateTipoDescontoDto, UpdateTipoDescontoDto } from './dto/create-tipo-desconto.dto';
 
 @ApiTags('Tipos de Desconto')
 @ApiBearerAuth()
@@ -26,35 +25,43 @@ export class TiposDescontoController {
   constructor(private readonly service: TiposDescontoService) {}
 
   @Post()
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar tipo de desconto' })
-  create(@Body() dto: CreateTipoDescontoDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateTipoDescontoDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.create(dto, tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar tipos de desconto' })
-  findAll(@Query('tenantId') tenantId: string, @Query('ativos') ativos?: string) {
+  findAll(@CurrentUser('tenantId') tenantId: string, @Query('ativos') ativos?: string) {
     return this.service.findAll(tenantId, ativos === 'true' || ativos === '1');
   }
 
   @Post('seed')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar tipos de desconto padrao' })
-  seed(@Body() dto: SeedTiposDescontoDto) {
-    return this.service.seedPadrao(dto.tenantId);
+  seed(@CurrentUser('tenantId') tenantId: string) {
+    return this.service.seedPadrao(tenantId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.findOne(id, tenantId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTipoDescontoDto) {
-    return this.service.update(id, dto);
+  @Roles(Permissao.CADASTRO_GERENCIAR)
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTipoDescontoDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.service.update(id, dto, tenantId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  @Roles(Permissao.CADASTRO_GERENCIAR)
+  remove(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.remove(id, tenantId);
   }
 }

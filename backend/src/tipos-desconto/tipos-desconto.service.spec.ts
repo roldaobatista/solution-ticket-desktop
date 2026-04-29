@@ -8,6 +8,7 @@ interface PrismaMock {
     create: jest.Mock;
     findMany: jest.Mock;
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
     update: jest.Mock;
     count: jest.Mock;
   };
@@ -19,6 +20,7 @@ function makePrismaMock(): PrismaMock {
       create: jest.fn().mockResolvedValue({}),
       findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn().mockResolvedValue({}),
       count: jest.fn().mockResolvedValue(0),
     },
@@ -38,11 +40,11 @@ describe('TiposDescontoService', () => {
   });
 
   describe('create', () => {
-    it('aplica defaults quando opcionais ausentes', async () => {
-      await service.create({ tenantId: 't', descricao: 'Tara' });
+    it('aplica defaults e ignora tenantId do DTO', async () => {
+      await service.create({ tenantId: 'tenant-invasor', descricao: 'Tara' }, 'tenant-jwt');
       expect(prisma.tipoDesconto.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          tenantId: 't',
+          tenantId: 'tenant-jwt',
           descricao: 'Tara',
           tipo: 'PERCENTUAL',
           mantem: false,
@@ -72,13 +74,18 @@ describe('TiposDescontoService', () => {
 
   describe('update', () => {
     it('lanca NotFound quando nao existe', async () => {
-      prisma.tipoDesconto.findUnique.mockResolvedValue(null);
-      await expect(service.update('x', { descricao: 'novo' })).rejects.toThrow(NotFoundException);
+      prisma.tipoDesconto.findFirst.mockResolvedValue(null);
+      await expect(service.update('x', { descricao: 'novo' }, 't')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
-    it('aplica apenas campos fornecidos', async () => {
-      prisma.tipoDesconto.findUnique.mockResolvedValue({ id: 't1' });
-      await service.update('t1', { descricao: 'novo', valor: 5 });
+    it('valida ownership pelo tenant antes de atualizar', async () => {
+      prisma.tipoDesconto.findFirst.mockResolvedValue({ id: 't1', tenantId: 'tenant-jwt' });
+      await service.update('t1', { descricao: 'novo', valor: 5 }, 'tenant-jwt');
+      expect(prisma.tipoDesconto.findFirst).toHaveBeenCalledWith({
+        where: { id: 't1', tenantId: 'tenant-jwt' },
+      });
       expect(prisma.tipoDesconto.update).toHaveBeenCalledWith({
         where: { id: 't1' },
         data: { descricao: 'novo', valor: 5 },

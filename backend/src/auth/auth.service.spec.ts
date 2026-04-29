@@ -16,6 +16,7 @@ describe('AuthService', () => {
       usuario: {
         findFirst: jest.fn(),
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         update: jest.fn().mockResolvedValue({}),
       },
       permissao: { findMany: jest.fn().mockResolvedValue([]) },
@@ -33,7 +34,10 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prisma },
         {
           provide: JwtService,
-          useValue: { sign: jest.fn().mockReturnValue('token-fake') },
+          useValue: {
+            sign: jest.fn().mockReturnValue('token-fake'),
+            verify: jest.fn(),
+          },
         },
         {
           provide: MailerService,
@@ -239,6 +243,26 @@ describe('AuthService', () => {
         expect.objectContaining({ sub: 'u1', email: 'a@b.com', tenantId: 't1' }),
       );
       expect(res.usuario.id).toBe('u1');
+    });
+  });
+
+  describe('validateSseToken', () => {
+    it('rejeita token SSE emitido antes da versao atual do usuario', async () => {
+      (jwt.verify as jest.Mock).mockReturnValue({
+        sub: 'u1',
+        tenantId: 't1',
+        scope: 'sse',
+        tv: 1,
+      });
+      prisma.usuario.findUnique.mockResolvedValue({
+        ativo: true,
+        tenantId: 't1',
+        tokenVersion: 2,
+      });
+
+      await expect(service.validateSseToken('sse-token')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
     });
   });
 });

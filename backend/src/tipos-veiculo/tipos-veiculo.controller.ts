@@ -27,7 +27,7 @@ export class TiposVeiculoController {
 
   @Get()
   @ApiOperation({ summary: 'Listar tipos de veiculo' })
-  findAll(@Query('tenantId') tenantId?: string, @Query('search') search?: string) {
+  findAll(@CurrentUser('tenantId') tenantId: string | undefined, @Query('search') search?: string) {
     return this.service.findAll(tenantId, search);
   }
 

@@ -21,8 +21,8 @@ import { getUserDataDir } from '../common/desktop-paths';
  * Override por env: LICENSE_CRL_PATH
  *
  * Recarregamento: chamar reload() depois de POST /licenca/crl ou no boot.
- * Em caso de arquivo ausente/corrompido a CRL fica vazia (fail-open APENAS
- * para a CRL — a propria licenca continua exigindo exp + assinatura valida).
+ * Em primeiro boot sem arquivo, a CRL inicia vazia. Depois que uma CRL valida
+ * foi carregada, arquivo ausente/corrompido preserva a ultima lista valida.
  */
 
 interface CrlPayload {
@@ -61,6 +61,15 @@ export class CrlService implements OnModuleInit {
     }
     const p = this.crlPath;
     if (!fs.existsSync(p)) {
+      if (this.versao > 0 || this.revogados.size > 0) {
+        this.logger.warn(`CRL ausente em ${p}; mantendo ultima CRL valida em memoria.`);
+        return {
+          ok: false,
+          total: this.revogados.size,
+          versao: this.versao,
+          motivo: 'crl_ausente_ultima_valida_mantida',
+        };
+      }
       this.revogados = new Set();
       this.versao = 0;
       this.emitidaEm = null;
@@ -80,11 +89,13 @@ export class CrlService implements OnModuleInit {
       this.logger.log(`CRL carregada: ${this.revogados.size} jti(s), versao=${this.versao}`);
       return { ok: true, total: this.revogados.size, versao: this.versao };
     } catch (e) {
-      this.revogados = new Set();
-      this.versao = 0;
-      this.emitidaEm = null;
       this.logger.warn(`CRL invalida em ${p}: ${errorMessage(e)}`);
-      return { ok: false, total: 0, versao: 0, motivo: errorMessage(e) };
+      return {
+        ok: false,
+        total: this.revogados.size,
+        versao: this.versao,
+        motivo: errorMessage(e),
+      };
     }
   }
 

@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RetryPolicyService } from '../retry/retry-policy.service';
 
 describe('OutboxService', () => {
+  const originalSecret = process.env.JWT_SECRET;
   const prisma = {
     integracaoOutbox: {
       upsert: jest.fn(),
@@ -17,7 +18,15 @@ describe('OutboxService', () => {
     nextRetryAt: jest.fn().mockReturnValue(new Date('2026-04-29T12:00:00Z')),
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    process.env.JWT_SECRET = 'o'.repeat(48);
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
+  });
 
   it('serializa payload canonico ao enfileirar evento', async () => {
     prisma.integracaoOutbox.upsert.mockResolvedValue({ id: 'evt-1' });
@@ -66,5 +75,30 @@ describe('OutboxService', () => {
         lastError: null,
       }),
     });
+  });
+
+  it('usa retryAfterAt explicito ao marcar falha retryable', async () => {
+    prisma.integracaoOutbox.findUnique.mockResolvedValue({ id: 'evt-1', attempts: 1 });
+    prisma.integracaoOutbox.update.mockResolvedValue({
+      id: 'evt-1',
+      status: 'awaiting_retry',
+    });
+    const retryAfterAt = new Date('2026-04-29T12:30:00Z');
+    const service = new OutboxService(
+      prisma as unknown as PrismaService,
+      retryPolicy as unknown as RetryPolicyService,
+    );
+
+    await service.markFailed('evt-1', new Error('rate limit'), 'technical', retryAfterAt);
+
+    expect(prisma.integracaoOutbox.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'awaiting_retry',
+          nextRetryAt: retryAfterAt,
+        }),
+      }),
+    );
+    expect(retryPolicy.nextRetryAt).not.toHaveBeenCalled();
   });
 });

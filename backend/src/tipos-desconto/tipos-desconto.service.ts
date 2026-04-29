@@ -7,10 +7,10 @@ import { CreateTipoDescontoDto, UpdateTipoDescontoDto } from './dto/create-tipo-
 export class TiposDescontoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateTipoDescontoDto) {
+  async create(dto: CreateTipoDescontoDto, tenantId: string) {
     return this.prisma.tipoDesconto.create({
       data: {
-        tenantId: dto.tenantId,
+        tenantId,
         descricao: dto.descricao,
         tipo: dto.tipo || 'PERCENTUAL',
         teto: dto.teto ?? null,
@@ -35,14 +35,14 @@ export class TiposDescontoService {
     return this.prisma.tipoDesconto.findMany({ where, orderBy: { descricao: 'asc' } });
   }
 
-  async findOne(id: string) {
-    const r = await this.prisma.tipoDesconto.findUnique({ where: { id } });
+  async findOne(id: string, tenantId: string) {
+    const r = await this.prisma.tipoDesconto.findFirst({ where: { id, tenantId } });
     if (!r) throw new NotFoundException('Tipo de desconto nao encontrado');
     return r;
   }
 
-  async update(id: string, dto: UpdateTipoDescontoDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateTipoDescontoDto, tenantId: string) {
+    await this.findOne(id, tenantId);
     const patch: Prisma.TipoDescontoUpdateInput = {};
     if (dto.descricao !== undefined) patch.descricao = dto.descricao;
     if (dto.tipo !== undefined) patch.tipo = dto.tipo;
@@ -62,8 +62,8 @@ export class TiposDescontoService {
     return this.prisma.tipoDesconto.update({ where: { id }, data: patch });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
     return this.prisma.tipoDesconto.update({ where: { id }, data: { ativo: false } });
   }
 

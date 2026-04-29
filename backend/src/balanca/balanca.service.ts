@@ -17,10 +17,20 @@ export class BalancaService {
 
   async create(dto: CreateBalancaDto, tenantId: string) {
     await this.validarPosseEmpresaUnidade(dto.empresaId, dto.unidadeId, tenantId);
-    await this.validarProtocoloEPorta(dto);
+    const data = this.normalizarProtocolo(dto);
+    await this.validarProtocoloEPorta(data);
     return this.prisma.balanca.create({
-      data: { ...dto, tenantId },
+      data: { ...data, tenantId },
     });
+  }
+
+  private normalizarProtocolo<T extends CreateBalancaDto | UpdateBalancaDto>(dto: T): T {
+    const protocolo = (dto.protocolo ?? 'serial').toLowerCase();
+    let normalizado = protocolo;
+    if (['rs232', 'rs485'].includes(protocolo)) normalizado = 'serial';
+    if (['tcpip', 'tcp/ip', 'ethernet'].includes(protocolo)) normalizado = 'tcp';
+    if (protocolo === 'modbus-rtu' || protocolo === 'modbus-tcp') normalizado = 'modbus';
+    return { ...dto, protocolo: normalizado } as T;
   }
 
   private async validarPosseEmpresaUnidade(empresaId: string, unidadeId: string, tenantId: string) {
@@ -105,12 +115,13 @@ export class BalancaService {
 
   async update(id: string, dto: UpdateBalancaDto, tenantId: string) {
     await this.findOne(id, tenantId);
+    const data = this.normalizarProtocolo(dto);
     if (dto.protocolo || dto.porta || dto.enderecoIp) {
-      await this.validarProtocoloEPorta(dto, id);
+      await this.validarProtocoloEPorta(data, id);
     }
     return this.prisma.balanca.update({
       where: { id, tenantId },
-      data: { ...dto },
+      data: { ...data },
     });
   }
 

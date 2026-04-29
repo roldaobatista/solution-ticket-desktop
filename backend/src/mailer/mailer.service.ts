@@ -13,6 +13,20 @@ export interface SendMailOptions {
   html?: string;
 }
 
+type SmtpConfigRecord = {
+  id: string;
+  tenantId: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  from: string;
+  fromName: string | null;
+  ativo: boolean;
+  criadoEm: Date;
+  atualizadoEm: Date;
+};
+
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
@@ -22,6 +36,10 @@ export class MailerService {
   async getConfig(tenantId: string) {
     const cfg = await this.prisma.configuracaoSmtp.findUnique({ where: { tenantId } });
     if (!cfg) return null;
+    return this.toPublicConfig(cfg);
+  }
+
+  private toPublicConfig(cfg: SmtpConfigRecord) {
     return {
       id: cfg.id,
       tenantId: cfg.tenantId,
@@ -47,12 +65,14 @@ export class MailerService {
       data.senha = encrypt(dto.senha);
     }
     if (existing) {
-      return this.prisma.configuracaoSmtp.update({
+      const updated = await this.prisma.configuracaoSmtp.update({
         where: { tenantId },
         data,
       });
+      return this.toPublicConfig(updated);
     }
-    return this.prisma.configuracaoSmtp.create({ data });
+    const created = await this.prisma.configuracaoSmtp.create({ data });
+    return this.toPublicConfig(created);
   }
 
   async remove(tenantId: string) {

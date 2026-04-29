@@ -108,6 +108,29 @@ describe('GenericRestConnector', () => {
     });
   });
 
+  it('propaga Retry-After em respostas 429', async () => {
+    http.request.mockResolvedValue({
+      status: 429,
+      ok: false,
+      headers: { 'retry-after': '120' },
+      body: { message: 'Rate limit' },
+    });
+
+    const result = await makeConnector().push(
+      event,
+      { baseUrl: 'https://erp.example.test', authMethod: 'none' },
+      context,
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      retryable: true,
+      errorCategory: 'technical',
+      errorCode: 'HTTP_429',
+      retryAfterMs: 120_000,
+    });
+  });
+
   it('testa conexao usando healthPath configurado', async () => {
     http.request.mockResolvedValue({ status: 204, ok: true, headers: {}, body: null });
 

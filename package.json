@@ -27,6 +27,8 @@
     "typecheck:all": "pnpm -r --parallel typecheck",
     "test": "pnpm --filter ./backend test",
     "test:e2e": "pnpm --filter ./backend test:e2e",
+    "security:audit:prod": "node scripts/security-audit.js --prod --audit-level high",
+    "security:audit": "node scripts/security-audit.js --audit-level high",
     "ci": "pnpm format:check && pnpm lint:check && pnpm typecheck:all && pnpm test && pnpm build:all",
     "ci:full": "pnpm format:check && pnpm lint:check && pnpm typecheck:all && pnpm test && pnpm --filter ./frontend test && pnpm --filter ./frontend test:e2e && pnpm build:all && pnpm --filter ./electron dist",
     "prepare": "husky"
@@ -46,7 +48,12 @@
   },
   "packageManager": "pnpm@8.15.0",
   "pnpm": {
-    "overrides": {}
+    "overrides": {
+      "glob": "^10.5.0",
+      "lodash": "^4.18.1",
+      "multer": "^2.1.1",
+      "picomatch": "^4.0.4"
+    }
   },
   "devDependencies": {
     "eslint-config-prettier": "^9",

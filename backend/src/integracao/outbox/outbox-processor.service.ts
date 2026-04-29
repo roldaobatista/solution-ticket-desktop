@@ -113,11 +113,43 @@ export class OutboxProcessorService {
       },
     );
 
-    await this.logs.log({
+    if (result.ok) {
+      const sent = await this.outbox.markSent(event.id);
+      await this.tryPersistExternalLink(
+        event,
+        result.externalId,
+        result.externalCode,
+        result.remoteVersion,
+      );
+      await this.tryLog({
+        profileId: event.profileId,
+        direction: 'outbound',
+        operation: event.eventType,
+        status: 'sent',
+        correlationId: event.correlationId,
+        requestPayloadMasked: canonicalEvent.payload,
+        responsePayloadMasked: result,
+        durationMs: Date.now() - startedAt,
+      });
+      return { processed: true, eventId: event.id, status: sent.status };
+    }
+
+    const category = result.errorCategory ?? (result.retryable ? 'technical' : 'business');
+    const retryAfterAt = result.retryAfterMs
+      ? new Date(Date.now() + result.retryAfterMs)
+      : undefined;
+    const failed = await this.outbox.markFailed(
+      event.id,
+      new Error(result.errorMessage ?? result.errorCode ?? 'Falha no conector'),
+      category,
+      retryAfterAt,
+    );
+
+    await this.tryLog({
       profileId: event.profileId,
       direction: 'outbound',
       operation: event.eventType,
-      status: result.ok ? 'sent' : 'error',
+      status: 'error',
       correlationId: event.correlationId,
       requestPayloadMasked: canonicalEvent.payload,
       responsePayloadMasked: result,
@@ -125,24 +157,6 @@ export class OutboxProcessorService {
       errorCode: result.errorCode,
       errorMessage: result.errorMessage,
     });
-
-    if (result.ok) {
-      await this.persistExternalLink(
-        event,
-        result.externalId,
-        result.externalCode,
-        result.remoteVersion,
-      );
-      const sent = await this.outbox.markSent(event.id);
-      return { processed: true, eventId: event.id, status: sent.status };
-    }
-
-    const category = result.errorCategory ?? (result.retryable ? 'technical' : 'business');
-    const failed = await this.outbox.markFailed(
-      event.id,
-      new Error(result.errorMessage ?? result.errorCode ?? 'Falha no conector'),
-      category,
-    );
 
     return {
       processed: true,
@@ -206,5 +220,26 @@ export class OutboxProcessorService {
         lastSyncedAt: new Date(),
       },
     });
+  }
+
+  private async tryPersistExternalLink(
+    event: IntegracaoOutbox,
+    externalId?: string,
+    externalCode?: string,
+    remoteVersion?: string,
+  ) {
+    try {
+      await this.persistExternalLink(event, externalId, externalCode, remoteVersion);
+    } catch (error) {
+      this.logger.error(`Falha ao persistir link externo: ${(error as Error).message}`);
+    }
+  }
+
+  private async tryLog(input: Parameters<IntegrationLogService['log']>[0]) {
+    try {
+      await this.logs.log(input);
+    } catch (error) {
+      this.logger.error(`Falha ao registrar log de integracao: ${(error as Error).message}`);
+    }
   }
 }

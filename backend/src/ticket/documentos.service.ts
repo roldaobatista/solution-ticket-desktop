@@ -20,6 +20,13 @@ function getBasePath(): string {
   return path.join(appdata, 'SolutionTicket', 'docs');
 }
 
+function isInsideDocumentsBase(filePath: string): boolean {
+  const base = path.resolve(getBasePath());
+  const resolved = path.resolve(filePath);
+  const relative = path.relative(base, resolved);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
 function detectMime(buffer: Buffer): string | null {
   if (buffer.length >= 4 && buffer.subarray(0, 4).toString('ascii') === '%PDF') {
     return 'application/pdf';
@@ -106,6 +113,9 @@ export class DocumentosService {
     if (tenantId && doc.ticket.tenantId !== tenantId) {
       throw new NotFoundException('Documento não encontrado');
     }
+    if (doc.arquivoUrl && !isInsideDocumentsBase(doc.arquivoUrl)) {
+      throw new NotFoundException('Documento não encontrado');
+    }
     if (doc.arquivoUrl && (await fileExists(doc.arquivoUrl))) {
       try {
         await fsp.unlink(doc.arquivoUrl);
@@ -128,6 +138,9 @@ export class DocumentosService {
     if (!doc || !doc.arquivoUrl) throw new NotFoundException('Documento não encontrado');
     // Onda 2.5: ownership check antes de servir o arquivo
     if (tenantId && doc.ticket.tenantId !== tenantId) {
+      throw new NotFoundException('Documento não encontrado');
+    }
+    if (!isInsideDocumentsBase(doc.arquivoUrl)) {
       throw new NotFoundException('Documento não encontrado');
     }
     if (!(await fileExists(doc.arquivoUrl)))

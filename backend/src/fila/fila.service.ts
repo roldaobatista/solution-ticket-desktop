@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotImplementedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 // NOTA: O modelo FilaVeiculo nao existe no schema.prisma atual.
@@ -8,23 +8,31 @@ import { PrismaService } from '../prisma/prisma.service';
 export class FilaService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private unavailable(): never {
+    throw new NotImplementedException('Fila de veiculos indisponivel: modelo FilaVeiculo ausente');
+  }
+
   async findByUnidade(_unidadeId: string) {
     return [];
   }
 
   async create(dto: Record<string, unknown>) {
-    return { id: null, ...dto, ordemChegada: 1, status: 'AGUARDANDO' };
+    void dto;
+    this.unavailable();
   }
 
   async chamar(id: string) {
-    return { id, status: 'EM_ATENDIMENTO', dataChamada: new Date() };
+    void id;
+    this.unavailable();
   }
 
   async concluir(id: string) {
-    return { id, status: 'CONCLUIDO', dataSaida: new Date() };
+    void id;
+    this.unavailable();
   }
 
   async remove(id: string) {
-    return { id, removido: true };
+    void id;
+    this.unavailable();
   }
 }

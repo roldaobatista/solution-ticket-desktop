@@ -9,7 +9,7 @@ import { CreateReciboDto, UpdateReciboDto } from './dto/create-recibo.dto';
 export class RecibosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateReciboDto & { tenantId?: string }, tenantId?: string) {
+  async create(dto: CreateReciboDto, tenantId: string) {
     const valor = Number(dto.valor || 0);
     const valorExtenso =
       dto.valorExtenso && dto.valorExtenso.trim().length > 0
@@ -17,7 +17,7 @@ export class RecibosService {
         : numeroParaExtenso(valor);
     return this.prisma.recibo.create({
       data: {
-        tenantId: (tenantId ?? dto.tenantId) as string,
+        tenantId,
         data: new Date(dto.data),
         cedente: dto.cedente,
         sacado: dto.sacado,
@@ -41,7 +41,7 @@ export class RecibosService {
   }
 
   async findOne(id: string, tenantId?: string) {
-    const r = await this.prisma.recibo.findUnique({ where: { id, tenantId } });
+    const r = await this.prisma.recibo.findFirst({ where: { id, tenantId } });
     if (!r) throw new NotFoundException('Recibo nao encontrado');
     return r;
   }
@@ -75,8 +75,8 @@ export class RecibosService {
     return this.prisma.recibo.delete({ where: { id, tenantId } });
   }
 
-  async gerarPdf(id: string): Promise<Buffer> {
-    const r = await this.findOne(id);
+  async gerarPdf(id: string, tenantId: string): Promise<Buffer> {
+    const r = await this.findOne(id, tenantId);
     return new Promise<Buffer>((resolve, reject) => {
       try {
         const doc = new PDFDocument({ size: 'A4', margin: 50 });

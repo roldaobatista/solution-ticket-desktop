@@ -20,8 +20,8 @@ export class TabelaUmidadeController {
 
   @Get(':produtoId')
   @ApiOperation({ summary: 'Buscar tabela de umidade por produto' })
-  findByProduto(@Param('produtoId') produtoId: string) {
-    return this.service.findByProduto(produtoId);
+  findByProduto(@Param('produtoId') produtoId: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.findByProduto(produtoId, tenantId);
   }
 
   @Post()
@@ -51,7 +51,15 @@ export class TabelaUmidadeController {
 
   @Post('calcular')
   @ApiOperation({ summary: 'Calcular desconto por umidade' })
-  calcularDesconto(@Body() dto: { produtoId: string; umidadeMedida: number; pesoLiquido: number }) {
-    return this.service.calcularDesconto(dto.produtoId, dto.umidadeMedida, dto.pesoLiquido);
+  calcularDesconto(
+    @Body() dto: { produtoId: string; umidadeMedida: number; pesoLiquido: number },
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.service.calcularDesconto(
+      dto.produtoId,
+      dto.umidadeMedida,
+      dto.pesoLiquido,
+      tenantId,
+    );
   }
 }

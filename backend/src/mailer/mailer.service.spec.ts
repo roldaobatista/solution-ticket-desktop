@@ -13,8 +13,10 @@ jest.mock('nodemailer', () => ({
 describe('MailerService', () => {
   let service: MailerService;
   let prisma: any;
+  const originalSecret = process.env.JWT_SECRET;
 
   beforeEach(async () => {
+    process.env.JWT_SECRET = 'm'.repeat(48);
     prisma = {
       configuracaoSmtp: {
         findUnique: jest.fn(),
@@ -33,6 +35,11 @@ describe('MailerService', () => {
     }).compile();
 
     service = module.get(MailerService);
+  });
+
+  afterEach(() => {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
   });
 
   describe('getConfig', () => {
@@ -65,9 +72,9 @@ describe('MailerService', () => {
   });
 
   describe('createOrUpdate', () => {
-    it('criptografa a senha ao criar', async () => {
+    it('criptografa a senha ao criar e nao retorna segredo persistido', async () => {
       prisma.configuracaoSmtp.findUnique.mockResolvedValue(null);
-      await service.createOrUpdate('t1', {
+      const result = await service.createOrUpdate('t1', {
         host: 'smtp.test.com',
         port: 587,
         secure: false,
@@ -78,6 +85,7 @@ describe('MailerService', () => {
       const createCall = prisma.configuracaoSmtp.create.mock.calls[0][0];
       expect(createCall.data.senha).not.toBe('plain');
       expect(typeof createCall.data.senha).toBe('string');
+      expect((result as any).senha).toBeUndefined();
     });
   });
 

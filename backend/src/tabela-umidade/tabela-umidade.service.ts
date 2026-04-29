@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTabelaUmidadeDto } from '../comercial/dto/create-tabela-umidade.dto';
@@ -8,9 +8,10 @@ import { UpdateTabelaUmidadeDto } from '../comercial/dto/create-tabela-umidade.d
 export class TabelaUmidadeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByProduto(produtoId: string) {
+  async findByProduto(produtoId: string, tenantId: string | undefined) {
+    if (!tenantId) throw new BadRequestException('Tenant obrigatorio');
     return this.prisma.tabelaUmidade.findMany({
-      where: { produtoId },
+      where: { produtoId, tenantId },
       orderBy: { faixaInicial: 'asc' },
     });
   }
@@ -34,8 +35,13 @@ export class TabelaUmidadeService {
    * Calcula desconto por umidade baseado na tabela do produto.
    * Regra: para cada 0.5% acima do padrão, aplica o percentual de desconto da faixa.
    */
-  async calcularDesconto(produtoId: string, umidadeMedida: number, pesoLiquido: number) {
-    const tabela = await this.findByProduto(produtoId);
+  async calcularDesconto(
+    produtoId: string,
+    umidadeMedida: number,
+    pesoLiquido: number,
+    tenantId: string | undefined,
+  ) {
+    const tabela = await this.findByProduto(produtoId, tenantId);
     if (!tabela || tabela.length === 0) {
       return {
         descontoKg: 0,

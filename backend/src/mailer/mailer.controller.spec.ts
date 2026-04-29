@@ -1,6 +1,8 @@
 import { Test } from '@nestjs/testing';
 import { MailerController } from './mailer.controller';
 import { MailerService } from './mailer.service';
+import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 describe('MailerController', () => {
   let controller: MailerController;
@@ -49,4 +51,12 @@ describe('MailerController', () => {
     const r = await controller.testConnection('t1');
     expect(r.ok).toBe(true);
   });
+
+  it.each(['upsertConfig', 'patchConfig', 'removeConfig', 'testConnection'] as const)(
+    'exige permissao de configuracao em %s',
+    (methodName) => {
+      const roles = Reflect.getMetadata(ROLES_KEY, controller[methodName]);
+      expect(roles).toEqual([Permissao.CONFIG_GERENCIAR]);
+    },
+  );
 });

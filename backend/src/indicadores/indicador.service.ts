@@ -4,11 +4,12 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PRESETS_BALANCA } from '../balanca/presets';
 
 export interface IndicadorInput {
-  tenantId: string;
+  tenantId?: string;
   fabricante?: string;
   modelo?: string;
   descricao: string;
@@ -42,19 +43,19 @@ export class IndicadorService {
     });
   }
 
-  async findById(id: string) {
-    const ind = await this.prisma.indicadorPesagem.findUnique({ where: { id } });
+  async findById(id: string, tenantId: string) {
+    const ind = await this.prisma.indicadorPesagem.findFirst({ where: { id, tenantId } });
     if (!ind) throw new NotFoundException(`Indicador ${id} não encontrado`);
     return ind;
   }
 
-  async create(input: IndicadorInput) {
+  async create(input: IndicadorInput, tenantId: string) {
     if (!input.descricao || input.descricao.length < 3) {
       throw new BadRequestException('descrição obrigatória (>=3 chars)');
     }
     return this.prisma.indicadorPesagem.create({
       data: {
-        tenantId: input.tenantId,
+        tenantId,
         fabricante: input.fabricante,
         modelo: input.modelo,
         descricao: input.descricao,
@@ -80,37 +81,38 @@ export class IndicadorService {
     });
   }
 
-  async update(id: string, input: Partial<IndicadorInput>) {
-    const existente = await this.findById(id);
+  async update(id: string, input: Partial<IndicadorInput>, tenantId: string) {
+    const existente = await this.findById(id, tenantId);
+    const data: Prisma.IndicadorPesagemUpdateInput = {
+      fabricante: input.fabricante ?? existente.fabricante,
+      modelo: input.modelo ?? existente.modelo,
+      descricao: input.descricao ?? existente.descricao,
+      protocolo: input.protocolo ?? existente.protocolo,
+      parserTipo: input.parserTipo ?? existente.parserTipo,
+      baudrate: input.baudrate ?? existente.baudrate,
+      databits: input.databits ?? existente.databits,
+      stopbits: input.stopbits ?? existente.stopbits,
+      parity: input.parity ?? existente.parity,
+      flowControl: input.flowControl ?? existente.flowControl,
+      inicioPeso: input.inicioPeso ?? existente.inicioPeso,
+      tamanhoPeso: input.tamanhoPeso ?? existente.tamanhoPeso,
+      tamanhoString: input.tamanhoString ?? existente.tamanhoString,
+      marcador: input.marcador ?? existente.marcador,
+      fator: input.fator ?? existente.fator,
+      invertePeso: input.invertePeso ?? existente.invertePeso,
+      atraso: input.atraso ?? existente.atraso,
+      exemploTrama: input.exemploTrama ?? existente.exemploTrama,
+      notas: input.notas ?? existente.notas,
+      cor: input.cor ?? existente.cor,
+    };
     return this.prisma.indicadorPesagem.update({
       where: { id },
-      data: {
-        fabricante: input.fabricante ?? existente.fabricante,
-        modelo: input.modelo ?? existente.modelo,
-        descricao: input.descricao ?? existente.descricao,
-        protocolo: input.protocolo ?? existente.protocolo,
-        parserTipo: input.parserTipo ?? existente.parserTipo,
-        baudrate: input.baudrate ?? existente.baudrate,
-        databits: input.databits ?? existente.databits,
-        stopbits: input.stopbits ?? existente.stopbits,
-        parity: input.parity ?? existente.parity,
-        flowControl: input.flowControl ?? existente.flowControl,
-        inicioPeso: input.inicioPeso ?? existente.inicioPeso,
-        tamanhoPeso: input.tamanhoPeso ?? existente.tamanhoPeso,
-        tamanhoString: input.tamanhoString ?? existente.tamanhoString,
-        marcador: input.marcador ?? existente.marcador,
-        fator: input.fator ?? existente.fator,
-        invertePeso: input.invertePeso ?? existente.invertePeso,
-        atraso: input.atraso ?? existente.atraso,
-        exemploTrama: input.exemploTrama ?? existente.exemploTrama,
-        notas: input.notas ?? existente.notas,
-        cor: input.cor ?? existente.cor,
-      },
+      data,
     });
   }
 
-  async delete(id: string) {
-    const ind = await this.findById(id);
+  async delete(id: string, tenantId: string) {
+    const ind = await this.findById(id, tenantId);
     if (ind.builtin) {
       throw new ForbiddenException(
         'Indicador builtin (preset) não pode ser excluído. Edite ou crie um novo.',

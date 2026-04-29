@@ -1,5 +1,5 @@
 {
-  "name": "@solution-ticket/electron",
+  "name": "@solution-ticket/desktop-shell",
   "version": "1.0.0",
   "description": "Solution Ticket desktop wrapper (Electron)",
   "private": true,
@@ -9,7 +9,7 @@
     "start": "electron .",
     "build": "echo 'Build handled by electron-builder in dist script'",
     "rebuild:native": "node rebuild-native.js",
-    "dist": "node prep-cache.js && node rebuild-native.js && electron-builder"
+    "dist": "node prep-cache.js && cross-env REBUILD_STRICT=true node rebuild-native.js && electron-builder"
   },
   "dependencies": {
     "electron-is-dev": "^3.0.1",
@@ -17,10 +17,10 @@
     "electron-updater": "^6"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.6.0",
+    "@electron/rebuild": "^4.0.4",
     "cross-env": "^7.0.3",
     "electron": "^41.3.0",
-    "electron-builder": "^24.13.3",
+    "electron-builder": "^26.8.1",
     "wait-on": "^7.2.0"
   },
   "build": {
@@ -35,6 +35,7 @@
     ],
     "files": [
       "main.js",
+      "updater.js",
       "preload.js",
       "splash.html",
       "assets/**/*"

@@ -97,7 +97,9 @@ export class BackupService {
     try {
       await this.prisma.$executeRawUnsafe('PRAGMA wal_checkpoint(TRUNCATE);');
     } catch (err) {
-      this.logger.warn(`wal_checkpoint falhou: ${(err as Error).message}`);
+      const message = `wal_checkpoint falhou: ${(err as Error).message}`;
+      this.logger.warn(message);
+      throw new BadRequestException(message);
     }
 
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -198,7 +200,10 @@ export class BackupService {
     this.logger.warn(`Restore: backup pré-restore em ${pre.filename}`);
 
     await this.prisma.$disconnect();
-    fs.copyFileSync(target.path, getDatabasePath());
+    const dbPath = getDatabasePath();
+    this.removeSqliteSidecars(dbPath);
+    fs.copyFileSync(target.path, dbPath);
+    this.removeSqliteSidecars(dbPath);
     this.logger.warn(`Restore concluído de ${filename}. Encerrando processo para reinicio limpo.`);
     setTimeout(() => process.exit(99), 250);
     return { ok: true, preRestoreBackup: pre.filename };
@@ -251,6 +256,15 @@ export class BackupService {
       stream.on('end', () => resolve(hash.digest('hex')));
       stream.on('error', reject);
     });
+  }
+
+  private removeSqliteSidecars(dbPath: string): void {
+    for (const suffix of ['-wal', '-shm']) {
+      const sidecar = `${dbPath}${suffix}`;
+      if (fs.existsSync(sidecar)) {
+        fs.unlinkSync(sidecar);
+      }
+    }
   }
 
   /** Mantém apenas os N mais recentes. Remove o resto + seu .sha256. */

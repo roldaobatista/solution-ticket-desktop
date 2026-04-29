@@ -49,6 +49,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (tvPayload < tokenVersionAtual) {
       throw new UnauthorizedException('Token revogado');
     }
+    if (payload.tenantId !== undefined && payload.tenantId !== usuario.tenantId) {
+      throw new UnauthorizedException('Token emitido para outro tenant');
+    }
 
     const permissoes = usuario.perfis.flatMap((up) =>
       up.perfil.permissoes.filter((p) => p.concedido).map((p) => p.acao),
@@ -56,9 +59,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return {
       id: payload.sub,
-      email: payload.email,
-      nome: payload.nome,
-      tenantId: payload.tenantId,
+      email: usuario.email,
+      nome: usuario.nome,
+      tenantId: usuario.tenantId,
       permissoes,
     };
   }

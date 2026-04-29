@@ -34,6 +34,7 @@ export interface PushResult {
   externalId?: string;
   externalCode?: string;
   remoteVersion?: string;
+  retryAfterMs?: number;
   retryable?: boolean;
   errorCategory?: 'technical' | 'business';
   errorCode?: string;

@@ -27,14 +27,10 @@ export class ComercialService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Tabelas de Preco por Produto
-  async createTabelaPrecoProduto(
-    dto: CreateTabelaPrecoProdutoDto & { tenantId?: string },
-    tenantId?: string,
-  ) {
-    const effectiveTenantId = tenantId ?? dto.tenantId!;
+  async createTabelaPrecoProduto(dto: CreateTabelaPrecoProdutoDto, tenantId: string) {
     return this.prisma.tabelaPrecoProduto.create({
       data: {
-        tenantId: effectiveTenantId,
+        tenantId,
         produtoId: dto.produtoId,
         valor: dto.valor,
         unidade: dto.unidade,
@@ -93,14 +89,10 @@ export class ComercialService {
   }
 
   // Tabelas de Preco por Produto + Cliente
-  async createTabelaPrecoCliente(
-    dto: CreateTabelaPrecoClienteDto & { tenantId?: string },
-    tenantId?: string,
-  ) {
-    const effectiveTenantId = tenantId ?? dto.tenantId!;
+  async createTabelaPrecoCliente(dto: CreateTabelaPrecoClienteDto, tenantId: string) {
     return this.prisma.tabelaPrecoProdutoCliente.create({
       data: {
-        tenantId: effectiveTenantId,
+        tenantId,
         produtoId: dto.produtoId,
         clienteId: dto.clienteId,
         destinoId: dto.destinoId ?? null,
@@ -161,9 +153,8 @@ export class ComercialService {
     return result;
   }
 
-  async getSaldos(tenantId?: string, clienteId?: string) {
-    const where: Prisma.FaturaWhereInput = {};
-    if (tenantId) where.tenantId = tenantId;
+  async getSaldos(tenantId: string, clienteId?: string) {
+    const where: Prisma.FaturaWhereInput = { tenantId };
     if (clienteId) where.clienteId = clienteId;
 
     const faturas = await this.prisma.fatura.findMany({
@@ -203,8 +194,8 @@ export class ComercialService {
     return Array.from(mapa.values());
   }
 
-  async getExtrato(clienteId: string, inicio?: string, fim?: string) {
-    const where: Prisma.FaturaWhereInput = { clienteId };
+  async getExtrato(clienteId: string, tenantId: string, inicio?: string, fim?: string) {
+    const where: Prisma.FaturaWhereInput = { clienteId, tenantId };
     if (inicio || fim) {
       where.dataEmissao = {};
       if (inicio) where.dataEmissao.gte = new Date(inicio);
@@ -252,11 +243,16 @@ export class ComercialService {
    * Layout simples: cabecalho com cliente e periodo + tabela de movimentos
    * + linha de saldo final.
    */
-  async gerarExtratoPdf(clienteId: string, inicio?: string, fim?: string): Promise<Buffer> {
-    const cliente = await this.prisma.cliente.findUnique({ where: { id: clienteId } });
+  async gerarExtratoPdf(
+    clienteId: string,
+    tenantId: string,
+    inicio?: string,
+    fim?: string,
+  ): Promise<Buffer> {
+    const cliente = await this.prisma.cliente.findFirst({ where: { id: clienteId, tenantId } });
     if (!cliente) throw new NotFoundException('Cliente nao encontrado');
 
-    const movimentos = await this.getExtrato(clienteId, inicio, fim);
+    const movimentos = await this.getExtrato(clienteId, tenantId, inicio, fim);
 
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ size: 'A4', margin: 40 });
@@ -332,8 +328,8 @@ export class ComercialService {
     });
   }
 
-  async getHistoricoPreco(produtoId?: string, clienteId?: string) {
-    const where: Prisma.HistoricoPrecoWhereInput = {};
+  async getHistoricoPreco(tenantId: string, produtoId?: string, clienteId?: string) {
+    const where: Prisma.HistoricoPrecoWhereInput = { tenantId };
     if (produtoId) where.produtoId = produtoId;
     if (clienteId) where.clienteId = clienteId;
 
@@ -344,11 +340,10 @@ export class ComercialService {
   }
 
   // Tabelas de Frete
-  async createTabelaFrete(dto: CreateTabelaFreteDto & { tenantId?: string }, tenantId?: string) {
-    const effectiveTenantId = tenantId ?? dto.tenantId!;
+  async createTabelaFrete(dto: CreateTabelaFreteDto, tenantId: string) {
     return this.prisma.tabelaFrete.create({
       data: {
-        tenantId: effectiveTenantId,
+        tenantId,
         produtoId: dto.produtoId ?? null,
         clienteId: dto.clienteId ?? null,
         destinoId: dto.destinoId ?? null,
@@ -391,14 +386,10 @@ export class ComercialService {
   }
 
   // Tabelas de Umidade
-  async createTabelaUmidade(
-    dto: CreateTabelaUmidadeDto & { tenantId?: string },
-    tenantId?: string,
-  ) {
-    const effectiveTenantId = tenantId ?? dto.tenantId!;
+  async createTabelaUmidade(dto: CreateTabelaUmidadeDto, tenantId: string) {
     return this.prisma.tabelaUmidade.create({
       data: {
-        tenantId: effectiveTenantId,
+        tenantId,
         produtoId: dto.produtoId,
         faixaInicial: dto.faixaInicial,
         faixaFinal: dto.faixaFinal,
@@ -436,9 +427,9 @@ export class ComercialService {
   }
 
   // Snapshot comercial de ticket
-  async getSnapshot(ticketId: string) {
+  async getSnapshot(ticketId: string, tenantId: string) {
     return this.prisma.snapshotComercialTicket.findMany({
-      where: { ticketId },
+      where: { ticketId, ticket: { tenantId } },
       orderBy: { versaoSnapshot: 'desc' },
     });
   }

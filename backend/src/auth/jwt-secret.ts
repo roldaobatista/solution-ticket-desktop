@@ -2,6 +2,7 @@ const MIN_SECRET_LENGTH = 32;
 const FORBIDDEN_FALLBACKS = new Set([
   'solutionticket-secret-key-2024',
   'solution-ticket-local-secret-key-2024',
+  'default-secret-change-me',
   'changeme',
   'secret',
 ]);

@@ -15,6 +15,11 @@ describe('Ticket (e2e)', () => {
 
   beforeEach(async () => {
     await limparDadosTransacionais(ctx.prisma);
+    const trial = await request(ctx.app.getHttpServer())
+      .post('/api/licenca/iniciar-trial')
+      .set('Authorization', auth())
+      .send({ unidadeId: ctx.unidadeId });
+    expect(trial.status).toBe(201);
   });
 
   async function criarTicket() {
@@ -51,7 +56,6 @@ describe('Ticket (e2e)', () => {
         condicaoVeiculo: 'CARREGADO',
         pesoCapturado: 20000,
         balancaId: ctx.balancaId,
-        usuarioId: ctx.usuarioId,
         origemLeitura: 'MANUAL',
       });
     expect(p1.status).toBe(201);
@@ -66,7 +70,6 @@ describe('Ticket (e2e)', () => {
         condicaoVeiculo: 'VAZIO',
         pesoCapturado: 8000,
         balancaId: ctx.balancaId,
-        usuarioId: ctx.usuarioId,
         origemLeitura: 'MANUAL',
       });
     expect(p2.status).toBe(201);
@@ -74,7 +77,7 @@ describe('Ticket (e2e)', () => {
     const fechar = await request(ctx.app.getHttpServer())
       .post(`/api/tickets/${ticket.id}/fechar`)
       .set('Authorization', auth())
-      .send({ usuarioId: ctx.usuarioId });
+      .send({});
     expect(fechar.status).toBe(201);
     expect(fechar.body.data.statusOperacional).toBe('FECHADO');
     expect(Number(fechar.body.data.pesoLiquidoFinal)).toBe(12000);
@@ -97,7 +100,7 @@ describe('Ticket (e2e)', () => {
     const res = await request(ctx.app.getHttpServer())
       .post(`/api/tickets/${ticket.id}/cancelar`)
       .set('Authorization', auth())
-      .send({ usuarioId: ctx.usuarioId, motivo: 'Teste' });
+      .send({ motivo: 'Teste' });
     expect(res.status).toBe(201);
     expect(res.body.data.statusOperacional).toBe('CANCELADO');
   });

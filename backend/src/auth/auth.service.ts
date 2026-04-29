@@ -234,26 +234,36 @@ export class AuthService {
         sub: usuario.id,
         tenantId: usuario.tenantId,
         scope: 'sse',
+        tv: usuario.tokenVersion ?? 0,
       },
       { expiresIn: '60s' },
     );
   }
 
   async validateSseToken(token: string): Promise<{ userId: string; tenantId: string }> {
-    let payload: { sub?: string; tenantId?: string; scope?: string };
+    let payload: { sub?: string; tenantId?: string; scope?: string; tv?: number };
     try {
       payload = this.jwtService.verify(token);
     } catch {
       throw new UnauthorizedException('Token SSE invalido');
     }
-    if (!payload.sub || !payload.tenantId || payload.scope !== 'sse') {
+    if (
+      !payload.sub ||
+      !payload.tenantId ||
+      payload.scope !== 'sse' ||
+      typeof payload.tv !== 'number'
+    ) {
       throw new UnauthorizedException('Token SSE invalido');
     }
     const usuario = await this.prisma.usuario.findUnique({
       where: { id: payload.sub },
-      select: { ativo: true, tenantId: true },
+      select: { ativo: true, tenantId: true, tokenVersion: true },
     });
-    if (!usuario?.ativo || usuario.tenantId !== payload.tenantId) {
+    if (
+      !usuario?.ativo ||
+      usuario.tenantId !== payload.tenantId ||
+      (usuario.tokenVersion ?? 0) !== payload.tv
+    ) {
       throw new UnauthorizedException('Token SSE invalido');
     }
     return { userId: payload.sub, tenantId: payload.tenantId };

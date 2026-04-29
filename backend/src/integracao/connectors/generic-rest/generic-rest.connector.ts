@@ -115,6 +115,7 @@ export class GenericRestConnector implements IErpConnector {
     return {
       ok: false,
       retryable,
+      retryAfterMs: retryable ? this.retryAfterMs(response.headers) : undefined,
       errorCategory: retryable ? 'technical' : 'business',
       errorCode: `HTTP_${response.status}`,
       errorMessage: this.errorMessage(response.body) ?? defaultMessage,
@@ -171,6 +172,19 @@ export class GenericRestConnector implements IErpConnector {
 
   private optionString(value: unknown): string | undefined {
     return typeof value === 'string' && value.trim() ? value : undefined;
+  }
+
+  private retryAfterMs(headers: Record<string, string | undefined>): number | undefined {
+    const raw = headers['retry-after'] ?? headers['Retry-After'];
+    if (!raw) return undefined;
+
+    const seconds = Number(raw);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.floor(seconds * 1000);
+
+    const dateMs = Date.parse(raw);
+    if (Number.isNaN(dateMs)) return undefined;
+
+    return Math.max(0, dateMs - Date.now());
   }
 
   private technicalError(errorCode: string, errorMessage: string): PushResult {

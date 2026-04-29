@@ -1,11 +1,12 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { requireJwtSecret } from '../auth/jwt-secret';
 
 const ALGO = 'aes-256-gcm';
 const IV_LEN = 16;
 const AUTH_TAG_LEN = 16;
 
 function getKey(): Buffer {
-  const secret = process.env.JWT_SECRET || 'default-secret-change-me';
+  const secret = requireJwtSecret();
   return createHash('sha256').update(secret).digest();
 }
 

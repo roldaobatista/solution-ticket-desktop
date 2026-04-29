@@ -186,7 +186,12 @@ export class OutboxService {
     });
   }
 
-  async markFailed(id: string, error: Error, category: IntegrationErrorCategory = 'technical') {
+  async markFailed(
+    id: string,
+    error: Error,
+    category: IntegrationErrorCategory = 'technical',
+    retryAfterAt?: Date,
+  ) {
     const current = await this.prisma.integracaoOutbox.findUnique({ where: { id } });
     const attempts = current?.attempts ?? 0;
     const shouldRetry = this.retryPolicy.shouldRetry(category, attempts);
@@ -196,7 +201,7 @@ export class OutboxService {
       data: {
         status: shouldRetry ? 'awaiting_retry' : category === 'business' ? 'error' : 'dead',
         processedAt: null,
-        nextRetryAt: shouldRetry ? this.retryPolicy.nextRetryAt(attempts) : null,
+        nextRetryAt: shouldRetry ? (retryAfterAt ?? this.retryPolicy.nextRetryAt(attempts)) : null,
         lastError: error.message,
         lastErrorCategory: category,
       },

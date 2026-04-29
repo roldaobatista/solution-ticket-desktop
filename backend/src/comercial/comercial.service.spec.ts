@@ -68,17 +68,20 @@ describe('ComercialService', () => {
   });
 
   describe('createTabelaPrecoProduto', () => {
-    it('converte vigenciaInicio para Date e aplica defaults', async () => {
-      await service.createTabelaPrecoProduto({
-        tenantId: 't',
-        produtoId: 'p',
-        valor: 10,
-        unidade: 'kg',
-        vigenciaInicio: '2026-04-01',
-      });
+    it('converte vigenciaInicio para Date, aplica defaults e ignora tenantId do DTO', async () => {
+      await service.createTabelaPrecoProduto(
+        {
+          tenantId: 'tenant-invasor',
+          produtoId: 'p',
+          valor: 10,
+          unidade: 'kg',
+          vigenciaInicio: '2026-04-01',
+        } as any,
+        'tenant-jwt',
+      );
       expect(prisma.tabelaPrecoProduto.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          tenantId: 't',
+          tenantId: 'tenant-jwt',
           produtoId: 'p',
           valor: 10,
           vigenciaInicio: expect.any(Date),
@@ -98,7 +101,7 @@ describe('ComercialService', () => {
         produtoId: 'p',
         valor: 10,
       });
-      await service.updateTabelaPrecoProduto('p1', { valor: 12, usuarioId: 'u1' });
+      await service.updateTabelaPrecoProduto('p1', { valor: 12, usuarioId: 'u1' }, 't');
       expect(prisma.historicoPreco.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           tipo: 'PRODUTO',
@@ -116,7 +119,7 @@ describe('ComercialService', () => {
         produtoId: 'p',
         valor: 10,
       });
-      await service.updateTabelaPrecoProduto('p1', { unidade: 'ton' });
+      await service.updateTabelaPrecoProduto('p1', { unidade: 'ton' }, 't');
       expect(prisma.historicoPreco.create).not.toHaveBeenCalled();
     });
   });
@@ -139,7 +142,7 @@ describe('ComercialService', () => {
         clienteId: 'c',
         valor: 5,
       });
-      await service.updateTabelaPrecoCliente('pc1', { valor: 7 });
+      await service.updateTabelaPrecoCliente('pc1', { valor: 7 }, 't');
       expect(prisma.historicoPreco.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           tipo: 'PRODUTO_CLIENTE',
@@ -197,18 +200,19 @@ describe('ComercialService', () => {
           ],
         },
       ]);
-      const out = await service.getExtrato('c1');
+      const out = await service.getExtrato('c1', 't');
       expect(out).toHaveLength(2);
       expect(out[0]).toMatchObject({ tipo: 'FATURA', valor: 100, saldo: 100 });
       expect(out[1]).toMatchObject({ tipo: 'PAGAMENTO', valor: -40, saldo: 60 });
     });
 
     it('aplica filtro de periodo quando inicio/fim informado', async () => {
-      await service.getExtrato('c1', '2026-04-01', '2026-04-30');
+      await service.getExtrato('c1', 't', '2026-04-01', '2026-04-30');
       expect(prisma.fatura.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             clienteId: 'c1',
+            tenantId: 't',
             dataEmissao: { gte: expect.any(Date), lte: expect.any(Date) },
           }),
         }),
@@ -217,15 +221,18 @@ describe('ComercialService', () => {
   });
 
   describe('createTabelaFrete', () => {
-    it('aceita campos opcionais como null', async () => {
-      await service.createTabelaFrete({
-        tenantId: 't',
-        valor: 50,
-        vigenciaInicio: '2026-04-01',
-      });
+    it('aceita campos opcionais como null e ignora tenantId do DTO', async () => {
+      await service.createTabelaFrete(
+        {
+          tenantId: 'tenant-invasor',
+          valor: 50,
+          vigenciaInicio: '2026-04-01',
+        } as any,
+        'tenant-jwt',
+      );
       expect(prisma.tabelaFrete.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          tenantId: 't',
+          tenantId: 'tenant-jwt',
           produtoId: null,
           clienteId: null,
           destinoId: null,
@@ -238,16 +245,20 @@ describe('ComercialService', () => {
 
   describe('createTabelaUmidade', () => {
     it('persiste faixas e desconto', async () => {
-      await service.createTabelaUmidade({
-        tenantId: 't',
-        produtoId: 'p',
-        faixaInicial: 12,
-        faixaFinal: 14,
-        descontoPercentual: 1.5,
-        vigenciaInicio: '2026-04-01',
-      });
+      await service.createTabelaUmidade(
+        {
+          tenantId: 'tenant-invasor',
+          produtoId: 'p',
+          faixaInicial: 12,
+          faixaFinal: 14,
+          descontoPercentual: 1.5,
+          vigenciaInicio: '2026-04-01',
+        } as any,
+        'tenant-jwt',
+      );
       expect(prisma.tabelaUmidade.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
+          tenantId: 'tenant-jwt',
           faixaInicial: 12,
           faixaFinal: 14,
           descontoPercentual: 1.5,

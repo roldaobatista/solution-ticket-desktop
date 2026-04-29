@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { RecibosService } from './recibos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -35,7 +35,7 @@ export class RecibosController {
 
   @Get()
   @ApiOperation({ summary: 'Listar recibos' })
-  findAll(@Query('tenantId') tenantId: string) {
+  findAll(@CurrentUser('tenantId') tenantId: string) {
     return this.service.findAll(tenantId);
   }
 
@@ -65,8 +65,12 @@ export class RecibosController {
 
   @Get(':id/pdf')
   @ApiOperation({ summary: 'Gerar PDF do recibo' })
-  async gerarPdf(@Param('id') id: string, @Res() res: Response) {
-    const buf = await this.service.gerarPdf(id);
+  async gerarPdf(
+    @Param('id') id: string,
+    @CurrentUser('tenantId') tenantId: string,
+    @Res() res: Response,
+  ) {
+    const buf = await this.service.gerarPdf(id, tenantId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="recibo-${id}.pdf"`);
     res.end(buf);

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTipoVeiculoDto } from './dto/create-tipo-veiculo.dto';
@@ -12,9 +12,9 @@ export class TiposVeiculoService {
     return this.prisma.tipoVeiculo.create({ data: { ...dto, tenantId } });
   }
 
-  async findAll(tenantId?: string, search?: string) {
-    const where: Prisma.TipoVeiculoWhereInput = { ativo: true };
-    if (tenantId) where.tenantId = tenantId;
+  async findAll(tenantId: string | undefined, search?: string) {
+    if (!tenantId) throw new BadRequestException('Tenant obrigatorio');
+    const where: Prisma.TipoVeiculoWhereInput = { ativo: true, tenantId };
     if (search) where.descricao = { contains: search };
 
     return this.prisma.tipoVeiculo.findMany({
