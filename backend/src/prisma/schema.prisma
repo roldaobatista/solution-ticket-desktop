@@ -354,19 +354,23 @@ model IndicadorPesagem {
   notas        String? @map("notas")
 
   // Parametros de hardware/protocolo de pesagem (extraidos do PesoLog)
-  parserTipo    String? @map("parser_tipo") // generic | toledo | toledo-c | filizola | sics | modbus...
-  baudrate      Int?    @map("baudrate")
-  databits      Int?    @map("databits")
-  stopbits      Int?    @map("stopbits")
-  parity        String? @map("parity") // N | E | O (ou none/even/odd legado)
-  flowControl   String? @map("flow_control") // NONE | XON_XOFF | RTS_CTS | DTR_DSR
-  inicioPeso    Int?    @map("inicio_peso") // 1-indexed
-  tamanhoPeso   Int?    @map("tamanho_peso")
-  tamanhoString Int?    @map("tamanho_string")
-  marcador      Int?    @map("marcador") // byte terminador (ex: 13 = CR)
-  fator         Int?    @map("fator") // divisor do peso (1, 10, 100)
-  invertePeso   Boolean @default(false) @map("inverte_peso")
-  atraso        Int?    @map("atraso") // ms entre leituras
+  parserTipo     String? @map("parser_tipo") // generic | toledo | toledo-c | filizola | sics | modbus...
+  baudrate       Int?    @map("baudrate")
+  databits       Int?    @map("databits")
+  stopbits       Int?    @map("stopbits")
+  parity         String? @map("parity") // N | E | O (ou none/even/odd legado)
+  flowControl    String? @map("flow_control") // NONE | XON_XOFF | RTS_CTS | DTR_DSR
+  inicioPeso     Int?    @map("inicio_peso") // 1-indexed
+  tamanhoPeso    Int?    @map("tamanho_peso")
+  tamanhoString  Int?    @map("tamanho_string")
+  marcador       Int?    @map("marcador") // byte terminador (ex: 13 = CR)
+  fator          Int?    @map("fator") // divisor do peso (1, 10, 100)
+  invertePeso    Boolean @default(false) @map("inverte_peso")
+  atraso         Int?    @map("atraso") // ms entre leituras
+  readMode       String  @default("continuous") @map("read_mode") // continuous | polling | manual
+  readCommandHex String? @map("read_command_hex")
+  readIntervalMs Int?    @map("read_interval_ms")
+  readTimeoutMs  Int?    @map("read_timeout_ms")
 
   tickets  TicketPesagem[]
   balancas Balanca[]
@@ -395,30 +399,34 @@ model FormaPagamento {
 // ============================================================
 
 model Balanca {
-  id               String  @id @default(uuid()) @map("id")
-  tenantId         String  @map("tenant_id")
-  empresaId        String  @map("empresa_id")
-  unidadeId        String  @map("unidade_id")
-  nome             String  @map("nome")
-  marca            String? @map("marca")
-  modelo           String? @map("modelo")
-  protocolo        String  @default("serial") @map("protocolo")
-  porta            String? @map("porta")
-  baudRate         Int?    @map("baud_rate")
-  enderecoIp       String? @map("endereco_ip")
-  portaTcp         Int?    @map("porta_tcp")
-  modbusUnitId     Int?    @map("modbus_unit_id")
-  modbusRegister   Int?    @map("modbus_register")
-  modbusFunction   String? @map("modbus_function")
-  modbusByteOrder  String? @map("modbus_byte_order")
-  modbusWordOrder  String? @map("modbus_word_order")
-  modbusSigned     Boolean @default(false) @map("modbus_signed")
+  id               String   @id @default(uuid()) @map("id")
+  tenantId         String   @map("tenant_id")
+  empresaId        String   @map("empresa_id")
+  unidadeId        String   @map("unidade_id")
+  nome             String   @map("nome")
+  marca            String?  @map("marca")
+  modelo           String?  @map("modelo")
+  protocolo        String   @default("serial") @map("protocolo")
+  porta            String?  @map("porta")
+  baudRate         Int?     @map("baud_rate")
+  enderecoIp       String?  @map("endereco_ip")
+  portaTcp         Int?     @map("porta_tcp")
+  modbusUnitId     Int?     @map("modbus_unit_id")
+  modbusRegister   Int?     @map("modbus_register")
+  modbusFunction   String?  @map("modbus_function")
+  modbusByteOrder  String?  @map("modbus_byte_order")
+  modbusWordOrder  String?  @map("modbus_word_order")
+  modbusSigned     Boolean  @default(false) @map("modbus_signed")
   modbusScale      Decimal? @map("modbus_scale")
   modbusOffset     Decimal? @map("modbus_offset")
-  statusOnline     Boolean @default(false) @map("status_online")
-  tipoEntradaSaida String? @map("tipo_entrada_saida")
-  indicadorId      String? @map("indicador_id")
-  ativo            Boolean @default(true) @map("ativo")
+  statusOnline     Boolean  @default(false) @map("status_online")
+  tipoEntradaSaida String?  @map("tipo_entrada_saida")
+  indicadorId      String?  @map("indicador_id")
+  ativo            Boolean  @default(true) @map("ativo")
+  readMode         String?  @map("read_mode")
+  readCommandHex   String?  @map("read_command_hex")
+  readIntervalMs   Int?     @map("read_interval_ms")
+  readTimeoutMs    Int?     @map("read_timeout_ms")
 
   // Override por equipamento (S6.2) — se preenchidos, sobrescrevem o indicador
   ovrDataBits      Int?     @map("ovr_data_bits")

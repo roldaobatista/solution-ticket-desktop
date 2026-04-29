@@ -17,6 +17,13 @@ export interface SerialConfig {
   flowControl: FlowControl;
 }
 
+export interface ReadConfigPreset {
+  mode: 'continuous' | 'polling' | 'manual';
+  commandHex: string | null;
+  intervalMs: number | null;
+  timeoutMs: number;
+}
+
 export interface PresetBalanca {
   id: string;
   fabricante: string;
@@ -25,6 +32,7 @@ export interface PresetBalanca {
   protocolo: 'serial' | 'tcp' | 'modbus';
   serial: SerialConfig;
   parser: ParserConfig;
+  read?: ReadConfigPreset;
   exemploTrama?: string;
   notas?: string;
 }
@@ -45,7 +53,21 @@ const TOLEDO_PROTOCOLO_C: SerialConfig = {
   flowControl: 'NONE',
 };
 
-export const PRESETS_BALANCA: PresetBalanca[] = [
+const READ_CONTINUOUS: ReadConfigPreset = {
+  mode: 'continuous',
+  commandHex: null,
+  intervalMs: null,
+  timeoutMs: 2000,
+};
+
+const READ_ENQ_POLLING: ReadConfigPreset = {
+  mode: 'polling',
+  commandHex: '05',
+  intervalMs: 500,
+  timeoutMs: 2000,
+};
+
+const PRESETS_BALANCA_BASE: PresetBalanca[] = [
   // ============= TOLEDO =============
   {
     id: 'toledo-protocolo-c',
@@ -55,6 +77,7 @@ export const PRESETS_BALANCA: PresetBalanca[] = [
     protocolo: 'serial',
     serial: TOLEDO_PROTOCOLO_C,
     parser: { parserTipo: 'toledo-c', fator: 100 },
+    read: READ_ENQ_POLLING,
     exemploTrama: '[STX]i2  00010000000[CR][ENQ]',
     notas: 'Cliente envia ENQ (0x05) e indicador responde. Status "2"=estável, "0"=movimento.',
   },
@@ -96,6 +119,7 @@ export const PRESETS_BALANCA: PresetBalanca[] = [
     protocolo: 'tcp',
     serial: PADRAO_8N1,
     parser: { parserTipo: 'toledo-c', fator: 100 },
+    read: READ_ENQ_POLLING,
     notas: 'Mesma trama do Protocolo C, mas sobre TCP/IP. Porta padrão Toledo: 4001.',
   },
 
@@ -118,6 +142,7 @@ export const PRESETS_BALANCA: PresetBalanca[] = [
     protocolo: 'serial',
     serial: PADRAO_8N1,
     parser: { parserTipo: 'filizola-at' },
+    read: READ_ENQ_POLLING,
     exemploTrama: '@002.448[CR]',
     notas: 'Capturado em log real (BalLog.txt). Cliente envia ENQ → resposta @PESO[CR].',
   },
@@ -366,6 +391,11 @@ export const PRESETS_BALANCA: PresetBalanca[] = [
       'Para balanças com IP fixo via conversores como USR-TCP232, MOXA NPort, Lantronix XPort. Configurar IP/porta na balança e usar este preset com parser que case com a trama original.',
   },
 ];
+
+export const PRESETS_BALANCA: PresetBalanca[] = PRESETS_BALANCA_BASE.map((preset) => ({
+  ...preset,
+  read: preset.read ?? READ_CONTINUOUS,
+}));
 
 /** Combinações comuns de baud/data/parity/stop oferecidas na UI. */
 export const SERIAL_OPTIONS = {

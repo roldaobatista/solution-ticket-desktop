@@ -1,5 +1,5 @@
 import type { Balanca, IndicadorPesagem } from '@prisma/client';
-import { resolveEffectiveConfig } from './config-resolver';
+import { resolveEffectiveConfig, resolveEffectiveConfigWithSources } from './config-resolver';
 
 const baseBalanca = {
   id: 'b1',
@@ -20,6 +20,10 @@ const baseBalanca = {
   ovrInvertePeso: null,
   ovrAtraso: null,
   ovrParserTipo: null,
+  readMode: null,
+  readCommandHex: null,
+  readIntervalMs: null,
+  readTimeoutMs: null,
 } as unknown as Balanca;
 
 const indToledo = {
@@ -37,6 +41,10 @@ const indToledo = {
   invertePeso: false,
   atraso: 100,
   protocolo: 'serial',
+  readMode: 'continuous',
+  readCommandHex: null,
+  readIntervalMs: null,
+  readTimeoutMs: 2000,
 } as unknown as IndicadorPesagem;
 
 describe('resolveEffectiveConfig', () => {
@@ -47,6 +55,7 @@ describe('resolveEffectiveConfig', () => {
     expect(cfg.serial).toMatchObject({ baudRate: 9600, dataBits: 8, parity: 'N', stopBits: 1 });
     expect(cfg.parser.parserTipo).toBe('generic');
     expect(cfg.parser.marcador).toBe(13);
+    expect(cfg.read).toMatchObject({ mode: 'continuous', commandHex: null, timeoutMs: 2000 });
   });
 
   it('herda config do indicador', () => {
@@ -54,6 +63,39 @@ describe('resolveEffectiveConfig', () => {
     expect(cfg.serial).toMatchObject({ dataBits: 7, parity: 'E', stopBits: 2 });
     expect(cfg.parser.parserTipo).toBe('toledo');
     expect(cfg.atraso).toBe(100);
+  });
+
+  it('resolve modo request-response e comando de leitura por override da balanca', () => {
+    const cfg = resolveEffectiveConfigWithSources(
+      {
+        ...baseBalanca,
+        readMode: 'polling',
+        readCommandHex: '05',
+        readIntervalMs: 500,
+        readTimeoutMs: 2000,
+      } as unknown as Balanca,
+      { ...indToledo, readMode: 'continuous', readCommandHex: null } as unknown as IndicadorPesagem,
+    );
+    expect(cfg.read).toMatchObject({
+      mode: 'polling',
+      commandHex: '05',
+      intervalMs: 500,
+      timeoutMs: 2000,
+    });
+  });
+
+  it('informa origem dos campos efetivos', () => {
+    const cfg = resolveEffectiveConfigWithSources(
+      {
+        ...baseBalanca,
+        ovrParity: 'O',
+        readMode: null,
+      } as unknown as Balanca,
+      { ...indToledo, readMode: 'polling', readCommandHex: '05' } as unknown as IndicadorPesagem,
+    );
+    expect(cfg.sources['serial.parity']).toBe('balanca');
+    expect(cfg.sources['read.mode']).toBe('indicador');
+    expect(cfg.sources['read.commandHex']).toBe('indicador');
   });
 
   it('override do equipamento prevalece sobre indicador', () => {

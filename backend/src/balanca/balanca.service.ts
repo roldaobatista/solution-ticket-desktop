@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBalancaDto } from './dto/create-balanca.dto';
 import { UpdateBalancaDto } from './dto/update-balanca.dto';
 import { BalancaFilterDto } from './dto/balanca-filter.dto';
+import { resolveEffectiveConfigWithSources } from './config-resolver';
 
 @Injectable()
 export class BalancaService {
@@ -18,15 +19,20 @@ export class BalancaService {
   async create(dto: CreateBalancaDto, tenantId: string) {
     await this.validarPosseEmpresaUnidade(dto.empresaId, dto.unidadeId, tenantId);
     await this.validarIndicador(dto.indicadorId, tenantId);
-    const data = this.normalizarProtocolo(dto);
+    const data = this.normalizarProtocolo(dto, 'serial');
     await this.validarProtocoloEPorta(data);
     return this.prisma.balanca.create({
       data: { ...data, statusOnline: false, tenantId },
     });
   }
 
-  private normalizarProtocolo<T extends CreateBalancaDto | UpdateBalancaDto>(dto: T): T {
-    const protocolo = (dto.protocolo ?? 'serial').toLowerCase();
+  private normalizarProtocolo<T extends CreateBalancaDto | UpdateBalancaDto>(
+    dto: T,
+    defaultProtocolo?: string,
+  ): T {
+    const protocoloOriginal = dto.protocolo ?? defaultProtocolo;
+    if (!protocoloOriginal) return dto;
+    const protocolo = protocoloOriginal.toLowerCase();
     let normalizado = protocolo;
     if (['rs232', 'rs485'].includes(protocolo)) normalizado = 'serial';
     if (['tcpip', 'tcp/ip', 'ethernet'].includes(protocolo)) normalizado = 'tcp';
@@ -73,28 +79,94 @@ export class BalancaService {
     }
     const usaSerial = protocolo === 'serial' || protocolo === 'modbus-rtu';
     const usaTcp = protocolo === 'tcp' || protocolo === 'modbus-tcp';
+    const finalAtivo = dto.ativo !== false;
 
     if (usaSerial) {
       if (!dto.porta) {
         throw new BadRequestException(`protocolo=${dto.protocolo} exige porta serial (ex: COM3)`);
       }
-      const conflito = await this.prisma.balanca.findFirst({
-        where: {
-          porta: dto.porta,
-          ativo: true,
-          ...(excluirId ? { NOT: { id: excluirId } } : {}),
-        },
-        select: { id: true, nome: true },
-      });
-      if (conflito) {
-        throw new ConflictException(
-          `Porta ${dto.porta} ja esta em uso pela balanca "${conflito.nome}"`,
-        );
+      if (finalAtivo) {
+        const conflito = await this.prisma.balanca.findFirst({
+          where: {
+            porta: dto.porta,
+            ativo: true,
+            ...(excluirId ? { NOT: { id: excluirId } } : {}),
+          },
+          select: { id: true, nome: true },
+        });
+        if (conflito) {
+          throw new ConflictException(
+            `Porta ${dto.porta} ja esta em uso pela balanca ativa "${conflito.nome}" neste computador`,
+          );
+        }
       }
     }
     if (usaTcp && (!dto.enderecoIp || !dto.portaTcp)) {
       throw new BadRequestException(`protocolo=${protocolo} exige enderecoIp e portaTcp`);
     }
+    if (protocolo === 'modbus-rtu' || protocolo === 'modbus-tcp') {
+      if (!dto.modbusUnitId) {
+        throw new BadRequestException(`protocolo=${protocolo} exige modbusUnitId`);
+      }
+      if (dto.modbusRegister === undefined || dto.modbusRegister === null) {
+        throw new BadRequestException(`protocolo=${protocolo} exige modbusRegister`);
+      }
+    }
+    if (dto.ovrDataBits != null && ![7, 8].includes(dto.ovrDataBits)) {
+      throw new BadRequestException('ovrDataBits deve ser 7 ou 8');
+    }
+    if (dto.ovrStopBits != null && ![1, 2].includes(dto.ovrStopBits)) {
+      throw new BadRequestException('ovrStopBits deve ser 1 ou 2');
+    }
+    this.validarLeituraConfiguravel(dto);
+  }
+
+  private validarLeituraConfiguravel(dto: CreateBalancaDto | UpdateBalancaDto) {
+    const readMode = dto.readMode ?? 'continuous';
+    if (!['continuous', 'polling', 'manual'].includes(readMode)) {
+      throw new BadRequestException('readMode deve ser continuous, polling ou manual');
+    }
+    if (dto.readIntervalMs != null && dto.readIntervalMs < 200) {
+      throw new BadRequestException('readIntervalMs minimo de 200ms');
+    }
+    if (dto.readTimeoutMs != null && dto.readTimeoutMs < 200) {
+      throw new BadRequestException('readTimeoutMs minimo de 200ms');
+    }
+    const command = dto.readCommandHex?.replace(/\s+/g, '') ?? '';
+    if (command && (!/^[0-9a-fA-F]+$/.test(command) || command.length % 2 !== 0)) {
+      throw new BadRequestException('readCommandHex deve ser hexadecimal com quantidade par');
+    }
+    if (readMode === 'polling' && !command) {
+      throw new BadRequestException('readMode=polling exige readCommandHex');
+    }
+  }
+
+  private deveValidarConexao(dto: UpdateBalancaDto): boolean {
+    const campos: Array<keyof UpdateBalancaDto> = [
+      'protocolo',
+      'porta',
+      'enderecoIp',
+      'portaTcp',
+      'ativo',
+      'baudRate',
+      'modbusUnitId',
+      'modbusRegister',
+      'modbusFunction',
+      'modbusByteOrder',
+      'modbusWordOrder',
+      'modbusSigned',
+      'modbusScale',
+      'modbusOffset',
+      'ovrDataBits',
+      'ovrParity',
+      'ovrStopBits',
+      'ovrFlowControl',
+      'readMode',
+      'readCommandHex',
+      'readIntervalMs',
+      'readTimeoutMs',
+    ];
+    return campos.some((campo) => Object.prototype.hasOwnProperty.call(dto, campo));
   }
 
   async findAll(filter: BalancaFilterDto, tenantId: string) {
@@ -114,7 +186,7 @@ export class BalancaService {
         skip,
         take: limit,
         orderBy: { nome: 'asc' },
-        include: { empresa: true, unidade: true },
+        include: { empresa: true, unidade: true, indicador: true },
       }),
       this.prisma.balanca.count({ where }),
     ]);
@@ -125,7 +197,7 @@ export class BalancaService {
   async findOne(id: string, tenantId: string) {
     const balanca = await this.prisma.balanca.findFirst({
       where: { id, tenantId },
-      include: { empresa: true, unidade: true },
+      include: { empresa: true, unidade: true, indicador: true },
     });
     if (!balanca) throw new NotFoundException('Balanca nao encontrada');
     return balanca;
@@ -140,13 +212,27 @@ export class BalancaService {
     }
     await this.validarIndicador(dto.indicadorId, tenantId);
     const data = this.normalizarProtocolo(dto);
-    if (dto.protocolo || dto.porta || dto.enderecoIp) {
-      await this.validarProtocoloEPorta(data, id);
+    if (this.deveValidarConexao(dto)) {
+      const estado = this.normalizarProtocolo(
+        { ...atual, ...data } as unknown as UpdateBalancaDto,
+        atual.protocolo,
+      );
+      await this.validarProtocoloEPorta(estado, id);
     }
+    const updateData = data as Prisma.BalancaUncheckedUpdateInput;
     return this.prisma.balanca.update({
       where: { id, tenantId },
-      data: { ...data },
+      data: updateData,
     });
+  }
+
+  async effectiveConfig(id: string, tenantId: string) {
+    const balanca = await this.prisma.balanca.findFirst({
+      where: { id, tenantId },
+      include: { indicador: true },
+    });
+    if (!balanca) throw new NotFoundException('Balanca nao encontrada');
+    return resolveEffectiveConfigWithSources(balanca, balanca.indicador);
   }
 
   async updateStatus(id: string, statusOnline: boolean, tenantId: string) {

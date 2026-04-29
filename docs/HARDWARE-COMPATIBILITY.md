@@ -6,20 +6,18 @@
 
 ## Matriz de modelos pré-cadastrados
 
-| Modelo                 | Protocolo     | Adapter          | Parser            | Status         | Anotações                                                           |
-| ---------------------- | ------------- | ---------------- | ----------------- | -------------- | ------------------------------------------------------------------- |
-| TOLEDO 9091            | Serial RS-232 | `serial.adapter` | `toledo.parser`   | 🟡 Não testado | Trama: STX + status + 6 bytes peso + CR. Status bit0 = estabilidade |
-| TOLEDO 9090            | Serial RS-232 | `serial.adapter` | `toledo.parser`   | 🟡 Não testado | Idêntico ao 9091 conforme manual                                    |
-| FILIZOLA               | Serial RS-232 | `serial.adapter` | `filizola.parser` | 🟡 Não testado | Reusa Toledo (estrutura compatível)                                 |
-| ALFA 3102              | Modbus RTU    | `modbus.adapter` | `modbus.parser`   | 🟡 Não testado | Holding registers, ler doc fabricante para endereço                 |
-| WEIGHTECH WT1000       | TCP/IP        | `tcp.adapter`    | `generic.parser`  | 🟡 Não testado | Porta padrão 4001                                                   |
-| WEIGHTECH WT3000       | TCP/IP        | `tcp.adapter`    | `generic.parser`  | 🟡 Não testado | Idem WT1000                                                         |
-| JUNDIAI BJ-850         | Serial        | `serial.adapter` | `generic.parser`  | 🟡 Não testado | Configurar marcador e tamanho via cadastro                          |
-| MASTERTEC MASTERPRO    | Serial        | `serial.adapter` | `generic.parser`  | 🟡 Não testado | —                                                                   |
-| SATURNO                | Serial        | `serial.adapter` | `generic.parser`  | 🟡 Não testado | —                                                                   |
-| DIGITRON 5/6           | Serial        | `serial.adapter` | `generic.parser`  | 🟡 Não testado | —                                                                   |
-| MULLER CRM 80000       | Serial        | `serial.adapter` | `generic.parser`  | 🟡 Não testado | —                                                                   |
-| METTLER TOLEDO MT-SICS | Serial        | `serial.adapter` | `sics.parser`     | 🟡 Não testado | Trama "S S 12.345 kg\r\n"                                           |
+| Fabricante     | Modelo                        | Protocolo  | Serial default | Parser        | Modo leitura | Comando | Status         | Observações                                 |
+| -------------- | ----------------------------- | ---------- | -------------- | ------------- | ------------ | ------- | -------------- | ------------------------------------------- |
+| Toledo         | Protocolo C request/response  | serial     | 4800/7/E/2     | `toledo-c`    | polling      | `05`    | 🟡 Não testado | ENQ; backfill obrigatório em bancos antigos |
+| Toledo         | 9091 Protocolo B              | serial     | 9600/8/N/1     | `toledo`      | continuous   | —       | 🟡 Não testado | Trama STX + status + peso + CR              |
+| Toledo         | 2090                          | serial     | 9600/8/N/1     | `toledo-2090` | continuous   | —       | 🟡 Não testado | STX + 6 dígitos + CR/LF                     |
+| Toledo         | 2180/8530                     | serial     | 9600/8/N/1     | `toledo-2180` | continuous   | —       | 🟡 Não testado | Status + peso + CR/LF                       |
+| Filizola       | Variante `@` request/response | serial     | 9600/8/N/1     | `filizola-at` | polling      | `05`    | 🟡 Não testado | Resposta `@PESO[CR]`                        |
+| Digitron       | Padrão D                      | serial     | 9600/8/N/1     | `digitron`    | continuous   | —       | 🟡 Não testado | Exemplo `D000.318[CR]`                      |
+| Mettler Toledo | MT-SICS                       | serial     | 9600/8/N/1     | `sics`        | continuous   | —       | 🟡 Não testado | `S S 12.345 kg`                             |
+| Saturno        | Indicador serial/TCP          | serial/tcp | 9600/8/N/1     | `saturno`     | continuous   | —       | 🟡 Não testado | Conversor USR-TCP232 em alguns cenários     |
+| Alfa           | 3102 Modbus RTU               | modbus     | 19200/8/N/1    | `modbus`      | continuous   | —       | 🟡 Não testado | Exige unitId/register por fabricante        |
+| Genérica       | Configurável CR/LF            | serial/tcp | 9600/8/N/1     | `generic`     | continuous   | —       | 🟡 Não testado | Ajustar início, tamanho, marcador e fator   |
 
 Legenda: 🟢 testado ok · 🟡 não testado · 🔴 falha conhecida
 

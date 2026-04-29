@@ -138,6 +138,13 @@ export class BalancaController {
     return this.balancaService.findOne(id, tenantId).then(() => this.connService.getStatus(id));
   }
 
+  @Get(':id/effective-config')
+  @Roles(Permissao.CONFIG_GERENCIAR)
+  @ApiOperation({ summary: 'Configuração efetiva calculada da balança' })
+  effectiveConfig(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.balancaService.effectiveConfig(id, tenantId);
+  }
+
   @Post(':id/testar')
   @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Tenta abrir a conexão por 2s' })

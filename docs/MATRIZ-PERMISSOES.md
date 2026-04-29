@@ -62,6 +62,14 @@
 - `findAll`, `findOne`, `update`, `updateStatus`, `remove`: filtra por `tenantId`.
 - `create`: valida se `empresaId` pertence ao tenant e `unidadeId` pertence à empresa.
 - Hardware (`peso`, `stream`, `capturar`, `testar`, `conectar`): exige `tenantId` do JWT para buscar configuração da balança.
+- Diagnóstico/configuração sensível exige `config:gerenciar`: `GET /balancas/:id/effective-config`, `POST /balanca/config/capture-raw`, `capture-and-detect`, `auto-detect`, `test-parser-on-bytes`, `discover` e wizard de indicadores (`annotate-bytes`, `test-config`, `criar`).
+- `GET /balanca/config/presets` e `GET /balanca/config/serial-options` continuam apenas autenticados porque não abrem hardware nem geram tráfego.
+
+### Indicadores de pesagem (`/api/indicadores`)
+
+- `GET /indicadores` e `GET /indicadores/:id`: filtra por `tenantId`.
+- `POST`, `PUT`, `DELETE` e `seed-builtins`: exigem `config:gerenciar`.
+- O frontend não envia `tenantId`; o backend sempre usa o tenant do JWT.
 
 ### Cadastros (`/api/clientes`, `/api/produtos`, `/api/veiculos`, etc.)
 

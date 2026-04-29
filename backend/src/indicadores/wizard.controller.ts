@@ -12,9 +12,14 @@ interface TestarConfigBody {
   parserTipo: string;
   inicioPeso?: number;
   tamanhoPeso?: number;
+  tamanhoString?: number;
   marcador?: number;
   fator?: number;
   invertePeso?: boolean;
+  readMode?: 'continuous' | 'polling' | 'manual';
+  readCommandHex?: string | null;
+  readIntervalMs?: number | null;
+  readTimeoutMs?: number | null;
 }
 
 interface AnnotateBody {
@@ -37,10 +42,15 @@ interface CriarFromCaptureBody {
   parserTipo: string;
   inicioPeso?: number;
   tamanhoPeso?: number;
+  tamanhoString?: number;
   marcador?: number;
   fator?: number;
   invertePeso?: boolean;
   atraso?: number;
+  readMode?: 'continuous' | 'polling' | 'manual';
+  readCommandHex?: string | null;
+  readIntervalMs?: number | null;
+  readTimeoutMs?: number | null;
   bytesCapturados?: string;
   notas?: string;
 }
@@ -53,6 +63,7 @@ export class IndicadorWizardController {
   constructor(private readonly service: IndicadorService) {}
 
   @Post('annotate-bytes')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({
     summary: 'Recebe bytes em hex e retorna anotação byte-a-byte (offset, hex, char, role)',
   })
@@ -72,6 +83,7 @@ export class IndicadorWizardController {
   }
 
   @Post('test-config')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({
     summary: 'Testa uma configuração de parser sobre bytes capturados antes de salvar',
   })
@@ -81,6 +93,7 @@ export class IndicadorWizardController {
       parserTipo: body.parserTipo,
       inicioPeso: body.inicioPeso,
       tamanhoPeso: body.tamanhoPeso,
+      tamanhoString: body.tamanhoString,
       marcador: body.marcador,
       fator: body.fator,
       invertePeso: body.invertePeso,
@@ -125,10 +138,15 @@ export class IndicadorWizardController {
         flowControl: body.serial.flowControl,
         inicioPeso: body.inicioPeso,
         tamanhoPeso: body.tamanhoPeso,
+        tamanhoString: body.tamanhoString,
         marcador: body.marcador,
         fator: body.fator,
         invertePeso: body.invertePeso,
         atraso: body.atraso,
+        readMode: body.readMode,
+        readCommandHex: body.readCommandHex,
+        readIntervalMs: body.readIntervalMs,
+        readTimeoutMs: body.readTimeoutMs,
         exemploTrama: body.bytesCapturados,
         notas: body.notas,
       },

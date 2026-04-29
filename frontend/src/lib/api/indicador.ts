@@ -23,14 +23,19 @@ export interface IndicadorBalanca {
   fator?: number | null;
   invertePeso: boolean;
   atraso?: number | null;
+  readMode?: 'continuous' | 'polling' | 'manual' | null;
+  readCommandHex?: string | null;
+  readIntervalMs?: number | null;
+  readTimeoutMs?: number | null;
   exemploTrama?: string | null;
   notas?: string | null;
+  cor?: string | null;
   builtin: boolean;
   ativo: boolean;
 }
 
-export async function listIndicadores(tenantId: string): Promise<IndicadorBalanca[]> {
-  const res = await apiClient.get('/indicadores', { params: { tenantId } });
+export async function listIndicadores(): Promise<IndicadorBalanca[]> {
+  const res = await apiClient.get('/indicadores');
   return res.data;
 }
 
@@ -51,10 +56,8 @@ export async function deleteIndicador(id: string): Promise<void> {
   await apiClient.delete(`/indicadores/${id}`);
 }
 
-export async function seedBuiltins(
-  tenantId: string,
-): Promise<{ criados: number; totalPresets: number }> {
-  const res = await apiClient.post('/indicadores/seed-builtins', { tenantId });
+export async function seedBuiltins(): Promise<{ criados: number; totalPresets: number }> {
+  const res = await apiClient.post('/indicadores/seed-builtins');
   return res.data;
 }
 
@@ -96,7 +99,6 @@ export async function testarConfig(input: {
 }
 
 export async function criarFromWizard(input: {
-  tenantId: string;
   fabricante: string;
   modelo: string;
   descricao?: string;
@@ -115,6 +117,10 @@ export async function criarFromWizard(input: {
   fator?: number;
   invertePeso?: boolean;
   atraso?: number;
+  readMode?: 'continuous' | 'polling' | 'manual';
+  readCommandHex?: string | null;
+  readIntervalMs?: number | null;
+  readTimeoutMs?: number | null;
   bytesCapturados?: string;
   notas?: string;
 }): Promise<IndicadorBalanca> {

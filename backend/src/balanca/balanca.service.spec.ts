@@ -75,7 +75,14 @@ describe('BalancaService', () => {
 
   it('aceita modbus-tcp com enderecoIp e portaTcp sem exigir porta serial', async () => {
     await service.create(
-      { ...baseDto, protocolo: 'modbus-tcp', enderecoIp: '192.168.0.20', portaTcp: 502 },
+      {
+        ...baseDto,
+        protocolo: 'modbus-tcp',
+        enderecoIp: '192.168.0.20',
+        portaTcp: 502,
+        modbusUnitId: 1,
+        modbusRegister: 0,
+      },
       'tenant-1',
     );
 
@@ -84,6 +91,8 @@ describe('BalancaService', () => {
         protocolo: 'modbus-tcp',
         enderecoIp: '192.168.0.20',
         portaTcp: 502,
+        modbusUnitId: 1,
+        modbusRegister: 0,
       }),
     });
   });
@@ -109,5 +118,84 @@ describe('BalancaService', () => {
         'tenant-1',
       ),
     ).rejects.toThrow('Indicador de pesagem nao pertence ao tenant');
+  });
+
+  it('valida update parcial usando estado combinado e conflito global de porta ativa', async () => {
+    prisma.balanca.findFirst
+      .mockResolvedValueOnce({
+        id: 'balanca-1',
+        tenantId: 'tenant-1',
+        empresaId: 'empresa-1',
+        unidadeId: 'unidade-1',
+        protocolo: 'serial',
+        porta: 'COM3',
+        ativo: true,
+      })
+      .mockResolvedValueOnce({ id: 'balanca-2', nome: 'Balanca 2' });
+
+    await expect(service.update('balanca-1', { porta: 'COM4' }, 'tenant-1')).rejects.toThrow(
+      ConflictException,
+    );
+
+    expect(prisma.balanca.findFirst).toHaveBeenLastCalledWith({
+      where: { porta: 'COM4', ativo: true, NOT: { id: 'balanca-1' } },
+      select: { id: true, nome: true },
+    });
+  });
+
+  it('valida update parcial de TCP com host e porta finais', async () => {
+    prisma.balanca.findFirst.mockResolvedValueOnce({
+      id: 'balanca-1',
+      tenantId: 'tenant-1',
+      empresaId: 'empresa-1',
+      unidadeId: 'unidade-1',
+      protocolo: 'tcp',
+      enderecoIp: '192.168.0.10',
+      portaTcp: null,
+      ativo: true,
+    });
+
+    await expect(service.update('balanca-1', { portaTcp: 4001 }, 'tenant-1')).resolves.toEqual({
+      id: 'balanca-1',
+    });
+  });
+
+  it('rejeita update parcial com override serial invalido', async () => {
+    prisma.balanca.findFirst.mockResolvedValueOnce({
+      id: 'balanca-1',
+      tenantId: 'tenant-1',
+      empresaId: 'empresa-1',
+      unidadeId: 'unidade-1',
+      protocolo: 'serial',
+      porta: 'COM3',
+      ativo: true,
+      ovrDataBits: 8,
+    });
+
+    await expect(service.update('balanca-1', { ovrDataBits: 9 }, 'tenant-1')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('preserva null no update para limpar override', async () => {
+    prisma.balanca.findFirst
+      .mockResolvedValueOnce({
+        id: 'balanca-1',
+        tenantId: 'tenant-1',
+        empresaId: 'empresa-1',
+        unidadeId: 'unidade-1',
+        protocolo: 'serial',
+        porta: 'COM3',
+        ativo: true,
+        ovrParity: 'E',
+      })
+      .mockResolvedValueOnce(null);
+
+    await service.update('balanca-1', { ovrParity: null }, 'tenant-1');
+
+    expect(prisma.balanca.update).toHaveBeenCalledWith({
+      where: { id: 'balanca-1', tenantId: 'tenant-1' },
+      data: { ovrParity: null },
+    });
   });
 });

@@ -7,6 +7,9 @@ import {
   IsIn,
   IsBoolean,
   IsNumber,
+  Min,
+  Max,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -72,6 +75,7 @@ export class CreateBalancaDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsInt()
+  @Min(300)
   baudRate?: number;
 
   @ApiPropertyOptional()
@@ -138,4 +142,118 @@ export class CreateBalancaDto {
   @IsOptional()
   @IsNumber()
   modbusOffset?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @IsIn([7, 8])
+  ovrDataBits?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsIn(['N', 'E', 'O', 'none', 'even', 'odd'])
+  ovrParity?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @IsIn([1, 2])
+  ovrStopBits?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsIn(['NONE', 'XON_XOFF', 'RTS_CTS', 'DTR_DSR', 'none', 'software', 'hardware'])
+  ovrFlowControl?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ovrParserTipo?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  ovrInicioPeso?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  ovrTamanhoPeso?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  ovrTamanhoString?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  ovrMarcador?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  ovrFator?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  ovrInvertePeso?: boolean | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  ovrAtraso?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  toleranciaEstabilidade?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  janelaEstabilidade?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  debugMode?: boolean;
+
+  @ApiPropertyOptional({ enum: ['continuous', 'polling', 'manual'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['continuous', 'polling', 'manual'])
+  readMode?: 'continuous' | 'polling' | 'manual' | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(/^(?:[0-9a-fA-F]{2}\s*)+$/, {
+    message: 'readCommandHex deve conter bytes hexadecimais pares',
+  })
+  readCommandHex?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(200)
+  readIntervalMs?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(200)
+  readTimeoutMs?: number | null;
 }

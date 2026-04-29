@@ -59,6 +59,43 @@ describe('Prisma migrate deploy — smoke de upgrade', () => {
 
     const auditCount = await prisma.auditoria.count();
     expect(typeof auditCount).toBe('number');
+
+    await prisma.tenant.create({
+      data: {
+        id: 'tenant-balanca',
+        nome: 'Tenant Balanca',
+        documento: '11.111.111/1111-11',
+      },
+    });
+    await prisma.empresa.create({
+      data: {
+        id: 'empresa-balanca',
+        tenantId: 'tenant-balanca',
+        nomeEmpresarial: 'Empresa Balanca',
+        nomeFantasia: 'Empresa Balanca',
+        documento: '11.111.111/0001-11',
+      },
+    });
+    await prisma.unidade.create({
+      data: {
+        id: 'unidade-balanca',
+        empresaId: 'empresa-balanca',
+        nome: 'Unidade Balanca',
+      },
+    });
+    await prisma.balanca.create({
+      data: {
+        id: 'balanca-schema-check',
+        tenantId: 'tenant-balanca',
+        empresaId: 'empresa-balanca',
+        unidadeId: 'unidade-balanca',
+        nome: 'Balanca schema check',
+        protocolo: 'serial',
+      },
+    });
+
+    const balanca = await prisma.balanca.findUnique({ where: { id: 'balanca-schema-check' } });
+    expect(balanca?.tenantId).toBe('tenant-balanca');
   }, 30_000);
 
   it('é idempotente (re-rodar não quebra)', async () => {

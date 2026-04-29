@@ -64,12 +64,25 @@ Passos:
 1. Abrir HW Virtual Serial Port → criar par `COM7 ↔ COM8`.
 2. Iniciar `EmuladorBalanca.exe` (vai escrever em COM7).
 3. Cadastrar balança no Solution Ticket apontando para `COM8`, parser `toledo-c` (ou conforme emulador).
-4. Acessar `/cadastros/balancas` → "Testar Conexão" → status verde esperado.
-5. Em `/pesagem`, criar ticket e clicar "Capturar Peso" (ou F1).
-6. Validar:
+4. Acessar `/cadastros/balancas` → aba **Comunicação** → confirmar serial e `readMode/readCommandHex`.
+5. Para Toledo C/Filizola `@`, usar `readMode=polling` e `readCommandHex=05`.
+6. Na aba **Diagnóstico**, clicar "Testar 2s" → status verde esperado.
+7. Em `/pesagem`, criar ticket e clicar "Capturar Peso" (ou F1).
+8. Validar:
    - Leitura aparece igual à definida no emulador.
    - Status `estavel` reflete o byte status.
    - Trama bruta logada em `%APPDATA%/SolutionTicket/logs/electron.log`.
+
+## Captura raw com comando customizado
+
+Use a aba **Diagnóstico** do cadastro de balança para validar protocolos request/response sem alterar o indicador:
+
+1. Informe duração entre 200 e 5000 ms.
+2. Preencha `Comando hex` com `05` para ENQ ou outro comando do fabricante.
+3. Clique **Capturar**.
+4. Use **Testar parser nos bytes** para validar início/tamanho/marcador antes de salvar.
+
+O campo `commandHex` prevalece sobre o atalho `enviarEnq`; o atalho continua útil para compatibilidade com ferramentas antigas.
 
 ## Bridge serial→TCP (testar adapter TCP)
 

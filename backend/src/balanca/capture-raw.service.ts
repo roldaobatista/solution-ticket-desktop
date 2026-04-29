@@ -50,6 +50,10 @@ export interface CaptureRequest {
   durationMs?: number;
   /** Trigger ENQ (0x05) opcional para protocolos request/response (Toledo C, Filizola @). */
   enviarEnq?: boolean;
+  /** Comando hexadecimal arbitrario. Quando informado, prevalece sobre enviarEnq. */
+  commandHex?: string;
+  /** Reenvio periodico opcional do comando durante a captura. */
+  commandIntervalMs?: number;
 }
 
 export interface CaptureResponse {
@@ -68,9 +72,26 @@ export class CaptureRawService {
 
   async capturar(req: CaptureRequest): Promise<CaptureResponse> {
     const dur = Math.min(Math.max(req.durationMs ?? 2000, 200), 5000);
+    this.validarCommandHex(req.commandHex);
     if (req.protocolo === 'serial') return this.capturarSerial(req, dur);
     if (req.protocolo === 'tcp') return this.capturarTcp(req, dur);
     throw new BadRequestException(`Protocolo não suportado para capture-raw: ${req.protocolo}`);
+  }
+
+  private validarCommandHex(commandHex?: string) {
+    if (!commandHex) return;
+    const clean = commandHex.replace(/\s+/g, '');
+    if (!/^[0-9a-fA-F]+$/.test(clean) || clean.length % 2 !== 0) {
+      throw new BadRequestException(
+        'commandHex deve ser hexadecimal com quantidade par de digitos',
+      );
+    }
+  }
+
+  private obterComando(req: CaptureRequest): Buffer | null {
+    if (req.commandHex) return Buffer.from(req.commandHex.replace(/\s+/g, ''), 'hex');
+    if (req.enviarEnq) return Buffer.from([0x05]);
+    return null;
   }
 
   private async capturarSerial(req: CaptureRequest, durationMs: number): Promise<CaptureResponse> {
@@ -90,10 +111,12 @@ export class CaptureRawService {
       const chunks: Buffer[] = [];
       const start = Date.now();
       let finalizou = false;
+      let commandTimer: NodeJS.Timeout | null = null;
 
       const finalizar = () => {
         if (finalizou) return;
         finalizou = true;
+        if (commandTimer) clearInterval(commandTimer);
         try {
           port.removeAllListeners();
           if (port.isOpen) port.close(() => {});
@@ -129,7 +152,17 @@ export class CaptureRawService {
         port.on('data', (chunk: Buffer) => chunks.push(chunk));
         port.on('error', (e: Error) => this.logger.warn(`serial err: ${e.message}`));
 
-        if (req.enviarEnq) {
+        const comando = this.obterComando(req);
+        if (comando) {
+          const enviarComando = () =>
+            port.write(comando, (werr?: Error | null) => {
+              if (werr) this.logger.warn(`falha enviar comando: ${werr.message}`);
+            });
+          enviarComando();
+          if (req.commandIntervalMs) {
+            commandTimer = setInterval(enviarComando, Math.max(req.commandIntervalMs, 200));
+          }
+        } else if (req.enviarEnq) {
           port.write(Buffer.from([0x05]), (werr?: Error | null) => {
             if (werr) this.logger.warn(`falha enviar ENQ: ${werr.message}`);
           });
@@ -157,8 +190,10 @@ export class CaptureRawService {
       const start = Date.now();
       const sock = new Socket();
       sock.setTimeout(durationMs + 1000);
+      let commandTimer: NodeJS.Timeout | null = null;
 
       const finalizar = () => {
+        if (commandTimer) clearInterval(commandTimer);
         try {
           sock.removeAllListeners();
           sock.destroy();
@@ -180,7 +215,14 @@ export class CaptureRawService {
       sock.on('timeout', finalizar);
 
       sock.connect(porta, host, () => {
-        if (req.enviarEnq) sock.write(Buffer.from([0x05]));
+        const comando = this.obterComando(req);
+        if (comando) {
+          const enviarComando = () => sock.write(comando);
+          enviarComando();
+          if (req.commandIntervalMs) {
+            commandTimer = setInterval(enviarComando, Math.max(req.commandIntervalMs, 200));
+          }
+        }
         setTimeout(finalizar, durationMs);
       });
     });

@@ -22,7 +22,6 @@ import {
 } from '@/lib/api/balanca-config';
 
 interface Props {
-  tenantId: string;
   onSucesso: (indicador: IndicadorBalanca) => void;
 }
 
@@ -58,7 +57,7 @@ const ROLE_COLOR: Record<string, string> = {
   SP: 'bg-slate-50',
 };
 
-export function WizardProtocoloDesconhecido({ tenantId, onSucesso }: Props) {
+export function WizardProtocoloDesconhecido({ onSucesso }: Props) {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [protocolo, setProtocolo] = useState<'serial' | 'tcp'>('serial');
   const [endereco, setEndereco] = useState('');
@@ -153,7 +152,6 @@ export function WizardProtocoloDesconhecido({ tenantId, onSucesso }: Props) {
     setCarregando(true);
     try {
       const ind = await criarFromWizard({
-        tenantId,
         fabricante,
         modelo,
         protocolo,

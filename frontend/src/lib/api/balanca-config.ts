@@ -20,6 +20,7 @@ export interface ParserConfig {
   parserTipo?: string;
   inicioPeso?: number;
   tamanhoPeso?: number;
+  tamanhoString?: number;
   marcador?: number;
   fator?: number;
   invertePeso?: boolean;
@@ -33,8 +34,16 @@ export interface PresetBalanca {
   protocolo: 'serial' | 'tcp' | 'modbus';
   serial: SerialConfig;
   parser: ParserConfig;
+  read?: ReadConfig;
   exemploTrama?: string;
   notas?: string;
+}
+
+export interface ReadConfig {
+  mode: 'continuous' | 'polling' | 'manual';
+  commandHex: string | null;
+  intervalMs: number | null;
+  timeoutMs: number;
 }
 
 export interface SerialOptions {
@@ -84,6 +93,8 @@ export interface CaptureRawRequest {
   serial?: SerialConfig;
   durationMs?: number;
   enviarEnq?: boolean;
+  commandHex?: string;
+  commandIntervalMs?: number;
 }
 
 export async function captureRaw(req: CaptureRawRequest): Promise<{
@@ -114,5 +125,49 @@ export async function descobrirNaRede(opts: {
   timeoutMs?: number;
 }): Promise<DispositivoEncontrado[]> {
   const res = await apiClient.post('/balanca/config/discover', opts);
+  return res.data;
+}
+
+export interface EffectiveConfigResponse {
+  protocolo: 'serial' | 'tcp' | 'modbus-rtu' | 'modbus-tcp';
+  endereco: string;
+  serial: SerialConfig;
+  parser: ParserConfig & { tamanhoString?: number | null };
+  atraso: number;
+  read: ReadConfig;
+  modbus: {
+    unitId: number | null;
+    register: number | null;
+    function: 'holding' | 'input' | null;
+    byteOrder: 'BE' | 'LE' | null;
+    wordOrder: 'BE' | 'LE' | null;
+    signed: boolean | null;
+    scale: number | null;
+    offset: number | null;
+  };
+  sources: Record<string, 'balanca' | 'indicador' | 'default'>;
+}
+
+export async function getBalancaEffectiveConfig(
+  balancaId: string,
+): Promise<EffectiveConfigResponse> {
+  const res = await apiClient.get(`/balancas/${balancaId}/effective-config`);
+  return res.data;
+}
+
+export async function testParserOnBytes(input: {
+  bytes: string;
+  parserTipo: string;
+  inicioPeso?: number;
+  tamanhoPeso?: number;
+  tamanhoString?: number;
+  marcador?: number;
+  fator?: number;
+  invertePeso?: boolean;
+}): Promise<{
+  leituras: Array<{ peso: number; estavel: boolean; bruto: string }>;
+  bytesRestantes: number;
+}> {
+  const res = await apiClient.post('/balanca/config/test-parser-on-bytes', input);
   return res.data;
 }

@@ -33,6 +33,7 @@ export class BalancaConfigController {
       parserTipo: string;
       inicioPeso?: number;
       tamanhoPeso?: number;
+      tamanhoString?: number;
       marcador?: number;
       fator?: number;
       invertePeso?: boolean;
@@ -42,6 +43,7 @@ export class BalancaConfigController {
       parserTipo: body.parserTipo,
       inicioPeso: body.inicioPeso,
       tamanhoPeso: body.tamanhoPeso,
+      tamanhoString: body.tamanhoString,
       marcador: body.marcador,
       fator: body.fator,
       invertePeso: body.invertePeso,
@@ -128,6 +130,7 @@ export class BalancaConfigController {
   }
 
   @Post('auto-detect')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({
     summary: 'Detecta protocolo a partir de bytes capturados (hex ou base64)',
   })

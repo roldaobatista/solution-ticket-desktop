@@ -18,6 +18,7 @@ export interface ConfigEfetiva {
   serial: SerialConfig;
   parser: ParserConfig;
   atraso: number;
+  read: ReadConfig;
   modbus: {
     unitId: number | null;
     register: number | null;
@@ -30,12 +31,32 @@ export interface ConfigEfetiva {
   };
 }
 
+export interface ReadConfig {
+  mode: 'continuous' | 'polling' | 'manual';
+  commandHex: string | null;
+  intervalMs: number | null;
+  timeoutMs: number;
+}
+
+export type ConfigSource = 'balanca' | 'indicador' | 'default';
+
+export interface ConfigEfetivaComOrigens extends ConfigEfetiva {
+  sources: Record<string, ConfigSource>;
+}
+
 const DEFAULT_SERIAL: SerialConfig = {
   baudRate: 9600,
   dataBits: 8,
   parity: 'N',
   stopBits: 1,
   flowControl: 'NONE',
+};
+
+const DEFAULT_READ: ReadConfig = {
+  mode: 'continuous',
+  commandHex: null,
+  intervalMs: null,
+  timeoutMs: 2000,
 };
 
 function normalizarParity(p: string | null | undefined): SerialParity {
@@ -77,11 +98,36 @@ function normalizarProtocolo(
   return 'serial';
 }
 
+function normalizarReadMode(mode: string | null | undefined): ReadConfig['mode'] {
+  if (mode === 'polling' || mode === 'manual') return mode;
+  return 'continuous';
+}
+
+function sourceOf(
+  balancaValue: unknown,
+  indicadorValue: unknown,
+  balancaHasOverride = balancaValue !== null && balancaValue !== undefined,
+): ConfigSource {
+  if (balancaHasOverride) return 'balanca';
+  if (indicadorValue !== null && indicadorValue !== undefined) return 'indicador';
+  return 'default';
+}
+
 export function resolveEffectiveConfig(
   balanca: Balanca,
   indicador: IndicadorPesagem | null,
 ): ConfigEfetiva {
+  return resolveEffectiveConfigWithSources(balanca, indicador);
+}
+
+export function resolveEffectiveConfigWithSources(
+  balanca: Balanca,
+  indicador: IndicadorPesagem | null,
+): ConfigEfetivaComOrigens {
   const protocolo = normalizarProtocolo(balanca.protocolo ?? indicador?.protocolo);
+  const sources: Record<string, ConfigSource> = {
+    protocolo: sourceOf(balanca.protocolo, indicador?.protocolo),
+  };
 
   // Endereço — depende do protocolo
   let endereco = '';
@@ -101,6 +147,11 @@ export function resolveEffectiveConfig(
     stopBits: normalizarStopBits(balanca.ovrStopBits ?? indicador?.stopbits),
     flowControl: normalizarFlow(balanca.ovrFlowControl ?? indicador?.flowControl),
   };
+  sources['serial.baudRate'] = sourceOf(balanca.baudRate, indicador?.baudrate);
+  sources['serial.dataBits'] = sourceOf(balanca.ovrDataBits, indicador?.databits);
+  sources['serial.parity'] = sourceOf(balanca.ovrParity, indicador?.parity);
+  sources['serial.stopBits'] = sourceOf(balanca.ovrStopBits, indicador?.stopbits);
+  sources['serial.flowControl'] = sourceOf(balanca.ovrFlowControl, indicador?.flowControl);
 
   // Parser
   const parser: ParserConfig = {
@@ -112,8 +163,16 @@ export function resolveEffectiveConfig(
     fator: balanca.ovrFator ?? indicador?.fator ?? 1,
     invertePeso: balanca.ovrInvertePeso ?? indicador?.invertePeso ?? false,
   };
+  sources['parser.parserTipo'] = sourceOf(balanca.ovrParserTipo, indicador?.parserTipo);
+  sources['parser.inicioPeso'] = sourceOf(balanca.ovrInicioPeso, indicador?.inicioPeso);
+  sources['parser.tamanhoPeso'] = sourceOf(balanca.ovrTamanhoPeso, indicador?.tamanhoPeso);
+  sources['parser.tamanhoString'] = sourceOf(balanca.ovrTamanhoString, indicador?.tamanhoString);
+  sources['parser.marcador'] = sourceOf(balanca.ovrMarcador, indicador?.marcador);
+  sources['parser.fator'] = sourceOf(balanca.ovrFator, indicador?.fator);
+  sources['parser.invertePeso'] = sourceOf(balanca.ovrInvertePeso, indicador?.invertePeso);
 
   const atraso = balanca.ovrAtraso ?? indicador?.atraso ?? 0;
+  sources.atraso = sourceOf(balanca.ovrAtraso, indicador?.atraso);
   const b = balanca as Balanca & {
     modbusUnitId?: number | null;
     modbusRegister?: number | null;
@@ -123,7 +182,30 @@ export function resolveEffectiveConfig(
     modbusSigned?: boolean | null;
     modbusScale?: unknown;
     modbusOffset?: unknown;
+    readMode?: string | null;
+    readCommandHex?: string | null;
+    readIntervalMs?: number | null;
+    readTimeoutMs?: number | null;
   };
+  const i = indicador as
+    | (IndicadorPesagem & {
+        readMode?: string | null;
+        readCommandHex?: string | null;
+        readIntervalMs?: number | null;
+        readTimeoutMs?: number | null;
+      })
+    | null;
+
+  const read: ReadConfig = {
+    mode: normalizarReadMode(b.readMode ?? i?.readMode ?? DEFAULT_READ.mode),
+    commandHex: b.readCommandHex ?? i?.readCommandHex ?? DEFAULT_READ.commandHex,
+    intervalMs: b.readIntervalMs ?? i?.readIntervalMs ?? DEFAULT_READ.intervalMs,
+    timeoutMs: b.readTimeoutMs ?? i?.readTimeoutMs ?? DEFAULT_READ.timeoutMs,
+  };
+  sources['read.mode'] = sourceOf(b.readMode, i?.readMode);
+  sources['read.commandHex'] = sourceOf(b.readCommandHex, i?.readCommandHex);
+  sources['read.intervalMs'] = sourceOf(b.readIntervalMs, i?.readIntervalMs);
+  sources['read.timeoutMs'] = sourceOf(b.readTimeoutMs, i?.readTimeoutMs);
 
   const modbus = {
     unitId: b.modbusUnitId ?? null,
@@ -136,5 +218,5 @@ export function resolveEffectiveConfig(
     offset: b.modbusOffset == null ? null : Number(b.modbusOffset),
   };
 
-  return { protocolo, endereco, serial, parser, atraso, modbus };
+  return { protocolo, endereco, serial, parser, atraso, read, modbus, sources };
 }

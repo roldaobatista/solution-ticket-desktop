@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 const adapter = Object.assign(new EventEmitter(), {
   connect: jest.fn().mockResolvedValue(undefined),
   close: jest.fn().mockResolvedValue(undefined),
+  write: jest.fn().mockResolvedValue(undefined),
   isOpen: jest.fn(() => true),
 });
 
@@ -26,6 +27,8 @@ describe('BalancaConnectionService - configuracao efetiva', () => {
     createAdapterMock.mockClear();
     createParserMock.mockClear();
     adapter.connect.mockClear();
+    adapter.close.mockClear();
+    adapter.write.mockClear();
   });
 
   it('usa overrides da balanca ao criar adapter e parser', async () => {
@@ -96,5 +99,45 @@ describe('BalancaConnectionService - configuracao efetiva', () => {
         invertePeso: true,
       }),
     );
+  });
+
+  it('usa readCommandHex da configuracao efetiva para polling configuravel', async () => {
+    const prisma = {
+      balanca: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'b1',
+          protocolo: 'serial',
+          porta: 'COM7',
+          baudRate: null,
+          enderecoIp: null,
+          portaTcp: null,
+          toleranciaEstabilidade: null,
+          janelaEstabilidade: null,
+          readMode: 'polling',
+          readCommandHex: '0102',
+          readIntervalMs: 500,
+          readTimeoutMs: 2000,
+          ovrDataBits: null,
+          ovrParity: null,
+          ovrStopBits: null,
+          ovrFlowControl: null,
+          ovrInicioPeso: null,
+          ovrTamanhoPeso: null,
+          ovrTamanhoString: null,
+          ovrMarcador: null,
+          ovrFator: null,
+          ovrInvertePeso: null,
+          ovrAtraso: null,
+          ovrParserTipo: 'generic',
+          indicador: null,
+        }),
+      },
+    };
+    const service = new BalancaConnectionService(prisma as unknown as PrismaService);
+
+    await service.conectar('b1', 'tenant-1');
+    await service.desconectar('b1');
+
+    expect(adapter.write).toHaveBeenCalledWith(Buffer.from([0x01, 0x02]));
   });
 });

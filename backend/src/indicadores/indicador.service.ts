@@ -7,30 +7,10 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PRESETS_BALANCA } from '../balanca/presets';
+import { CreateIndicadorDto } from './dto/create-indicador.dto';
+import { UpdateIndicadorDto } from './dto/update-indicador.dto';
 
-export interface IndicadorInput {
-  tenantId?: string;
-  fabricante?: string;
-  modelo?: string;
-  descricao: string;
-  protocolo?: 'serial' | 'tcp' | 'modbus';
-  parserTipo?: string;
-  baudrate?: number;
-  databits?: number;
-  stopbits?: number;
-  parity?: string;
-  flowControl?: string;
-  inicioPeso?: number;
-  tamanhoPeso?: number;
-  tamanhoString?: number;
-  marcador?: number;
-  fator?: number;
-  invertePeso?: boolean;
-  atraso?: number;
-  exemploTrama?: string;
-  notas?: string;
-  cor?: string;
-}
+type IndicadorInput = CreateIndicadorDto;
 
 @Injectable()
 export class IndicadorService {
@@ -53,6 +33,7 @@ export class IndicadorService {
     if (!input.descricao || input.descricao.length < 3) {
       throw new BadRequestException('descrição obrigatória (>=3 chars)');
     }
+    this.validarRead(input.readMode, input.readCommandHex);
     return this.prisma.indicadorPesagem.create({
       data: {
         tenantId,
@@ -73,6 +54,10 @@ export class IndicadorService {
         fator: input.fator ?? 1,
         invertePeso: input.invertePeso ?? false,
         atraso: input.atraso ?? 0,
+        readMode: input.readMode ?? 'continuous',
+        readCommandHex: input.readCommandHex,
+        readIntervalMs: input.readIntervalMs,
+        readTimeoutMs: input.readTimeoutMs,
         exemploTrama: input.exemploTrama,
         notas: input.notas,
         cor: input.cor,
@@ -81,34 +66,67 @@ export class IndicadorService {
     });
   }
 
-  async update(id: string, input: Partial<IndicadorInput>, tenantId: string) {
+  async update(id: string, input: UpdateIndicadorDto, tenantId: string) {
     const existente = await this.findById(id, tenantId);
-    const data: Prisma.IndicadorPesagemUpdateInput = {
-      fabricante: input.fabricante ?? existente.fabricante,
-      modelo: input.modelo ?? existente.modelo,
-      descricao: input.descricao ?? existente.descricao,
-      protocolo: input.protocolo ?? existente.protocolo,
-      parserTipo: input.parserTipo ?? existente.parserTipo,
-      baudrate: input.baudrate ?? existente.baudrate,
-      databits: input.databits ?? existente.databits,
-      stopbits: input.stopbits ?? existente.stopbits,
-      parity: input.parity ?? existente.parity,
-      flowControl: input.flowControl ?? existente.flowControl,
-      inicioPeso: input.inicioPeso ?? existente.inicioPeso,
-      tamanhoPeso: input.tamanhoPeso ?? existente.tamanhoPeso,
-      tamanhoString: input.tamanhoString ?? existente.tamanhoString,
-      marcador: input.marcador ?? existente.marcador,
-      fator: input.fator ?? existente.fator,
-      invertePeso: input.invertePeso ?? existente.invertePeso,
-      atraso: input.atraso ?? existente.atraso,
-      exemploTrama: input.exemploTrama ?? existente.exemploTrama,
-      notas: input.notas ?? existente.notas,
-      cor: input.cor ?? existente.cor,
-    };
+    const readMode = input.readMode === null ? 'continuous' : input.readMode;
+    this.validarRead(
+      readMode ?? existente.readMode,
+      input.readCommandHex ?? existente.readCommandHex,
+    );
+    const data = this.toUpdateData({ ...input, readMode });
     return this.prisma.indicadorPesagem.update({
       where: { id },
       data,
     });
+  }
+
+  private validarRead(readMode?: string | null, commandHex?: string | null) {
+    const mode = readMode ?? 'continuous';
+    const command = commandHex?.replace(/\s+/g, '') ?? '';
+    if (!['continuous', 'polling', 'manual'].includes(mode)) {
+      throw new BadRequestException('readMode deve ser continuous, polling ou manual');
+    }
+    if (command && (!/^[0-9a-fA-F]+$/.test(command) || command.length % 2 !== 0)) {
+      throw new BadRequestException('readCommandHex deve ser hexadecimal com quantidade par');
+    }
+    if (mode === 'polling' && !command) {
+      throw new BadRequestException('readMode=polling exige readCommandHex');
+    }
+  }
+
+  private toUpdateData(input: UpdateIndicadorDto): Prisma.IndicadorPesagemUpdateInput {
+    const nullableKeys = [
+      'fabricante',
+      'modelo',
+      'parserTipo',
+      'baudrate',
+      'databits',
+      'stopbits',
+      'parity',
+      'flowControl',
+      'inicioPeso',
+      'tamanhoPeso',
+      'tamanhoString',
+      'marcador',
+      'fator',
+      'atraso',
+      'readCommandHex',
+      'readIntervalMs',
+      'readTimeoutMs',
+      'exemploTrama',
+      'notas',
+      'cor',
+    ] as const;
+    const requiredKeys = ['descricao', 'protocolo', 'invertePeso', 'readMode'] as const;
+    const data: Record<string, unknown> = {};
+    for (const key of nullableKeys) {
+      if (Object.prototype.hasOwnProperty.call(input, key)) data[key] = input[key];
+    }
+    for (const key of requiredKeys) {
+      const value = input[key];
+      if (value !== undefined && value !== null) data[key] = value;
+    }
+    return data as Prisma.IndicadorPesagemUpdateInput;
   }
 
   async delete(id: string, tenantId: string) {
@@ -156,6 +174,11 @@ export class IndicadorService {
           marcador: p.parser.marcador ?? 13,
           fator: p.parser.fator ?? 1,
           invertePeso: p.parser.invertePeso ?? false,
+          atraso: null,
+          readMode: p.read?.mode ?? 'continuous',
+          readCommandHex: p.read?.commandHex ?? null,
+          readIntervalMs: p.read?.intervalMs ?? null,
+          readTimeoutMs: p.read?.timeoutMs ?? 2000,
           exemploTrama: p.exemploTrama,
           notas: p.notas,
           builtin: true,

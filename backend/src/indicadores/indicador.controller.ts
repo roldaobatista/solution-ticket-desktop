@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { IndicadorService, IndicadorInput } from './indicador.service';
+import { IndicadorService } from './indicador.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Permissao } from '../constants/permissoes';
+import { CreateIndicadorDto } from './dto/create-indicador.dto';
+import { UpdateIndicadorDto } from './dto/update-indicador.dto';
 
 @ApiTags('Indicadores de Balança')
 @ApiBearerAuth()
@@ -27,7 +29,7 @@ export class IndicadorController {
   @Post()
   @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Cria indicador customizado' })
-  create(@Body() body: IndicadorInput, @CurrentUser('tenantId') tenantId: string) {
+  create(@Body() body: CreateIndicadorDto, @CurrentUser('tenantId') tenantId: string) {
     return this.service.create(body, tenantId);
   }
 
@@ -36,7 +38,7 @@ export class IndicadorController {
   @ApiOperation({ summary: 'Atualiza indicador (incluindo builtin — só campos)' })
   update(
     @Param('id') id: string,
-    @Body() body: Partial<IndicadorInput>,
+    @Body() body: UpdateIndicadorDto,
     @CurrentUser('tenantId') tenantId: string,
   ) {
     return this.service.update(id, body, tenantId);

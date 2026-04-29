@@ -8,7 +8,7 @@ import { IBalancaAdapter } from './adapters/adapter.interface';
 import { createParser } from './parsers/parser.factory';
 import { IBalancaParser, LeituraPeso } from './parsers/parser.interface';
 import { errorMessage } from '../common/error-message.util';
-import { resolveEffectiveConfig } from './config-resolver';
+import { ReadConfig, resolveEffectiveConfig } from './config-resolver';
 import { getUserDataDir } from '../common/desktop-paths';
 
 export interface BalancaStatus {
@@ -125,7 +125,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
         config.protocolo === 'tcp' || config.protocolo === 'modbus-tcp' ? balanca.enderecoIp : null,
       portaTcp:
         config.protocolo === 'tcp' || config.protocolo === 'modbus-tcp' ? balanca.portaTcp : null,
-      intervalMs: config.atraso || null,
+      intervalMs: (config.read.intervalMs ?? config.atraso) || null,
       modbusUnitId: config.modbus.unitId,
       modbusRegister: config.modbus.register,
       modbusFunction: config.modbus.function,
@@ -203,7 +203,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
       conexao.status.erro = null;
       this.conexoes.set(id, conexao);
       await this.persistirStatusOnline(id, tenantId, true);
-      this.iniciarPollingComando(conexao, config.parser.parserTipo, config.atraso);
+      this.iniciarPollingComando(conexao, config.read, config.parser.parserTipo, config.atraso);
     } catch (err: unknown) {
       conexao.status.online = false;
       conexao.status.erro = errorMessage(err) ?? String(err);
@@ -253,7 +253,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
             : null,
         portaTcp:
           config.protocolo === 'tcp' || config.protocolo === 'modbus-tcp' ? balanca.portaTcp : null,
-        intervalMs: config.atraso || null,
+        intervalMs: (config.read.intervalMs ?? config.atraso) || null,
         modbusUnitId: config.modbus.unitId,
         modbusRegister: config.modbus.register,
         modbusFunction: config.modbus.function,
@@ -284,8 +284,9 @@ export class BalancaConnectionService implements OnModuleDestroy {
         adapter.connect(),
         new Promise<void>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
       ]);
-      if (this.parserPrecisaEnq(config.parser.parserTipo)) {
-        await adapter.write?.(Buffer.from([0x05])).catch(() => undefined);
+      const comando = this.obterComandoLeitura(config.read, config.parser.parserTipo);
+      if (comando) {
+        await adapter.write?.(comando).catch(() => undefined);
       }
       const recebeuLeitura = await Promise.race([
         leituraPromise,
@@ -381,13 +382,28 @@ export class BalancaConnectionService implements OnModuleDestroy {
 
   private iniciarPollingComando(
     conexao: ConexaoAtiva,
+    read: ReadConfig,
     parserTipo: string | null | undefined,
     atraso: number,
   ) {
-    if (!this.parserPrecisaEnq(parserTipo) || !conexao.adapter.write) return;
-    const enviar = () => conexao.adapter.write?.(Buffer.from([0x05])).catch(() => undefined);
+    if (!conexao.adapter.write) return;
+    const comando = this.obterComandoLeitura(read, parserTipo);
+    if (!comando) return;
+    if (read.mode === 'manual') return;
+    if (read.mode === 'continuous' && read.commandHex) return;
+    const enviar = () => conexao.adapter.write?.(comando).catch(() => undefined);
     enviar();
-    conexao.comandoTimer = setInterval(enviar, Math.max(atraso || 500, 200));
+    conexao.comandoTimer = setInterval(enviar, Math.max((read.intervalMs ?? atraso) || 500, 200));
+  }
+
+  private obterComandoLeitura(
+    read: ReadConfig,
+    parserTipo: string | null | undefined,
+  ): Buffer | null {
+    const commandHex = read.commandHex?.replace(/\s+/g, '');
+    if (commandHex) return Buffer.from(commandHex, 'hex');
+    if (this.parserPrecisaEnq(parserTipo)) return Buffer.from([0x05]);
+    return null;
   }
 
   private parserPrecisaEnq(parserTipo: string | null | undefined): boolean {

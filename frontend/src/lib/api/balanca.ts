@@ -8,41 +8,7 @@ import {
 } from '@/types';
 import { mockApi } from '../mock-api';
 import { mapBalanca, mapPaginated } from './mappers';
-
-function mapBalancaPayload(data: Partial<Balanca>): Record<string, unknown> {
-  const tipo = data.tipoConexao ?? data.tipo_conexao;
-  const protocolo =
-    data.protocolo ??
-    (tipo === 'TCP'
-      ? 'tcp'
-      : tipo === 'MODBUS_RTU'
-        ? 'modbus-rtu'
-        : tipo === 'MODBUS_TCP'
-          ? 'modbus-tcp'
-          : 'serial');
-  return Object.fromEntries(
-    Object.entries({
-      empresaId: data.empresaId ?? data.empresa_id,
-      unidadeId: data.unidadeId ?? data.unidade_id,
-      indicadorId: data.indicadorId ?? data.indicador_id,
-      nome: data.nome,
-      protocolo,
-      porta: data.porta || undefined,
-      enderecoIp: data.enderecoIp ?? data.endereco_ip ?? data.host,
-      portaTcp: data.portaTcp ?? data.porta_tcp,
-      ativo: data.ativo ?? data.ativa,
-      modbusUnitId: data.modbusUnitId ?? data.modbus_unit_id,
-      modbusRegister: data.modbusRegister ?? data.modbus_register,
-      modbusFunction: data.modbusFunction ?? data.modbus_function,
-      modbusByteOrder: data.modbusByteOrder ?? data.modbus_byte_order,
-      modbusWordOrder: data.modbusWordOrder ?? data.modbus_word_order,
-      modbusSigned: data.modbusSigned ?? data.modbus_signed,
-      modbusScale: data.modbusScale ?? data.modbus_scale,
-      modbusOffset: data.modbusOffset ?? data.modbus_offset,
-      ovrFator: data.ovrFator ?? data.ovr_fator,
-    }).filter(([, value]) => value !== undefined && value !== ''),
-  );
-}
+import { mapBalancaPayload } from './balanca-payload';
 
 export async function getBalancas(
   page?: number,
