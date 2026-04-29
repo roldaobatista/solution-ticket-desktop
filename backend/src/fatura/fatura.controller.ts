@@ -9,6 +9,7 @@ import { Permissao } from '../constants/permissoes';
 import { CreateFaturaDto } from './dto/create-fatura.dto';
 import { UpdateFaturaDto } from './dto/update-fatura.dto';
 import { RegistrarPagamentoDto } from './dto/registrar-pagamento.dto';
+import { CancelarFaturaDto } from './dto/cancelar-fatura.dto';
 
 interface AuthRequest extends ExpressRequest {
   user?: { id?: string; sub?: string };
@@ -75,6 +76,18 @@ export class FaturaController {
     @CurrentUser('tenantId') tenantId: string,
   ) {
     return this.faturaService.update(id, tenantId, dto);
+  }
+
+  @Post(':id/cancelar')
+  @Roles(Permissao.FATURA_GERENCIAR)
+  @ApiOperation({ summary: 'Cancelar fatura com motivo e auditoria comercial' })
+  cancelar(
+    @Param('id') id: string,
+    @Body() dto: CancelarFaturaDto,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') usuarioId?: string,
+  ) {
+    return this.faturaService.cancelar(id, tenantId, dto.motivo, usuarioId);
   }
 
   @Post(':id/pagamentos')

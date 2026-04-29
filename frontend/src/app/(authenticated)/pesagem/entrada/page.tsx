@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,9 +15,8 @@ import {
   getTransportadoras,
   getClientes,
   getProdutos,
-  createTicket,
-  registrarPassagem,
-  fecharTicket,
+  getConfiguracao,
+  finalizarPesagemOperacional,
   capturarPeso,
 } from '@/lib/api';
 import { formatWeight } from '@/lib/utils';
@@ -46,9 +45,13 @@ export default function PesagemEntradaPage() {
   });
 
   const [pesagemManual, setPesagemManual] = useState(false);
+  const [motivoManual, setMotivoManual] = useState('');
   const [pesagemComTara, setPesagemComTara] = useState(false);
   const [pesoAtual, setPesoAtual] = useState(0);
   const [estavel, setEstavel] = useState(false);
+  const [buscaVeiculo, setBuscaVeiculo] = useState('');
+  const [buscaCliente, setBuscaCliente] = useState('');
+  const [buscaProduto, setBuscaProduto] = useState('');
   const [previewTicketId, setPreviewTicketId] = useState<string | null>(null);
   const { toast, showToast, hideToast } = useToast();
 
@@ -56,9 +59,13 @@ export default function PesagemEntradaPage() {
     queryKey: ['balancas'],
     queryFn: () => getBalancas(1, 100),
   });
+  const { data: configPesagem } = useQuery({
+    queryKey: ['configuracao-pesagem-entrada'],
+    queryFn: () => getConfiguracao(),
+  });
   const { data: veiculos } = useQuery({
-    queryKey: ['veiculos'],
-    queryFn: () => getVeiculos(1, 200),
+    queryKey: ['veiculos-pesagem', buscaVeiculo],
+    queryFn: () => getVeiculos(1, 25, buscaVeiculo),
   });
   const { data: motoristas } = useQuery({
     queryKey: ['motoristas'],
@@ -69,12 +76,12 @@ export default function PesagemEntradaPage() {
     queryFn: () => getTransportadoras(1, 200),
   });
   const { data: clientes } = useQuery({
-    queryKey: ['clientes'],
-    queryFn: () => getClientes(1, 200),
+    queryKey: ['clientes-pesagem', buscaCliente],
+    queryFn: () => getClientes(1, 25, buscaCliente),
   });
   const { data: produtos } = useQuery({
-    queryKey: ['produtos'],
-    queryFn: () => getProdutos(1, 200),
+    queryKey: ['produtos-pesagem', buscaProduto],
+    queryFn: () => getProdutos(1, 25, buscaProduto),
   });
 
   const balancaOptions = useMemo(
@@ -120,42 +127,49 @@ export default function PesagemEntradaPage() {
     [produtos],
   );
 
+  useEffect(() => {
+    const padrao =
+      configPesagem?.balanca_padrao_entrada ??
+      (configPesagem as { balancaPadraoEntrada?: string } | undefined)?.balancaPadraoEntrada;
+    if (!form.balanca_id && padrao) {
+      setForm((f) => ({ ...f, balanca_id: padrao }));
+    }
+  }, [configPesagem, form.balanca_id]);
+
   const salvarMutation = useMutation({
     mutationFn: async () => {
       const balanca = balancas?.data?.find((b) => b.id === form.balanca_id);
       const taraManual = Number(form.tara_veiculo) || undefined;
-      const ticket = await createTicket({
-        unidade_id: balanca?.unidade_id ?? balanca?.unidadeId,
-        cliente_id: form.cliente_id,
-        produto_id: form.produto_id,
-        veiculo_id: form.veiculo_id || undefined,
-        veiculo_placa: form.veiculo_placa,
-        motorista_id: form.motorista_id || undefined,
-        transportadora_id: form.transportadora_id || undefined,
-        nota_fiscal: form.nota_fiscal || undefined,
-        peso_nf: form.peso_nf ? Number(form.peso_nf) : undefined,
-        observacao: form.observacao || undefined,
-        fluxo_pesagem: pesagemComTara ? '1PF_TARA_REFERENCIADA' : '2PF_BRUTO_TARA',
-        tara_referencia_tipo: pesagemComTara && taraManual ? 'MANUAL' : undefined,
-        tara_manual: pesagemComTara && taraManual ? taraManual : undefined,
+      return finalizarPesagemOperacional({
+        ticket: {
+          unidade_id: balanca?.unidade_id ?? balanca?.unidadeId,
+          cliente_id: form.cliente_id,
+          produto_id: form.produto_id,
+          veiculo_id: form.veiculo_id || undefined,
+          veiculo_placa: form.veiculo_placa,
+          motorista_id: form.motorista_id || undefined,
+          transportadora_id: form.transportadora_id || undefined,
+          nota_fiscal: form.nota_fiscal || undefined,
+          peso_nf: form.peso_nf ? Number(form.peso_nf) : undefined,
+          observacao: form.observacao || undefined,
+          fluxo_pesagem: pesagemComTara ? '1PF_TARA_REFERENCIADA' : '2PF_BRUTO_TARA',
+          tara_referencia_tipo: pesagemComTara && taraManual ? 'MANUAL' : undefined,
+          tara_manual: pesagemComTara && taraManual ? taraManual : undefined,
+        },
+        passagem: {
+          tipo_passagem: 'ENTRADA',
+          direcao_operacional: 'ENTRADA',
+          papel_calculo: 'BRUTO_OFICIAL',
+          condicao_veiculo: 'CARREGADO',
+          peso_capturado: pesoAtual,
+          balanca_id: form.balanca_id,
+          origem_leitura: pesagemManual ? 'MANUAL' : 'BALANCA',
+          indicador_estabilidade: estavel ? 1 : 0,
+          observacao: pesagemManual ? motivoManual.trim() : undefined,
+        },
+        fechar: pesagemComTara,
+        idempotency_key: `entrada:${form.balanca_id}:${Date.now()}`,
       });
-
-      await registrarPassagem(ticket.id, {
-        tipo_passagem: 'ENTRADA',
-        direcao_operacional: 'ENTRADA',
-        papel_calculo: 'BRUTO_OFICIAL',
-        condicao_veiculo: 'CARREGADO',
-        peso_capturado: pesoAtual,
-        balanca_id: form.balanca_id,
-        origem_leitura: pesagemManual ? 'MANUAL' : 'BALANCA',
-        indicador_estabilidade: estavel ? 1 : 0,
-      });
-
-      if (pesagemComTara) {
-        await fecharTicket(ticket.id);
-      }
-
-      return ticket;
     },
     onSuccess: (ticket) => {
       setPreviewTicketId(ticket.id);
@@ -179,7 +193,8 @@ export default function PesagemEntradaPage() {
     !!form.cliente_id &&
     !!form.produto_id &&
     pesoAtual > 0 &&
-    (pesagemManual || estavel);
+    (pesagemManual || estavel) &&
+    (!pesagemManual || motivoManual.trim().length >= 8);
 
   const capturarPesoAtual = useCallback(async () => {
     if (!form.balanca_id) {
@@ -203,9 +218,22 @@ export default function PesagemEntradaPage() {
     () => ({
       F1: capturarPesoAtual,
       F2: salvarPesagem,
-      Escape: () => router.push('/tickets'),
+      Escape: () => {
+        if (pesoAtual > 0 || form.veiculo_placa || form.cliente_id || form.produto_id) {
+          if (!window.confirm('Descartar a pesagem em andamento?')) return;
+        }
+        router.push('/tickets');
+      },
     }),
-    [capturarPesoAtual, salvarPesagem, router],
+    [
+      capturarPesoAtual,
+      salvarPesagem,
+      router,
+      pesoAtual,
+      form.veiculo_placa,
+      form.cliente_id,
+      form.produto_id,
+    ],
   );
   useKeyboardShortcuts(shortcuts);
 
@@ -249,6 +277,12 @@ export default function PesagemEntradaPage() {
 
               <div className="flex items-end gap-2">
                 <div className="flex-1">
+                  <Input
+                    label="Buscar placa"
+                    value={buscaVeiculo}
+                    onChange={(e) => setBuscaVeiculo(e.target.value)}
+                    placeholder="Digite placa ou frota..."
+                  />
                   <Select
                     label="Placa do Veiculo *"
                     options={veiculoOptions}
@@ -294,12 +328,24 @@ export default function PesagemEntradaPage() {
                 value={form.cliente_id}
                 onChange={(e) => setForm((f) => ({ ...f, cliente_id: e.target.value }))}
               />
+              <Input
+                label="Buscar cliente"
+                value={buscaCliente}
+                onChange={(e) => setBuscaCliente(e.target.value)}
+                placeholder="Digite nome ou documento..."
+              />
 
               <Select
                 label="Produto *"
                 options={produtoOptions}
                 value={form.produto_id}
                 onChange={(e) => setForm((f) => ({ ...f, produto_id: e.target.value }))}
+              />
+              <Input
+                label="Buscar produto"
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+                placeholder="Digite descricao ou codigo..."
               />
 
               <div className="grid grid-cols-2 gap-4">
@@ -360,6 +406,12 @@ export default function PesagemEntradaPage() {
                   value={pesoAtual || ''}
                   onChange={(e) => setPesoAtual(Number(e.target.value) || 0)}
                 />
+                <Input
+                  label="Motivo da pesagem manual *"
+                  value={motivoManual}
+                  onChange={(e) => setMotivoManual(e.target.value)}
+                  placeholder="Ex.: indicador sem comunicação, conferido pelo supervisor"
+                />
               </CardContent>
             </Card>
           )}
@@ -380,7 +432,15 @@ export default function PesagemEntradaPage() {
 
       {/* Botoes inferior */}
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-        <Button variant="secondary" onClick={() => router.push('/tickets')}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            if (pesoAtual > 0 || form.veiculo_placa || form.cliente_id || form.produto_id) {
+              if (!window.confirm('Descartar a pesagem em andamento?')) return;
+            }
+            router.push('/tickets');
+          }}
+        >
           <X className="w-4 h-4 mr-2" />
           Descartar
         </Button>

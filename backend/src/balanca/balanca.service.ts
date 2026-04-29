@@ -17,10 +17,11 @@ export class BalancaService {
 
   async create(dto: CreateBalancaDto, tenantId: string) {
     await this.validarPosseEmpresaUnidade(dto.empresaId, dto.unidadeId, tenantId);
+    await this.validarIndicador(dto.indicadorId, tenantId);
     const data = this.normalizarProtocolo(dto);
     await this.validarProtocoloEPorta(data);
     return this.prisma.balanca.create({
-      data: { ...data, tenantId },
+      data: { ...data, statusOnline: false, tenantId },
     });
   }
 
@@ -49,11 +50,27 @@ export class BalancaService {
     }
   }
 
+  private async validarIndicador(indicadorId: string | undefined, tenantId: string) {
+    if (!indicadorId) return;
+    const indicador = await this.prisma.indicadorPesagem.findFirst({
+      where: { id: indicadorId, tenantId },
+      select: { id: true },
+    });
+    if (!indicador) {
+      throw new ForbiddenException('Indicador de pesagem nao pertence ao tenant');
+    }
+  }
+
   private async validarProtocoloEPorta(
     dto: CreateBalancaDto | UpdateBalancaDto,
     excluirId?: string,
   ) {
     const protocolo = dto.protocolo ?? 'serial';
+    if (protocolo === 'modbus') {
+      throw new BadRequestException(
+        'protocolo=modbus exige escolha explicita: modbus-rtu ou modbus-tcp',
+      );
+    }
     const usaSerial = protocolo === 'serial' || protocolo === 'modbus-rtu';
     const usaTcp = protocolo === 'tcp' || protocolo === 'modbus-tcp';
 
@@ -115,7 +132,13 @@ export class BalancaService {
   }
 
   async update(id: string, dto: UpdateBalancaDto, tenantId: string) {
-    await this.findOne(id, tenantId);
+    const atual = await this.findOne(id, tenantId);
+    const empresaId = dto.empresaId ?? atual.empresaId;
+    const unidadeId = dto.unidadeId ?? atual.unidadeId;
+    if (dto.empresaId || dto.unidadeId) {
+      await this.validarPosseEmpresaUnidade(empresaId, unidadeId, tenantId);
+    }
+    await this.validarIndicador(dto.indicadorId, tenantId);
     const data = this.normalizarProtocolo(dto);
     if (dto.protocolo || dto.porta || dto.enderecoIp) {
       await this.validarProtocoloEPorta(data, id);

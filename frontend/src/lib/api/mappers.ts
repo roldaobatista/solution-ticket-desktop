@@ -130,9 +130,9 @@ export function mapDashboardKpis(raw: any): DashboardKpis {
     tempo_medio_operacao: raw.mediaPeso ?? 0,
     pesagens_semana: raw.pesagensSemana,
     pesagens_mes: raw.pesagensMes,
-    peso_total_semana: raw.pesoTotalSemana,
-    peso_total_mes: raw.pesoTotalMes,
-    tickets_em_aberto: raw.ticketsEmAberto,
+    peso_total_semana: raw.totalPesoSemana ?? raw.pesoTotalSemana,
+    peso_total_mes: raw.totalPesoMes ?? raw.pesoTotalMes,
+    tickets_em_aberto: raw.ticketsEmAberto ?? raw.pesagensEmAndamento,
   };
 }
 
@@ -358,6 +358,8 @@ export function mapBalanca(raw: any): Balanca {
     modbus_scale: raw.modbusScale == null ? undefined : Number(raw.modbusScale),
     modbusOffset: raw.modbusOffset == null ? undefined : Number(raw.modbusOffset),
     modbus_offset: raw.modbusOffset == null ? undefined : Number(raw.modbusOffset),
+    ovrFator: raw.ovrFator,
+    ovr_fator: raw.ovrFator,
     status_conexao: raw.statusConexao ?? (online ? 'ONLINE' : 'OFFLINE'),
     balanca_entrada: raw.balancaEntrada,
     balanca_saida: raw.balancaSaida,

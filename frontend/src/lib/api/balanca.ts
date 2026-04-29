@@ -1,4 +1,4 @@
-import { apiClient, USE_MOCK } from './client';
+import { apiClient, getAccessToken, USE_MOCK } from './client';
 import {
   Balanca,
   BalancaStatus,
@@ -39,6 +39,7 @@ function mapBalancaPayload(data: Partial<Balanca>): Record<string, unknown> {
       modbusSigned: data.modbusSigned ?? data.modbus_signed,
       modbusScale: data.modbusScale ?? data.modbus_scale,
       modbusOffset: data.modbusOffset ?? data.modbus_offset,
+      ovrFator: data.ovrFator ?? data.ovr_fator,
     }).filter(([, value]) => value !== undefined && value !== ''),
   );
 }
@@ -128,7 +129,7 @@ export async function capturarPeso(id: string): Promise<LeituraPeso> {
     };
   }
   const res = await apiClient.post(`/balancas/${id}/capturar`);
-  return res.data;
+  return res.data?.leitura ?? res.data;
 }
 
 /**
@@ -147,7 +148,7 @@ export async function fetchBalancaStreamUrl(id: string): Promise<string> {
     try {
       const res = await fetch(`${base}/auth/sse-token`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('access_token') || ''}` },
+        headers: { Authorization: `Bearer ${getAccessToken()}` },
       });
       if (res.ok) {
         const json = await res.json();

@@ -61,10 +61,7 @@ export async function createFatura(data: {
 
 export async function cancelarFatura(id: string, motivo: string): Promise<Fatura> {
   if (USE_MOCK) return mockApi.cancelarFatura(id, motivo);
-  const res = await apiClient.patch(`/faturas/${id}`, {
-    status: 'CANCELADA',
-    motivoCancelamento: motivo,
-  });
+  const res = await apiClient.post(`/faturas/${id}/cancelar`, { motivo });
   return mapFatura(res.data);
 }
 

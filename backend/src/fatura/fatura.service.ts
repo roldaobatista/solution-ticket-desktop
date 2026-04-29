@@ -11,6 +11,7 @@ const FATURA_STATUS = {
   ABERTA: 'ABERTA',
   PARCIAL: 'PARCIAL',
   BAIXADA: 'BAIXADA',
+  CANCELADA: 'CANCELADA',
 } as const;
 type FaturaStatus = (typeof FATURA_STATUS)[keyof typeof FATURA_STATUS];
 
@@ -122,6 +123,53 @@ export class FaturaService {
   async remove(id: string, tenantId: string) {
     await this.findOne(id, tenantId);
     return this.prisma.fatura.delete({ where: { id, tenantId } });
+  }
+
+  async cancelar(id: string, tenantId: string, motivo: string, usuarioId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const fatura = await tx.fatura.findUnique({
+        where: { id, tenantId },
+        include: { romaneio: { include: { itens: { select: { ticketId: true } } } } },
+      });
+      if (!fatura) throw new NotFoundException('Fatura nao encontrada');
+      if (fatura.status === FATURA_STATUS.BAIXADA) {
+        throw new ForbiddenException('Fatura baixada exige estorno antes do cancelamento');
+      }
+      if (fatura.status === FATURA_STATUS.CANCELADA) return fatura;
+
+      const updated = await tx.fatura.update({
+        where: { id, tenantId },
+        data: {
+          status: FATURA_STATUS.CANCELADA,
+          observacao: [fatura.observacao, `Cancelada: ${motivo}`].filter(Boolean).join('\n'),
+        },
+      });
+
+      if (fatura.romaneioId && fatura.romaneio?.itens.length) {
+        await tx.romaneio.update({
+          where: { id: fatura.romaneioId, tenantId },
+          data: { status: 'ABERTO' },
+        });
+        await tx.ticketPesagem.updateMany({
+          where: { id: { in: fatura.romaneio.itens.map((i) => i.ticketId) }, tenantId },
+          data: { statusComercial: StatusComercial.NAO_ROMANEADO },
+        });
+      }
+
+      await tx.auditoria.create({
+        data: {
+          entidade: 'fatura',
+          entidadeId: id,
+          evento: 'fatura.cancelada',
+          tenantId,
+          usuarioId: usuarioId || null,
+          motivo,
+          estadoAnterior: JSON.stringify({ status: fatura.status }),
+          estadoNovo: JSON.stringify({ status: FATURA_STATUS.CANCELADA }),
+        },
+      });
+      return updated;
+    });
   }
 
   async registrarPagamento(faturaId: string, tenantId: string, dto: RegistrarPagamentoDto) {

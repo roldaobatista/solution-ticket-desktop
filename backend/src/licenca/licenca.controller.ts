@@ -60,7 +60,7 @@ export class LicencaController {
       unidadeId: dto.unidadeId,
       tenantId,
       chave: dto.chave,
-      usuarioId: dto.usuarioId ?? usuarioId,
+      usuarioId,
     });
   }
 

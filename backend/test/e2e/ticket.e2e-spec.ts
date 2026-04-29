@@ -57,6 +57,7 @@ describe('Ticket (e2e)', () => {
         pesoCapturado: 20000,
         balancaId: ctx.balancaId,
         origemLeitura: 'MANUAL',
+        observacao: 'Peso manual justificado no teste E2E',
       });
     expect(p1.status).toBe(201);
 
@@ -71,6 +72,7 @@ describe('Ticket (e2e)', () => {
         pesoCapturado: 8000,
         balancaId: ctx.balancaId,
         origemLeitura: 'MANUAL',
+        observacao: 'Peso manual justificado no teste E2E',
       });
     expect(p2.status).toBe(201);
 

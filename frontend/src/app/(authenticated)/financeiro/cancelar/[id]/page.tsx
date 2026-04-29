@@ -59,9 +59,9 @@ export default function CancelarFaturaPage() {
             {fatura.numero}
             <Badge
               variant={
-                fatura.status === 'PAGA'
+                fatura.status === 'BAIXADA'
                   ? 'success'
-                  : fatura.status === 'PARCIALMENTE_PAGA'
+                  : fatura.status === 'PARCIAL'
                     ? 'warning'
                     : fatura.status === 'CANCELADA'
                       ? 'danger'

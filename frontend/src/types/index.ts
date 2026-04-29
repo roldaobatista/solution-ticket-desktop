@@ -105,6 +105,8 @@ export interface Balanca {
   modbus_scale?: number;
   modbusOffset?: number;
   modbus_offset?: number;
+  ovrFator?: number;
+  ovr_fator?: number;
   status_conexao?: string;
   balanca_entrada?: boolean;
   balanca_saida?: boolean;
@@ -427,6 +429,8 @@ export interface ConfiguracaoOperacional {
   rodape_texto?: string | null;
   balanca_padrao_entrada?: string | null;
   balanca_padrao_saida?: string | null;
+  balancaPadraoEntrada?: string | null;
+  balancaPadraoSaida?: string | null;
 }
 
 export interface DashboardKpis {

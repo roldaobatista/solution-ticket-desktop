@@ -166,4 +166,14 @@ export class CreateConfigDto {
   @IsOptional()
   @IsBoolean()
   manterTaraCadastrada?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  balancaPadraoEntrada?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  balancaPadraoSaida?: string | null;
 }

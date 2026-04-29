@@ -105,6 +105,24 @@ describe('ModbusAdapter', () => {
     await ad.close();
   });
 
+  it('aceita paridade abreviada E/O/N em RTU', async () => {
+    const ad = new ModbusAdapter({
+      porta: 'COM4',
+      baudrate: 19200,
+      databits: 7,
+      stopbits: 2,
+      parity: 'E',
+      modbusUnitId: 1,
+    });
+    await ad.connect();
+    expect(lastClient!.connectRtuCalls[0].cfg).toMatchObject({
+      dataBits: 7,
+      stopBits: 2,
+      parity: 'even',
+    });
+    await ad.close();
+  });
+
   it('emite error com contexto em falha de leitura nao-fatal', async () => {
     const ad = new ModbusAdapter({
       enderecoIp: '127.0.0.1',

@@ -7,6 +7,8 @@ import { AutoDetectService } from './auto-detect.service';
 import { CaptureRawService, CaptureRequest } from './capture-raw.service';
 import { NetworkDiscoveryService } from './diagnostics/network-discovery.service';
 import { createParser } from './parsers/parser.factory';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Balanca Configuração')
 @ApiBearerAuth()
@@ -20,6 +22,7 @@ export class BalancaConfigController {
   ) {}
 
   @Post('test-parser-on-bytes')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({
     summary: 'Aplica parser+config sobre bytes em hex e retorna leituras (calibração ao vivo)',
   })
@@ -57,6 +60,7 @@ export class BalancaConfigController {
   // S5: network discovery gera tráfego — limita a 1 scan/minuto por usuário
   @Throttle({ default: { limit: 1, ttl: 60_000 } })
   @Post('discover')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({
     summary:
       'Faz scan TCP no segmento local em portas comuns de balanças (4001, 9999, 23, 8000, 10001)',
@@ -82,6 +86,7 @@ export class BalancaConfigController {
   // S5: captura abre porta serial/TCP — protege contra flood de abertura/fechamento
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('capture-raw')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({
     summary: 'Abre porta serial/TCP, captura bytes brutos por N ms e fecha',
   })
@@ -91,6 +96,7 @@ export class BalancaConfigController {
 
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('capture-and-detect')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({
     summary: 'Captura bytes da porta + roda auto-detect (one-shot)',
   })

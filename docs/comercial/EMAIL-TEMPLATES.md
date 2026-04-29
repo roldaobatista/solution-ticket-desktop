@@ -11,7 +11,7 @@ Tom geral: direto, sem exagero, focado no problema do cliente. Personalizar nome
 
 ### 1.1 Cold inicial — segmento agro
 
-**Assunto**: Pesagens da {Empresa} integradas ao Protheus em dias
+**Assunto**: Pesagens da {Empresa} prontas para integração REST com ERP
 
 ```
 {Nome},
@@ -20,9 +20,11 @@ Conversei com 3 cooperativas do {Estado} esse mês — todas reclamam da
 mesma coisa: digitar ticket de balança no Protheus toma 4h/dia em pico
 de safra, e 1 em cada 20 sai com divergência fiscal.
 
-Desenvolvemos um produto que conecta balança ao Protheus
-automaticamente: ticket fecha, lançamento aparece no ERP em segundos,
-zero digitação, rastro fiscal completo de 5 anos.
+Desenvolvemos um produto que conecta balança a um outbox local com API
+REST genérica: o ticket fecha, fica auditável e pode ser integrado ao
+ERP por projeto homologado, com escopo e aceite técnico. Conectores
+nativos específicos, como Protheus, só devem ser propostos quando já
+homologados para o cliente.
 
 Vale 15 minutos para mostrar como funciona?
 
@@ -40,13 +42,14 @@ Att,
 ```
 {Nome},
 
-Indústrias com balança rodoviária integrada ao SAP/TOTVS perdem em
+Indústrias com balança rodoviária e ERP SAP/TOTVS perdem em
 média 8h/mês por integração quebrada. Considerando R$ 1.500/h de
 faturamento da linha, são R$ 12k/mês jogados fora — sem ninguém
 perceber porque é pulverizado em pequenas paradas.
 
-Nossa solução resolve isso com fila local: balança continua operando
-mesmo se ERP cair. Sincroniza quando voltar. Zero perda.
+Nossa solução reduz esse risco com fila local e conector REST genérico:
+balança continua operando mesmo se o ERP cair, e a sincronização entra
+no escopo de integração homologado com o cliente.
 
 15 minutos para mostrar caso real de cliente similar à {Empresa}?
 
@@ -114,7 +117,7 @@ Se não responder, paro de mandar e-mail. 🙏
 **O que mostrei do Solution Ticket**:
 - Conector nativo {ERP do cliente}
 - Fila local com retry (operação não para se ERP cair)
-- Auditoria fiscal 5 anos
+- Rastreabilidade auditável do ticket e da integração; retenção fiscal estendida depende do plano/contrato
 - {feature específica relevante}
 
 **Próximos passos acordados**:

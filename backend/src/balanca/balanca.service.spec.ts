@@ -5,9 +5,11 @@ import { BalancaService } from './balanca.service';
 type BalancaPrismaMock = {
   empresa: { findFirst: jest.Mock };
   unidade: { findFirst: jest.Mock };
+  indicadorPesagem: { findFirst: jest.Mock };
   balanca: {
     create: jest.Mock;
     findFirst: jest.Mock;
+    update: jest.Mock;
   };
 };
 
@@ -19,9 +21,11 @@ describe('BalancaService', () => {
     prisma = {
       empresa: { findFirst: jest.fn().mockResolvedValue({ id: 'empresa-1' }) },
       unidade: { findFirst: jest.fn().mockResolvedValue({ id: 'unidade-1' }) },
+      indicadorPesagem: { findFirst: jest.fn().mockResolvedValue({ id: 'indicador-1' }) },
       balanca: {
         create: jest.fn().mockResolvedValue({ id: 'balanca-1' }),
         findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({ id: 'balanca-1' }),
       },
     };
     service = new BalancaService(prisma as unknown as PrismaService);
@@ -88,5 +92,22 @@ describe('BalancaService', () => {
     await expect(
       service.create({ ...baseDto, protocolo: 'modbus-rtu' }, 'tenant-1'),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejeita modbus generico sem transporte explicito', async () => {
+    await expect(service.create({ ...baseDto, protocolo: 'modbus' }, 'tenant-1')).rejects.toThrow(
+      /modbus-rtu ou modbus-tcp/,
+    );
+  });
+
+  it('rejeita indicador de outro tenant', async () => {
+    prisma.indicadorPesagem.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create(
+        { ...baseDto, indicadorId: '550e8400-e29b-41d4-a716-446655440000' },
+        'tenant-1',
+      ),
+    ).rejects.toThrow('Indicador de pesagem nao pertence ao tenant');
   });
 });

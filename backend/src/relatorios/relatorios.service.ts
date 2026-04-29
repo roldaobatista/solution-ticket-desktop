@@ -693,7 +693,7 @@ export class RelatoriosService {
   async passagensPorBalanca(
     dataInicio: string,
     dataFim: string,
-    _tenantId: string,
+    tenantId: string,
     unidadeId?: string,
   ) {
     const where: Prisma.PassagemPesagemWhereInput = {
@@ -702,9 +702,10 @@ export class RelatoriosService {
         lte: new Date(dataFim),
       },
       statusPassagem: StatusPassagem.VALIDA,
+      ticket: { tenantId },
     };
     if (unidadeId) {
-      where.balanca = { unidadeId };
+      where.balanca = { unidadeId, tenantId };
     }
 
     const passagens = await this.prisma.passagemPesagem.groupBy({
@@ -715,7 +716,7 @@ export class RelatoriosService {
     });
 
     const balancas = await this.prisma.balanca.findMany({
-      where: unidadeId ? { unidadeId } : undefined,
+      where: unidadeId ? { unidadeId, tenantId } : { tenantId },
     });
 
     const resultado = passagens.map((p) => ({

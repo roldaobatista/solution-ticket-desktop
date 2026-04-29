@@ -5,6 +5,8 @@ import { RelatoriosService } from './relatorios.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { gerarXlsx, XLSX_MIME, ColunaXlsx } from './xlsx.helper';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 const COLUNAS_MOVIMENTO: ColunaXlsx[] = [
   { header: 'Ticket', key: 'numero' },
@@ -26,6 +28,7 @@ export class RelatoriosController {
   constructor(private readonly relatoriosService: RelatoriosService) {}
 
   @Get('movimento')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Relatorio de movimento de pesagem' })
   movimento(
     @Query('dataInicio') dataInicio: string,
@@ -37,6 +40,7 @@ export class RelatoriosController {
   }
 
   @Get('movimento/pdf')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Relatorio de movimento em PDF' })
   async movimentoPdf(
     @Query('dataInicio') dataInicio: string,
@@ -63,6 +67,7 @@ export class RelatoriosController {
   }
 
   @Get('alteradas')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Relatorio de pesagens alteradas' })
   pesagensAlteradas(
     @Query('dataInicio') dataInicio: string,
@@ -74,6 +79,7 @@ export class RelatoriosController {
   }
 
   @Get('alteradas/pdf')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Relatorio de pesagens alteradas em PDF' })
   async alteradasPdf(
     @Query('dataInicio') dataInicio: string,
@@ -97,6 +103,7 @@ export class RelatoriosController {
   }
 
   @Get('canceladas')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Relatorio de pesagens canceladas' })
   pesagensCanceladas(
     @Query('dataInicio') dataInicio: string,
@@ -108,6 +115,7 @@ export class RelatoriosController {
   }
 
   @Get('canceladas/pdf')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Relatorio de pesagens canceladas em PDF' })
   async canceladasPdf(
     @Query('dataInicio') dataInicio: string,
@@ -131,6 +139,7 @@ export class RelatoriosController {
   }
 
   @Get('movimento/xlsx')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Relatório de movimento em Excel (.xlsx)' })
   async movimentoXlsx(
     @Query('dataInicio') dataInicio: string,
@@ -158,6 +167,7 @@ export class RelatoriosController {
   }
 
   @Get('alteradas/xlsx')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Pesagens alteradas em Excel' })
   async alteradasXlsx(
     @Query('dataInicio') dataInicio: string,
@@ -183,6 +193,7 @@ export class RelatoriosController {
   }
 
   @Get('canceladas/xlsx')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Pesagens canceladas em Excel' })
   async canceladasXlsx(
     @Query('dataInicio') dataInicio: string,
@@ -208,6 +219,7 @@ export class RelatoriosController {
   }
 
   @Get('passagens-por-balanca')
+  @Roles(Permissao.RELATORIO_VISUALIZAR)
   @ApiOperation({ summary: 'Analise de passagens por balanca' })
   passagensPorBalanca(
     @Query('dataInicio') dataInicio: string,

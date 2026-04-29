@@ -164,6 +164,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
         pesoCapturado: 48000,
         balancaId: balancaId,
         origemLeitura: 'MANUAL',
+        observacao: 'Peso manual justificado no teste E2E',
         condicaoVeiculo: 'NAO_INFORMADO',
         ...dados,
       });

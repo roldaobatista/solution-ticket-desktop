@@ -20,6 +20,7 @@ export interface BalancaStatus {
 
 interface ConexaoAtiva {
   id: string;
+  tenantId: string;
   adapter: IBalancaAdapter;
   parser: IBalancaParser;
   buffer: Buffer;
@@ -82,6 +83,18 @@ export class BalancaConnectionService implements OnModuleDestroy {
     return this.conexoes.get(id)?.status.ultimaLeitura ?? null;
   }
 
+  private async persistirStatusOnline(id: string, tenantId: string, statusOnline: boolean) {
+    if (typeof this.prisma.balanca.update !== 'function') return;
+    await this.prisma.balanca
+      .update({
+        where: { id, tenantId },
+        data: { statusOnline, atualizadoEm: new Date() },
+      })
+      .catch((err: unknown) =>
+        this.logger.warn(`Falha ao persistir status da balanca ${id}: ${errorMessage(err)}`),
+      );
+  }
+
   async conectar(id: string, tenantId: string): Promise<BalancaStatus> {
     if (this.conexoes.has(id)) return this.getStatus(id);
     const pendente = this.conexoesPendentes.get(id);
@@ -128,6 +141,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
 
     const conexao: ConexaoAtiva = {
       id,
+      tenantId,
       adapter,
       parser,
       buffer: Buffer.alloc(0),
@@ -143,16 +157,20 @@ export class BalancaConnectionService implements OnModuleDestroy {
     adapter.on('data', (chunk: Buffer) => this.processarChunk(conexao, chunk));
     adapter.on('error', (err: Error) => {
       this.logger.warn(`Balanca ${id} erro: ${errorMessage(err)}`);
+      conexao.status.online = false;
       conexao.status.erro = errorMessage(err);
+      void this.persistirStatusOnline(id, tenantId, false);
       conexao.emitter.emit('error', err);
     });
     adapter.on('close', () => {
       conexao.status.online = false;
+      void this.persistirStatusOnline(id, tenantId, false);
       conexao.emitter.emit('close');
     });
     // C11: flush de buffer residual ao reconectar — evita parse de meia-trama
     adapter.on('reconectando', (info: { tentativa: number; delayMs: number }) => {
       conexao.status.online = false;
+      void this.persistirStatusOnline(id, tenantId, false);
       this.logger.warn(
         `Balanca ${id} reconectando (tentativa=${info.tentativa} delay=${info.delayMs}ms)`,
       );
@@ -163,6 +181,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
       conexao.historico = [];
       conexao.status.online = true;
       conexao.status.erro = null;
+      void this.persistirStatusOnline(id, tenantId, true);
       this.logger.log(`Balanca ${id} reconectada`);
       conexao.emitter.emit('reconectado');
     });
@@ -174,6 +193,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
       this.logger.error(`Balanca ${id} falha permanente apos ${info.tentativas} tentativas`);
       conexao.status.online = false;
       conexao.status.erro = `Falha permanente apos ${info.tentativas} tentativas`;
+      void this.persistirStatusOnline(id, tenantId, false);
       conexao.emitter.emit('falha-permanente', info);
     });
 
@@ -182,10 +202,12 @@ export class BalancaConnectionService implements OnModuleDestroy {
       conexao.status.online = true;
       conexao.status.erro = null;
       this.conexoes.set(id, conexao);
+      await this.persistirStatusOnline(id, tenantId, true);
       this.iniciarPollingComando(conexao, config.parser.parserTipo, config.atraso);
     } catch (err: unknown) {
       conexao.status.online = false;
       conexao.status.erro = errorMessage(err) ?? String(err);
+      await this.persistirStatusOnline(id, tenantId, false);
       throw err;
     }
     return this.getStatus(id);
@@ -203,6 +225,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
     c.adapter.removeAllListeners();
     c.emitter.removeAllListeners();
     this.conexoes.delete(id);
+    await this.persistirStatusOnline(id, c.tenantId, false);
   }
 
   /** Tenta abrir conexão por {@link timeoutMs} e fecha em seguida. */

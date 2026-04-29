@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsDateString,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -85,7 +86,8 @@ export class RegistrarPassagemDto {
   eventIdOrigem?: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @ValidateIf((o: RegistrarPassagemDto) => o.origemLeitura === 'MANUAL')
   @IsString()
+  @IsNotEmpty({ message: 'Pesagem manual exige observacao/motivo' })
   observacao?: string;
 }

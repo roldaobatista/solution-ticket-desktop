@@ -49,18 +49,18 @@ export default function FaturasPage() {
             <div className="flex items-center gap-2 mt-1">
               <Badge
                 variant={
-                  selectedFatura.status === 'PAGA'
+                  selectedFatura.status === 'BAIXADA'
                     ? 'success'
-                    : selectedFatura.status === 'PARCIALMENTE_PAGA'
+                    : selectedFatura.status === 'PARCIAL'
                       ? 'warning'
                       : selectedFatura.status === 'CANCELADA'
                         ? 'danger'
                         : 'primary'
                 }
               >
-                {selectedFatura.status === 'PAGA'
-                  ? 'Paga'
-                  : selectedFatura.status === 'PARCIALMENTE_PAGA'
+                {selectedFatura.status === 'BAIXADA'
+                  ? 'Baixada'
+                  : selectedFatura.status === 'PARCIAL'
                     ? 'Parcial'
                     : selectedFatura.status === 'CANCELADA'
                       ? 'Cancelada'
@@ -228,18 +228,18 @@ export default function FaturasPage() {
                     <TableCell>
                       <Badge
                         variant={
-                          f.status === 'PAGA'
+                          f.status === 'BAIXADA'
                             ? 'success'
-                            : f.status === 'PARCIALMENTE_PAGA'
+                            : f.status === 'PARCIAL'
                               ? 'warning'
                               : f.status === 'CANCELADA'
                                 ? 'danger'
                                 : 'primary'
                         }
                       >
-                        {f.status === 'PAGA'
-                          ? 'Paga'
-                          : f.status === 'PARCIALMENTE_PAGA'
+                        {f.status === 'BAIXADA'
+                          ? 'Baixada'
+                          : f.status === 'PARCIAL'
                             ? 'Parcial'
                             : f.status === 'CANCELADA'
                               ? 'Cancelada'

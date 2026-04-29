@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { MailerService } from './mailer.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { encrypt } from '../common/crypto.util';
+import { protectSecret } from '../common/secret-protection.util';
 
 jest.mock('nodemailer', () => ({
   createTransport: jest.fn().mockReturnValue({
@@ -117,7 +117,7 @@ describe('MailerService', () => {
         port: 587,
         secure: false,
         user: 'u',
-        senha: encrypt('p'),
+        senha: protectSecret('p'),
         from: 'a@b.com',
         ativo: false,
       });
@@ -132,7 +132,7 @@ describe('MailerService', () => {
         port: 587,
         secure: false,
         user: 'u',
-        senha: encrypt('p'),
+        senha: protectSecret('p'),
         from: 'a@b.com',
         ativo: true,
       });
@@ -156,7 +156,7 @@ describe('MailerService', () => {
         port: 587,
         secure: false,
         user: 'u',
-        senha: encrypt('p'),
+        senha: protectSecret('p'),
         from: 'a@b.com',
         fromName: 'App',
         ativo: true,

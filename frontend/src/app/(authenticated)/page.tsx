@@ -114,25 +114,19 @@ export default function DashboardPage() {
         />
         <KpiCard
           label="Pesagens Semana"
-          value={formatNumber(
-            kpis?.pesagens_semana || kpis?.pesagens_hoje
-              ? kpis?.pesagens_semana || (kpis?.pesagens_hoje || 0) * 6
-              : 0,
-          )}
+          value={kpis?.pesagens_semana != null ? formatNumber(kpis.pesagens_semana) : 'sem dados'}
           icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
           tint="bg-blue-50"
         />
         <KpiCard
           label="Pesagens Mes"
-          value={formatNumber(
-            kpis?.pesagens_mes || (kpis?.pesagens_hoje ? (kpis?.pesagens_hoje || 0) * 22 : 0),
-          )}
+          value={formatNumber(kpis?.pesagens_mes || 0)}
           icon={<Activity className="w-5 h-5 text-purple-600" />}
           tint="bg-purple-50"
         />
         <KpiCard
           label="Peso Movimentado"
-          value={`${((kpis?.peso_total_mes || (kpis?.peso_total_hoje || 0) * 22) / 1000).toFixed(1)} t`}
+          value={`${((kpis?.peso_total_mes || 0) / 1000).toFixed(1)} t`}
           hint="Mes atual"
           icon={<Package className="w-5 h-5 text-amber-600" />}
           tint="bg-amber-50"

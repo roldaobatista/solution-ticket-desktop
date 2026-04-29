@@ -1,12 +1,27 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Scale } from 'lucide-react';
 import { useConfiguracaoForm } from '@/hooks/useConfiguracaoForm';
 import { ConfigSection, ConfigToolbar, ToggleRow } from '@/components/config/ConfigShared';
+import { Select } from '@/components/ui/select';
+import { getBalancas } from '@/lib/api';
 
 export default function ConfigPesagemPage() {
-  const { local, isLoading, dirty, salvouEm, salvando, toggle, restaurar, salvar } =
+  const { local, isLoading, dirty, salvouEm, salvando, set, toggle, restaurar, salvar } =
     useConfiguracaoForm();
+  const { data: balancas } = useQuery({
+    queryKey: ['config-pesagem-balancas'],
+    queryFn: () => getBalancas(1, 100),
+  });
+  const balancaOptions = useMemo(
+    () => [
+      { value: '', label: 'Sem padrao' },
+      ...(balancas?.data || []).map((b) => ({ value: b.id, label: b.nome })),
+    ],
+    [balancas],
+  );
 
   if (isLoading) {
     return (
@@ -72,6 +87,26 @@ export default function ConfigPesagemPage() {
           checked={!!local.conversao_unidade}
           onChange={() => toggle('conversao_unidade')}
         />
+      </ConfigSection>
+
+      <ConfigSection
+        title="Balanças padrão"
+        description="Pré-seleciona a balança correta no fluxo do operador."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Entrada"
+            options={balancaOptions}
+            value={local.balancaPadraoEntrada ?? local.balanca_padrao_entrada ?? ''}
+            onChange={(e) => set('balancaPadraoEntrada', e.target.value || null)}
+          />
+          <Select
+            label="Saída"
+            options={balancaOptions}
+            value={local.balancaPadraoSaida ?? local.balanca_padrao_saida ?? ''}
+            onChange={(e) => set('balancaPadraoSaida', e.target.value || null)}
+          />
+        </div>
       </ConfigSection>
     </div>
   );

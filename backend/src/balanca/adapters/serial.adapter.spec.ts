@@ -70,6 +70,21 @@ describe('SerialAdapter', () => {
     expect(adapter.isOpen()).toBe(false);
   });
 
+  it('aceita paridade abreviada E/O/N usada pelos presets', async () => {
+    const adapter = new SerialAdapter({
+      porta: 'COM1',
+      parity: 'E',
+      databits: 7,
+      stopbits: 2,
+    });
+    await adapter.connect();
+    expect(MockSerialPort.lastInstance?.lastConfig).toMatchObject({
+      parity: 'even',
+      dataBits: 7,
+      stopBits: 2,
+    });
+  });
+
   it('emite data quando mock emite data', async () => {
     const adapter = new SerialAdapter({ porta: 'COM1' });
     const spy = jest.fn();

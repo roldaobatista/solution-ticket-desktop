@@ -25,37 +25,26 @@ interface AjusteLeituraSectionProps {
  *  1. Operador coloca um peso conhecido na balança
  *  2. Widget mostra o que a balança está lendo em tempo real
  *  3. Operador digita o peso real (ex: 50.0)
- *  4. Sistema calcula novoFator = pesoReal / pesoLido e aplica no indicador
- *
- * Observação: o ajuste altera o fator do INDICADOR, então afeta todas as balanças
- * que usam o mesmo modelo.
+ *  4. Sistema calcula o divisor e aplica como override apenas nesta balança.
  */
-export function AjusteLeituraSection({
-  balancaId,
-  indicadorId,
-  onApplied,
-  onError,
-}: AjusteLeituraSectionProps) {
+export function AjusteLeituraSection({ balancaId, onApplied, onError }: AjusteLeituraSectionProps) {
   const [pesoAtual, setPesoAtual] = useState<number>(0);
   const [pesoReferencia, setPesoReferencia] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const pesoRef = parseFloat(pesoReferencia.replace(',', '.'));
-  const fatorCalculado = pesoRef > 0 && pesoAtual > 0 ? pesoRef / pesoAtual : null;
+  const fatorCalculado =
+    pesoRef > 0 && pesoAtual > 0 ? Math.max(1, Math.round(pesoAtual / pesoRef)) : null;
 
   async function aplicar() {
-    if (!indicadorId) {
-      onError?.('Balanca precisa ter um Indicador selecionado');
-      return;
-    }
     if (!fatorCalculado || !Number.isFinite(fatorCalculado)) {
       onError?.('Informe o peso de referencia e aguarde a leitura da balanca');
       return;
     }
     setLoading(true);
     try {
-      await apiClient.put(`/indicadores/${indicadorId}`, {
-        fator: Number(fatorCalculado.toFixed(6)),
+      await apiClient.patch(`/balancas/${balancaId}`, {
+        ovrFator: fatorCalculado,
       });
       onApplied?.();
       setPesoReferencia('');
@@ -76,7 +65,7 @@ export function AjusteLeituraSection({
         Ajuste de Leitura
       </div>
       <p className="text-xs text-slate-500">
-        Use um peso conhecido para corrigir o fator de conversao do indicador. Coloque o peso sobre
+        Use um peso conhecido para corrigir o fator de conversao desta balanca. Coloque o peso sobre
         a balanca, aguarde a leitura estabilizar e informe o peso real.
       </p>
 
@@ -94,7 +83,7 @@ export function AjusteLeituraSection({
           />
         </div>
         <div>
-          <label className="text-xs text-slate-600 mb-1 block">Novo fator (calculado)</label>
+          <label className="text-xs text-slate-600 mb-1 block">Novo divisor (calculado)</label>
           <div className="h-10 px-3 flex items-center rounded-md border border-slate-300 bg-white text-sm text-slate-700 font-mono">
             {fatorCalculado ? fatorCalculado.toFixed(6) : '—'}
           </div>
@@ -102,12 +91,12 @@ export function AjusteLeituraSection({
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">Afeta todas as balancas que usam este indicador.</p>
+        <p className="text-xs text-slate-500">Afeta somente esta balanca.</p>
         <Button
           variant="secondary"
           onClick={aplicar}
           isLoading={loading}
-          disabled={!fatorCalculado || !indicadorId}
+          disabled={!fatorCalculado}
         >
           <CheckCircle2 className="w-4 h-4 mr-2" />
           Aplicar ajuste

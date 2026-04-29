@@ -21,9 +21,27 @@ export class HealthController {
   // Onda 2.6: health permanece publico (necessario para o splash do Electron
   // saber se backend ja subiu antes do login). Nao expoe dados sensiveis.
   @Public()
-  @Get()
+  @Get('live')
+  live() {
+    return { status: 'ok', timestamp: new Date().toISOString() };
+  }
+
+  @Public()
+  @Get('ready')
   @HealthCheck()
-  check() {
+  ready() {
+    return this.health.check([
+      async () => {
+        await this.prisma.$queryRaw`SELECT 1`;
+        return { database: { status: 'up' } };
+      },
+    ]);
+  }
+
+  @Public()
+  @Get('degraded')
+  @HealthCheck()
+  degraded() {
     return this.health.check([
       () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
       () => this.disk.checkStorage('disk', { thresholdPercent: 0.9, path: getUserDataDir() }),

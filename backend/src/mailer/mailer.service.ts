@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { createTransport, Transporter } from 'nodemailer';
 import { PrismaService } from '../prisma/prisma.service';
-import { encrypt, decrypt } from '../common/crypto.util';
+import { protectSecret, revealSecret } from '../common/secret-protection.util';
 import { CreateSmtpConfigDto } from './dto/create-smtp-config.dto';
 import { UpdateSmtpConfigDto } from './dto/update-smtp-config.dto';
 
@@ -62,7 +62,7 @@ export class MailerService {
       tenantId,
     };
     if (dto.senha) {
-      data.senha = encrypt(dto.senha);
+      data.senha = protectSecret(dto.senha);
     }
     if (existing) {
       const updated = await this.prisma.configuracaoSmtp.update({
@@ -135,7 +135,7 @@ export class MailerService {
     user: string;
     senha: string;
   }): Transporter {
-    const password = decrypt(cfg.senha);
+    const password = revealSecret(cfg.senha);
     return createTransport({
       host: cfg.host,
       port: cfg.port,

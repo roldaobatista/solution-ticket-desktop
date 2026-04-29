@@ -53,6 +53,8 @@ export function StatusBadge({ status }: { status: string }) {
     ABERTA_FATURA: { variant: 'primary', label: 'Aberta' },
     PARCIALMENTE_PAGA: { variant: 'warning', label: 'Parcial' },
     PAGA: { variant: 'success', label: 'Paga' },
+    PARCIAL: { variant: 'warning', label: 'Parcial' },
+    BAIXADA: { variant: 'success', label: 'Baixada' },
     CANCELADA: { variant: 'danger', label: 'Cancelada' },
     ATIVA: { variant: 'success', label: 'Ativa' },
     TRIAL: { variant: 'warning', label: 'Trial' },

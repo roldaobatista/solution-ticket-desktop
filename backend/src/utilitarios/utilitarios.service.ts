@@ -48,7 +48,11 @@ export class UtilitariosService {
         tamanhoKb = Math.round(stat.size / 1024);
         ultimaEscritaIso = stat.mtime.toISOString();
       }
-      return { caminho: caminho || '(config por DATABASE_URL)', tamanhoKb, ultimaEscritaIso };
+      return {
+        caminho: caminho ? this.redactPath(caminho) : '(config por DATABASE_URL)',
+        tamanhoKb,
+        ultimaEscritaIso,
+      };
     } catch (err: unknown) {
       return { caminho: null, tamanhoKb: 0, ultimaEscritaIso: null, erro: errorMessage(err) };
     }
@@ -62,7 +66,11 @@ export class UtilitariosService {
         orderBy: { criadoEm: 'desc' },
       });
       if (!licenca) {
-        return { status: 'SEM_LICENCA', fingerprint, diasRestantes: null };
+        return {
+          status: 'SEM_LICENCA',
+          fingerprint: this.redactFingerprint(fingerprint),
+          diasRestantes: null,
+        };
       }
       let diasRestantes: number | null = null;
       const validade = licenca.expiraEm;
@@ -72,7 +80,7 @@ export class UtilitariosService {
       }
       return {
         status: licenca.statusLicenca || 'DESCONHECIDO',
-        fingerprint,
+        fingerprint: this.redactFingerprint(fingerprint),
         diasRestantes,
         unidadeId: licenca.unidadeId,
       };
@@ -86,14 +94,32 @@ export class UtilitariosService {
       const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
       const logPath = path.join(appData, '@solution-ticket', 'electron', 'logs', 'electron.log');
       if (!fs.existsSync(logPath)) {
-        return { caminho: logPath, existe: false, linhas: [] };
+        return { caminho: this.redactPath(logPath), existe: false, linhas: [] };
       }
       const raw = fs.readFileSync(logPath, 'utf-8');
       const linhas = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      const tail = linhas.slice(-Math.max(1, n));
-      return { caminho: logPath, existe: true, linhas: tail };
+      const tail = linhas.slice(-Math.max(1, n)).map((l) => this.redactLogLine(l));
+      return { caminho: this.redactPath(logPath), existe: true, linhas: tail };
     } catch (err: unknown) {
       return { caminho: null, existe: false, linhas: [], erro: errorMessage(err) };
     }
+  }
+
+  private redactFingerprint(value: string): string {
+    if (!value) return '';
+    return `${value.slice(0, 8)}...${value.slice(-4)}`;
+  }
+
+  private redactPath(value: string): string {
+    return value
+      .replace(
+        new RegExp(os.homedir().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'),
+        '%USERPROFILE%',
+      )
+      .replace(/[A-Z]:\\Users\\[^\\]+/gi, '%USERPROFILE%');
+  }
+
+  private redactLogLine(line: string): string {
+    return this.redactPath(line).replace(/(access_token=)[^&\s]+/gi, '$1[REDACTED]');
   }
 }

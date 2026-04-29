@@ -4,6 +4,9 @@ import { UtilitariosService } from './utilitarios.service';
 import { DocumentosService } from './documentos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Body, Post } from '@nestjs/common';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Utilitarios')
 @ApiBearerAuth()
@@ -16,12 +19,14 @@ export class UtilitariosController {
   ) {}
 
   @Get('diagnostico')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Informacoes de diagnostico do sistema, banco e licenca' })
   diagnostico() {
     return this.service.diagnostico();
   }
 
   @Get('logs/recentes')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Ultimas N linhas do log do Electron' })
   logs(@Query('n') n?: string) {
     const num = n ? parseInt(n, 10) : 50;
@@ -43,10 +48,11 @@ export class DocumentosController {
   }
 
   @Post('vincular-ticket')
-  @ApiOperation({ summary: 'Stub: vincula XML analisado a um ticket' })
+  @ApiOperation({ summary: 'Vincula documento fiscal analisado a um ticket' })
   vincularTicket(
     @Body() body: { ticketId?: string; numeroTicket?: string; chave: string; tipo: string },
+    @CurrentUser('tenantId') tenantId: string,
   ) {
-    return this.documentosService.vincularTicket(body);
+    return this.documentosService.vincularTicket(body, tenantId);
   }
 }

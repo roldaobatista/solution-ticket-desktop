@@ -122,6 +122,39 @@ export async function adicionarDescontoTicket(
   return res.data;
 }
 
+export async function finalizarPesagemOperacional(data: {
+  ticket_id?: string;
+  ticket?: LooseTicketPayload;
+  passagem: LoosePassagemPayload;
+  desconto?: {
+    tipo: string;
+    descricao?: string;
+    valor: number;
+    percentual?: number;
+    origem?: string;
+  };
+  fechar?: boolean;
+  idempotency_key?: string;
+}): Promise<TicketPesagem> {
+  if (USE_MOCK) {
+    const ticket = data.ticket_id
+      ? await mockApi.getTicketById(data.ticket_id)
+      : await mockApi.createTicket(data.ticket ?? {});
+    await mockApi.registrarPassagem(ticket.id, data.passagem);
+    if (data.fechar !== false) return mockApi.fecharTicket(ticket.id);
+    return ticket;
+  }
+  const res = await apiClient.post('/tickets/finalizar-pesagem', {
+    ticketId: data.ticket_id,
+    ticket: data.ticket ? mapCreateTicketPayload(data.ticket) : undefined,
+    passagem: mapPassagemPayload(data.passagem),
+    desconto: data.desconto,
+    fechar: data.fechar,
+    idempotencyKey: data.idempotency_key,
+  });
+  return mapTicket(res.data);
+}
+
 export async function getTicketsFechados(
   page?: number,
   limit?: number,

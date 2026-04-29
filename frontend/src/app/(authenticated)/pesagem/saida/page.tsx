@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +12,8 @@ import {
   getBalancas,
   getTickets,
   getTicketById,
-  registrarPassagem,
-  fecharTicket,
-  adicionarDescontoTicket,
+  getConfiguracao,
+  finalizarPesagemOperacional,
   capturarPeso,
 } from '@/lib/api';
 import { formatWeight } from '@/lib/utils';
@@ -31,6 +30,7 @@ export default function PesagemSaidaPage() {
   const [ticketId, setTicketId] = useState('');
   const [balancaId, setBalancaId] = useState('');
   const [pesagemManual, setPesagemManual] = useState(false);
+  const [motivoManual, setMotivoManual] = useState('');
   const [pesoAtual, setPesoAtual] = useState(0);
   const [estavel, setEstavel] = useState(false);
   const [descontos, setDescontos] = useState(0);
@@ -40,6 +40,10 @@ export default function PesagemSaidaPage() {
   const { data: balancas } = useQuery({
     queryKey: ['balancas'],
     queryFn: () => getBalancas(1, 100),
+  });
+  const { data: configPesagem } = useQuery({
+    queryKey: ['configuracao-pesagem-saida'],
+    queryFn: () => getConfiguracao(),
   });
   const { data: ticketsAbertos } = useQuery({
     queryKey: ['tickets-abertos', busca],
@@ -71,31 +75,45 @@ export default function PesagemSaidaPage() {
     [ticketsAbertos],
   );
 
+  useEffect(() => {
+    const padrao =
+      configPesagem?.balanca_padrao_saida ??
+      (configPesagem as { balancaPadraoSaida?: string } | undefined)?.balancaPadraoSaida;
+    if (!balancaId && padrao) setBalancaId(padrao);
+  }, [balancaId, configPesagem]);
+
   const pesoEntrada = ticket?.peso_bruto_apurado || 0;
   const pesoSaida = pesoAtual;
-  const pesoLiquido = Math.max(0, Math.abs(pesoEntrada - pesoSaida) - descontos);
+  const saidaMaiorQueEntrada = pesoEntrada > 0 && pesoSaida > pesoEntrada;
+  const pesoLiquido = Math.max(0, pesoEntrada - pesoSaida - descontos);
 
   const finalizarMutation = useMutation({
     mutationFn: async () => {
-      await registrarPassagem(ticketId, {
-        tipo_passagem: 'SAIDA',
-        direcao_operacional: 'SAIDA',
-        papel_calculo: 'TARA_OFICIAL',
-        condicao_veiculo: 'VAZIO',
-        peso_capturado: pesoSaida,
-        balanca_id: balancaId,
-        origem_leitura: pesagemManual ? 'MANUAL' : 'BALANCA',
-        indicador_estabilidade: estavel ? 1 : 0,
+      return finalizarPesagemOperacional({
+        ticket_id: ticketId,
+        passagem: {
+          tipo_passagem: 'SAIDA',
+          direcao_operacional: 'SAIDA',
+          papel_calculo: 'TARA_OFICIAL',
+          condicao_veiculo: 'VAZIO',
+          peso_capturado: pesoSaida,
+          balanca_id: balancaId,
+          origem_leitura: pesagemManual ? 'MANUAL' : 'BALANCA',
+          indicador_estabilidade: estavel ? 1 : 0,
+          observacao: pesagemManual ? motivoManual.trim() : undefined,
+        },
+        desconto:
+          descontos > 0
+            ? {
+                tipo: 'PESO',
+                descricao: 'Desconto informado na pesagem de saida',
+                valor: descontos,
+                origem: 'OPERADOR',
+              }
+            : undefined,
+        fechar: true,
+        idempotency_key: `saida:${ticketId}:${balancaId}:${pesoSaida}`,
       });
-      if (descontos > 0) {
-        await adicionarDescontoTicket(ticketId, {
-          tipo: 'PESO',
-          descricao: 'Desconto informado na pesagem de saida',
-          valor: descontos,
-          origem: 'OPERADOR',
-        });
-      }
-      return fecharTicket(ticketId);
     },
     onSuccess: () => {
       setPreviewTicketId(ticketId);
@@ -103,7 +121,13 @@ export default function PesagemSaidaPage() {
     onError: (e: unknown) => showToast(extractMessage(e, 'Erro ao finalizar pesagem'), 'error'),
   });
 
-  const canSave = !!ticketId && !!balancaId && pesoSaida > 0 && (pesagemManual || estavel);
+  const canSave =
+    !!ticketId &&
+    !!balancaId &&
+    pesoSaida > 0 &&
+    (pesagemManual || estavel) &&
+    !saidaMaiorQueEntrada &&
+    (!pesagemManual || motivoManual.trim().length >= 8);
   const handlePesoChange = useCallback(
     (p: number, e: boolean) => {
       if (!pesagemManual) {
@@ -136,9 +160,14 @@ export default function PesagemSaidaPage() {
     () => ({
       F1: capturarPesoAtual,
       F2: finalizarPesagem,
-      Escape: () => router.push('/tickets'),
+      Escape: () => {
+        if (ticketId || pesoSaida > 0) {
+          if (!window.confirm('Descartar a pesagem de saida em andamento?')) return;
+        }
+        router.push('/tickets');
+      },
     }),
-    [capturarPesoAtual, finalizarPesagem, router],
+    [capturarPesoAtual, finalizarPesagem, router, ticketId, pesoSaida],
   );
   useKeyboardShortcuts(shortcuts);
 
@@ -213,6 +242,13 @@ export default function PesagemSaidaPage() {
                   <strong>Peso de Entrada (bloqueado):</strong> {formatWeight(pesoEntrada)}
                 </div>
 
+                {saidaMaiorQueEntrada && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    Tara de saida maior que o peso de entrada. Confira o ticket e a leitura antes de
+                    finalizar.
+                  </div>
+                )}
+
                 <Input
                   label="Descontos (kg)"
                   type="number"
@@ -246,6 +282,12 @@ export default function PesagemSaidaPage() {
                     value={pesoAtual || ''}
                     onChange={(e) => setPesoAtual(Number(e.target.value) || 0)}
                   />
+                  <Input
+                    label="Motivo da pesagem manual *"
+                    value={motivoManual}
+                    onChange={(e) => setMotivoManual(e.target.value)}
+                    placeholder="Ex.: indicador sem comunicação, conferido pelo supervisor"
+                  />
                 </CardContent>
               </Card>
             )}
@@ -277,7 +319,15 @@ export default function PesagemSaidaPage() {
       )}
 
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-        <Button variant="secondary" onClick={() => router.push('/tickets')}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            if (ticketId || pesoSaida > 0) {
+              if (!window.confirm('Descartar a pesagem de saida em andamento?')) return;
+            }
+            router.push('/tickets');
+          }}
+        >
           <X className="w-4 h-4 mr-2" />
           Voltar
         </Button>

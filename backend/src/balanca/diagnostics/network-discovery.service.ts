@@ -10,7 +10,17 @@ import * as os from 'os';
  *  - 8000 (Saturno via USR-TCP232 customizado)
  *  - 10001 (Lantronix variável)
  */
+const PORTAS_PERMITIDAS = [23, 502, 4001, 8000, 9999, 10001];
 const PORTAS_PADRAO = [4001, 9999, 23, 8000, 10001];
+
+function isPrivatePrefix(prefix: string): boolean {
+  const parts = prefix.split('.').map(Number);
+  if (parts.length !== 3 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) {
+    return false;
+  }
+  const [a, b] = parts;
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
 
 export interface DispositivoEncontrado {
   ip: string;
@@ -35,12 +45,13 @@ export class NetworkDiscoveryService {
       paralelo?: number;
     } = {},
   ): Promise<DispositivoEncontrado[]> {
-    const portas = opts.portas ?? PORTAS_PADRAO;
+    const portas = (opts.portas ?? PORTAS_PADRAO).filter((p) => PORTAS_PERMITIDAS.includes(p));
+    if (portas.length === 0) return [];
     const timeout = opts.timeoutMs ?? 800;
     const paralelo = Math.min(opts.paralelo ?? 32, 64);
     const prefix = opts.cidr ?? this.detectarPrefixoLocal();
 
-    if (!prefix) {
+    if (!prefix || !isPrivatePrefix(prefix)) {
       this.logger.warn('Não foi possível detectar prefixo de rede local.');
       return [];
     }

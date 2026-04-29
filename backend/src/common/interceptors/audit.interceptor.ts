@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { concatMap } from 'rxjs/operators';
 import { AuditoriaService } from '../../auditoria/auditoria.service';
@@ -75,7 +81,15 @@ export class AuditInterceptor implements NestInterceptor {
       });
     } catch (err) {
       this.logger.error(`Falha ao registrar auditoria: ${(err as Error).message}`);
+      if (this.isCriticalMutation(rawUrl)) {
+        throw new InternalServerErrorException('Operacao critica abortada: auditoria indisponivel');
+      }
     }
+  }
+
+  private isCriticalMutation(url: string): boolean {
+    const entity = this.extractEntity(redactUrl(url));
+    return ['tickets', 'fatura', 'licenca', 'backup', 'configuracoes', 'balancas'].includes(entity);
   }
 
   private extractEntity(url: string): string {

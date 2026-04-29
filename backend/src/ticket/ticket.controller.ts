@@ -11,6 +11,7 @@ import { CancelarTicketDto } from './dto/cancelar-ticket.dto';
 import { AdicionarDescontoDto } from './dto/adicionar-desconto.dto';
 import { SolicitarManutencaoDto } from './dto/manutencao.dto';
 import { InvalidarPassagemDto } from './dto/invalidar-passagem.dto';
+import { FinalizarPesagemDto } from './dto/finalizar-pesagem.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -31,6 +32,17 @@ export class TicketController {
   @ApiOperation({ summary: 'Abrir novo ticket' })
   create(@Body() dto: CreateTicketDto, @CurrentUser('tenantId') tenantId: string) {
     return this.ticketService.create(dto, tenantId);
+  }
+
+  @Post('finalizar-pesagem')
+  @Roles(Permissao.TICKET_FECHAR)
+  @ApiOperation({ summary: 'Finalizar operação de pesagem em transação única/idempotente' })
+  finalizarPesagem(
+    @Body() dto: FinalizarPesagemDto,
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('id') usuarioId: string,
+  ) {
+    return this.ticketService.finalizarPesagem(dto, tenantId, usuarioId);
   }
 
   @Get()

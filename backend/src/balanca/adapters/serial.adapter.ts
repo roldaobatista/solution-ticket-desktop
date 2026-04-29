@@ -35,8 +35,11 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
     }
 
     const parityMap: Record<string, 'none' | 'even' | 'odd' | 'mark' | 'space'> = {
+      n: 'none',
       none: 'none',
+      e: 'even',
       even: 'even',
+      o: 'odd',
       odd: 'odd',
       mark: 'mark',
       space: 'space',

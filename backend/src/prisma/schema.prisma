@@ -415,7 +415,7 @@ model Balanca {
   modbusSigned     Boolean @default(false) @map("modbus_signed")
   modbusScale      Decimal? @map("modbus_scale")
   modbusOffset     Decimal? @map("modbus_offset")
-  statusOnline     Boolean @default(true) @map("status_online")
+  statusOnline     Boolean @default(false) @map("status_online")
   tipoEntradaSaida String? @map("tipo_entrada_saida")
   indicadorId      String? @map("indicador_id")
   ativo            Boolean @default(true) @map("ativo")

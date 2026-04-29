@@ -82,6 +82,12 @@ jobs:
               }
             }
             if (-not $ready) { throw "App empacotado nao respondeu /api/health" }
+            $live = Invoke-WebRequest -Uri "http://127.0.0.1:3001/api/health/live" -UseBasicParsing -TimeoutSec 5
+            if ($live.StatusCode -ne 200) { throw "Liveness dedicado falhou" }
+            $readyApi = Invoke-WebRequest -Uri "http://127.0.0.1:3001/api/health/ready" -UseBasicParsing -TimeoutSec 5
+            if ($readyApi.StatusCode -ne 200) { throw "Readiness dedicado falhou" }
+            $ui = Invoke-WebRequest -Uri "http://127.0.0.1:3000/login" -UseBasicParsing -TimeoutSec 10
+            if ($ui.Content -notmatch "<html") { throw "Frontend empacotado nao renderizou HTML inicial" }
           } finally {
             if ($proc -and -not $proc.HasExited) {
               Stop-Process -Id $proc.Id -Force

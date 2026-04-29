@@ -34,11 +34,17 @@ export class ModbusAdapter extends EventEmitter implements IBalancaAdapter {
 
     this.client = new ModbusRTU();
     const readTimeout = this.config.readTimeoutMs ?? 1000;
-    const parity = (this.config.parity ?? 'none').toLowerCase();
-    const parityValido: 'none' | 'even' | 'odd' | 'mark' | 'space' =
-      parity === 'even' || parity === 'odd' || parity === 'mark' || parity === 'space'
-        ? parity
-        : 'none';
+    const parityMap: Record<string, 'none' | 'even' | 'odd' | 'mark' | 'space'> = {
+      n: 'none',
+      none: 'none',
+      e: 'even',
+      even: 'even',
+      o: 'odd',
+      odd: 'odd',
+      mark: 'mark',
+      space: 'space',
+    };
+    const parityValido = parityMap[(this.config.parity ?? 'none').toLowerCase()] ?? 'none';
 
     if (this.config.enderecoIp && this.config.portaTcp) {
       await this.client.connectTCP(this.config.enderecoIp, { port: this.config.portaTcp });

@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class AtivarLicencaDto {
   @ApiProperty({ description: 'Id da unidade que recebera a licenca' })
@@ -10,11 +10,6 @@ export class AtivarLicencaDto {
   @IsString()
   @IsNotEmpty()
   chave!: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
-  usuarioId?: string;
 }
 
 export class IniciarTrialDto {

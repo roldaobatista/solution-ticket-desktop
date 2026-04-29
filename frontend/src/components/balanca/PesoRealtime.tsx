@@ -36,9 +36,19 @@ export function PesoRealtime({
     onPesoChangeRef.current = onPesoChange;
   }, [onPesoChange]);
 
+  const invalidarLeitura = () => {
+    setLeitura(null);
+    setSecondsAgo(0);
+    onPesoChangeRef.current?.(0, false);
+  };
+
   // SSE connection (real mode) or polling simulation (mock mode)
   useEffect(() => {
-    if (!balancaId) return;
+    invalidarLeitura();
+    if (!balancaId) {
+      setConn('OFFLINE');
+      return;
+    }
 
     if (USE_MOCK) {
       // Simula leituras via polling
@@ -85,6 +95,7 @@ export function PesoRealtime({
           if (cancelled) return;
           setConn('ERRO');
           setErro('Falha na conexao SSE');
+          invalidarLeitura();
           es.close();
           esRef.current = null;
           // Reconnect com backoff simples
@@ -95,6 +106,7 @@ export function PesoRealtime({
       } catch (e: unknown) {
         setConn('ERRO');
         setErro(extractMessage(e, 'Erro ao conectar'));
+        invalidarLeitura();
       }
     };
 
@@ -121,10 +133,14 @@ export function PesoRealtime({
       try {
         const st = await getBalancaStatus(balancaId);
         if (cancelled) return;
-        if (!st.online) setConn('OFFLINE');
+        if (!st.online) {
+          setConn('OFFLINE');
+          invalidarLeitura();
+        }
         if (st.erro) {
           setConn('ERRO');
           setErro(st.erro);
+          invalidarLeitura();
         }
       } catch {
         /* ignora */
@@ -144,6 +160,10 @@ export function PesoRealtime({
     const update = () => {
       const diff = Math.floor((Date.now() - new Date(leitura.timestamp).getTime()) / 1000);
       setSecondsAgo(diff);
+      if (diff > 5) {
+        setLeitura((current) => (current === leitura ? { ...leitura, estavel: false } : current));
+        onPesoChangeRef.current?.(leitura.peso, false);
+      }
     };
     update();
     const iv = setInterval(update, 1000);

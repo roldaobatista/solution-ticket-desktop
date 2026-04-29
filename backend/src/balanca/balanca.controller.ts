@@ -122,14 +122,14 @@ export class BalancaController {
   }
 
   @Post(':id/capturar')
-  @Roles(Permissao.CONFIG_GERENCIAR)
+  @Roles(Permissao.TICKET_CRIAR)
   @ApiOperation({ summary: 'Captura peso estável (aguarda até 3s)' })
   async capturar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
     const leitura = await this.connService.capturar(id, tenantId, 3000);
     if (!leitura) {
       throw new HttpException('Sem leitura disponível', HttpStatus.SERVICE_UNAVAILABLE);
     }
-    return { leitura, estavel: leitura.estavel };
+    return leitura;
   }
 
   @Get(':id/status')

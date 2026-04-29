@@ -136,10 +136,12 @@ describe('RelatoriosService', () => {
       await service.passagensPorBalanca('2026-04-01', '2026-04-30', 'tenant-1', 'u1');
       expect(prisma.passagemPesagem.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ balanca: { unidadeId: 'u1' } }),
+          where: expect.objectContaining({ balanca: { unidadeId: 'u1', tenantId: 'tenant-1' } }),
         }),
       );
-      expect(prisma.balanca.findMany).toHaveBeenCalledWith({ where: { unidadeId: 'u1' } });
+      expect(prisma.balanca.findMany).toHaveBeenCalledWith({
+        where: { unidadeId: 'u1', tenantId: 'tenant-1' },
+      });
     });
   });
 });

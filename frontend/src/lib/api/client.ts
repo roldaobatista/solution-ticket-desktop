@@ -20,6 +20,17 @@ function generateTraceId(): string {
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_ENABLE_LOCAL_MOCKS === 'true';
 
+let accessTokenInMemory = '';
+export function setAccessToken(token: string) {
+  accessTokenInMemory = token;
+}
+export function getAccessToken(): string {
+  return accessTokenInMemory;
+}
+export function clearAccessToken() {
+  accessTokenInMemory = '';
+}
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
   timeout: 30000,
@@ -28,11 +39,8 @@ export const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    if (typeof window !== 'undefined') {
-      // S4: token em sessionStorage (renovado por aba/janela) reduz superfície XSS
-      const token = sessionStorage.getItem('access_token');
-      if (token) config.headers.Authorization = `Bearer ${token}`;
-    }
+    const token = getAccessToken();
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     config.headers.traceparent = generateTraceId();
     return config;
   },
@@ -51,7 +59,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('access_token');
+        clearAccessToken();
         window.location.href = '/login';
       }
     }

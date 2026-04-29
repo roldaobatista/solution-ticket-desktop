@@ -1,7 +1,17 @@
-import { IsOptional, IsString, IsInt, IsBoolean, IsIn, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsBoolean, IsIn, IsNumber, IsUUID } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateBalancaDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  empresaId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  unidadeId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -77,6 +87,11 @@ export class UpdateBalancaDto {
   @IsString()
   tipoEntradaSaida?: string;
 
+  @ApiPropertyOptional({ description: 'ID do IndicadorPesagem (modelo de hardware)' })
+  @IsOptional()
+  @IsUUID()
+  indicadorId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -121,4 +136,9 @@ export class UpdateBalancaDto {
   @IsOptional()
   @IsNumber()
   modbusOffset?: number;
+
+  @ApiPropertyOptional({ description: 'Override de fator/divisor do parser nesta balanca' })
+  @IsOptional()
+  @IsInt()
+  ovrFator?: number;
 }

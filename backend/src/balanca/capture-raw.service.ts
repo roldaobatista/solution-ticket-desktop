@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { Socket } from 'net';
+import { isIP, Socket } from 'net';
 import type { SerialConfig } from './presets';
 
 // Onda 3.2: lazy require de serialport — antes era top-level e quebrava
@@ -33,6 +33,13 @@ function getSerialPortCtor(): SerialPortCtor {
 const PORT_OPEN_TIMEOUT_MS = 5000;
 
 const PARITY_MAP = { N: 'none', E: 'even', O: 'odd' } as const;
+const PORTAS_TCP_PERMITIDAS = new Set([23, 502, 4001, 8000, 9999, 10001]);
+
+function isPrivateIpv4(host: string): boolean {
+  if (isIP(host) !== 4) return false;
+  const [a, b] = host.split('.').map(Number);
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
 
 export interface CaptureRequest {
   protocolo: 'serial' | 'tcp';
@@ -138,6 +145,12 @@ export class CaptureRawService {
     if (!m) throw new BadRequestException('TCP: use host:porta (ex: 192.168.1.50:4001)');
     const [, host, portaStr] = m;
     const porta = Number(portaStr);
+    if (!isPrivateIpv4(host)) {
+      throw new BadRequestException('TCP: host deve ser IPv4 privado da rede da unidade');
+    }
+    if (!PORTAS_TCP_PERMITIDAS.has(porta)) {
+      throw new BadRequestException(`TCP: porta ${porta} nao permitida para captura de balanca`);
+    }
 
     return new Promise<CaptureResponse>((resolve, reject) => {
       const chunks: Buffer[] = [];

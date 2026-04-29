@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { XMLParser } from 'fast-xml-parser';
 import { errorMessage } from '../common/error-message.util';
+import { PrismaService } from '../prisma/prisma.service';
 
 type XmlNode = string | number | boolean | null | XmlNode[] | { [k: string]: XmlNode };
 type XmlObject = { [k: string]: XmlNode };
@@ -15,6 +16,7 @@ function asString(v: unknown): string | null {
 @Injectable()
 export class DocumentosService {
   private readonly logger = new Logger(DocumentosService.name);
+  constructor(private readonly prisma: PrismaService) {}
 
   parseXml(xml: string) {
     if (!xml || typeof xml !== 'string' || xml.trim().length === 0) {
@@ -129,20 +131,38 @@ export class DocumentosService {
     return Number.isFinite(n) ? n : null;
   }
 
-  async vincularTicket(body: {
-    ticketId?: string;
-    numeroTicket?: string;
-    chave: string;
-    tipo: string;
-  }) {
-    // Stub: endpoint de vinculacao pode evoluir conforme regra de negocio.
-    this.logger.log(
-      `Stub vincular: ticket=${body?.ticketId || body?.numeroTicket} chave=${body?.chave}`,
-    );
-    return {
-      ok: true,
-      mensagem: 'Vinculacao registrada (stub). Implementar persistencia conforme regra definitiva.',
-      recebido: body,
-    };
+  async vincularTicket(
+    body: {
+      ticketId?: string;
+      numeroTicket?: string;
+      chave: string;
+      tipo: string;
+    },
+    tenantId: string,
+  ) {
+    if (!body.chave || !body.tipo) throw new BadRequestException('tipo e chave sao obrigatorios');
+    const ticket = await this.prisma.ticketPesagem.findFirst({
+      where: body.ticketId
+        ? { id: body.ticketId, tenantId }
+        : { numero: body.numeroTicket, tenantId },
+      select: { id: true },
+    });
+    if (!ticket) throw new BadRequestException('Ticket nao encontrado para o tenant autenticado');
+
+    const existente = await this.prisma.documentoPesagem.findFirst({
+      where: { ticketId: ticket.id, tipo: body.tipo, numero: body.chave },
+    });
+    if (existente) return { ok: true, documento: existente, idempotente: true };
+
+    const documento = await this.prisma.documentoPesagem.create({
+      data: {
+        ticketId: ticket.id,
+        tipo: body.tipo,
+        numero: body.chave,
+        observacao: `Vinculo fiscal ${body.tipo} chave ${body.chave}`,
+      },
+    });
+    this.logger.log(`Documento fiscal vinculado: ticket=${ticket.id} chave=${body.chave}`);
+    return { ok: true, documento, idempotente: false };
   }
 }

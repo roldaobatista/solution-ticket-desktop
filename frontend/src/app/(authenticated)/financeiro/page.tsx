@@ -99,9 +99,9 @@ function FaturasTab() {
               <div className="flex items-center gap-2 mt-1">
                 <Badge
                   variant={
-                    selected.status === 'PAGA'
+                    selected.status === 'BAIXADA'
                       ? 'success'
-                      : selected.status === 'PARCIALMENTE_PAGA'
+                      : selected.status === 'PARCIAL'
                         ? 'warning'
                         : selected.status === 'CANCELADA'
                           ? 'danger'
@@ -186,8 +186,8 @@ function FaturasTab() {
               placeholder="Todos"
               options={[
                 { value: 'ABERTA', label: 'Aberta' },
-                { value: 'PARCIALMENTE_PAGA', label: 'Parcial' },
-                { value: 'PAGA', label: 'Paga' },
+                { value: 'PARCIAL', label: 'Parcial' },
+                { value: 'BAIXADA', label: 'Baixada' },
                 { value: 'CANCELADA', label: 'Cancelada' },
               ]}
               value={statusFilter}
@@ -266,9 +266,9 @@ function FaturasTab() {
                     <TableCell>
                       <Badge
                         variant={
-                          f.status === 'PAGA'
+                          f.status === 'BAIXADA'
                             ? 'success'
-                            : f.status === 'PARCIALMENTE_PAGA'
+                            : f.status === 'PARCIAL'
                               ? 'warning'
                               : f.status === 'CANCELADA'
                                 ? 'danger'

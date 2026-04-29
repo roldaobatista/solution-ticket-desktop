@@ -11,6 +11,7 @@ import { AuditoriaService } from '../auditoria/auditoria.service';
 
 const DAILY_RETENTION = 30;
 const MONTHLY_RETENTION = 12;
+const HOURLY_RETENTION = 48;
 
 export interface BackupInfo {
   filename: string;
@@ -18,7 +19,7 @@ export interface BackupInfo {
   sizeBytes: number;
   sha256: string;
   createdAt: string;
-  kind: 'daily' | 'monthly' | 'manual';
+  kind: 'hourly' | 'daily' | 'monthly' | 'manual';
 }
 
 @Injectable()
@@ -43,9 +44,29 @@ export class BackupService {
     return path.join(this.backupsDir, 'monthly');
   }
 
+  private get hourlyDir(): string {
+    return path.join(this.backupsDir, 'hourly');
+  }
+
   private ensureDirs() {
+    fs.mkdirSync(this.hourlyDir, { recursive: true });
     fs.mkdirSync(this.dailyDir, { recursive: true });
     fs.mkdirSync(this.monthlyDir, { recursive: true });
+  }
+
+  /** Cron horário em produção para reduzir RPO quando o posto fecha antes das 23h. */
+  @Cron('0 * * * *', { name: 'hourly-backup' })
+  async hourlyBackup() {
+    if (process.env.NODE_ENV !== 'production') return;
+    try {
+      const info = await this.create('hourly');
+      this.logger.log(`Backup horário criado: ${info.filename} (${info.sizeBytes} bytes)`);
+      this.applyRetention(this.hourlyDir, HOURLY_RETENTION);
+    } catch (err) {
+      const msg = (err as Error).message;
+      this.logger.error(`Backup horário falhou: ${msg}`);
+      await this.notificarFalhaBackup(msg);
+    }
   }
 
   /** Cron diário às 23:00 — habilitado apenas em produção. */
@@ -107,12 +128,24 @@ export class BackupService {
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `solution-ticket-${kind}-${ts}.db`;
     const dir =
-      kind === 'daily' ? this.dailyDir : kind === 'monthly' ? this.monthlyDir : this.backupsDir;
+      kind === 'daily'
+        ? this.dailyDir
+        : kind === 'monthly'
+          ? this.monthlyDir
+          : kind === 'hourly'
+            ? this.hourlyDir
+            : this.backupsDir;
     const dest = path.join(dir, filename);
 
     fs.copyFileSync(dbPath, dest);
+    const assetsDir = `${dest}.assets`;
+    const manifest = await this.copyEvidenceAssets(assetsDir);
     const sha256 = await this.hashFile(dest);
     fs.writeFileSync(`${dest}.sha256`, sha256);
+    fs.writeFileSync(
+      `${dest}.manifest.json`,
+      JSON.stringify({ database: filename, assets: manifest }, null, 2),
+    );
 
     const stat = fs.statSync(dest);
     return {
@@ -130,6 +163,7 @@ export class BackupService {
     this.ensureDirs();
     const result: BackupInfo[] = [];
     const dirs: Array<[string, BackupInfo['kind']]> = [
+      [this.hourlyDir, 'hourly'],
       [this.dailyDir, 'daily'],
       [this.monthlyDir, 'monthly'],
       [this.backupsDir, 'manual'],
@@ -223,6 +257,7 @@ export class BackupService {
     const dbPath = getDatabasePath();
     this.removeSqliteSidecars(dbPath);
     fs.copyFileSync(target.path, dbPath);
+    this.restoreEvidenceAssets(`${target.path}.assets`);
     this.removeSqliteSidecars(dbPath);
     this.logger.warn(`Restore concluído de ${filename}. Encerrando processo para reinicio limpo.`);
     setTimeout(() => process.exit(99), 250);
@@ -278,6 +313,56 @@ export class BackupService {
     });
   }
 
+  private evidenceRoots(): Array<{ name: string; dir: string }> {
+    const appdata =
+      process.env.APPDATA ||
+      path.join(process.env.USERPROFILE || process.env.HOME || '.', 'AppData', 'Roaming');
+    return [
+      { name: 'fotos', dir: path.join(getUserDataDir(), 'fotos') },
+      { name: 'assinaturas', dir: path.join(getUserDataDir(), 'assinaturas') },
+      { name: 'documentos', dir: path.join(appdata, 'SolutionTicket', 'docs') },
+    ];
+  }
+
+  private async copyEvidenceAssets(destRoot: string) {
+    const manifest: Array<{ name: string; files: number }> = [];
+    for (const root of this.evidenceRoots()) {
+      if (!fs.existsSync(root.dir)) {
+        manifest.push({ name: root.name, files: 0 });
+        continue;
+      }
+      const dest = path.join(destRoot, root.name);
+      const files = this.copyDirRecursive(root.dir, dest);
+      manifest.push({ name: root.name, files });
+    }
+    return manifest;
+  }
+
+  private restoreEvidenceAssets(srcRoot: string) {
+    if (!fs.existsSync(srcRoot)) return;
+    for (const root of this.evidenceRoots()) {
+      const src = path.join(srcRoot, root.name);
+      if (!fs.existsSync(src)) continue;
+      this.copyDirRecursive(src, root.dir);
+    }
+  }
+
+  private copyDirRecursive(src: string, dest: string): number {
+    fs.mkdirSync(dest, { recursive: true });
+    let count = 0;
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const from = path.join(src, entry.name);
+      const to = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        count += this.copyDirRecursive(from, to);
+      } else if (entry.isFile()) {
+        fs.copyFileSync(from, to);
+        count += 1;
+      }
+    }
+    return count;
+  }
+
   private removeSqliteSidecars(dbPath: string): void {
     for (const suffix of ['-wal', '-shm']) {
       const sidecar = `${dbPath}${suffix}`;
@@ -301,6 +386,8 @@ export class BackupService {
       try {
         fs.unlinkSync(full);
         if (fs.existsSync(`${full}.sha256`)) fs.unlinkSync(`${full}.sha256`);
+        if (fs.existsSync(`${full}.manifest.json`)) fs.unlinkSync(`${full}.manifest.json`);
+        fs.rmSync(`${full}.assets`, { recursive: true, force: true });
         this.logger.log(`Backup antigo removido: ${f}`);
       } catch (err) {
         this.logger.warn(`Falha removendo ${f}: ${(err as Error).message}`);
