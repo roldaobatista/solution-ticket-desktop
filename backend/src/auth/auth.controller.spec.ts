@@ -88,7 +88,7 @@ describe('AuthController', () => {
     it('deve solicitar reset de senha', async () => {
       authService.requestPasswordReset.mockResolvedValue({ ok: true } as any);
       const result = await controller.requestPasswordReset({ email: 'a@b.com' });
-      expect(authService.requestPasswordReset).toHaveBeenCalledWith('a@b.com');
+      expect(authService.requestPasswordReset).toHaveBeenCalledWith('a@b.com', undefined);
       expect(result).toEqual({ ok: true });
     });
   });

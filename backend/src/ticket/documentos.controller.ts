@@ -40,7 +40,15 @@ export class DocumentosController {
   @Post(':ticketId/documentos')
   @ApiOperation({ summary: 'Upload de documento fiscal do ticket' })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = new Set(['application/pdf', 'image/png', 'image/jpeg']);
+        cb(null, allowed.has(file.mimetype));
+      },
+    }),
+  )
   upload(
     @Param('ticketId') ticketId: string,
     @UploadedFile() file: Express.Multer.File,

@@ -9,13 +9,12 @@ import { BaseFilterDto } from '../dto/base-filter.dto';
 export class TransportadorasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateTransportadoraDto) {
-    return this.prisma.transportadora.create({ data: { ...dto } });
+  async create(dto: CreateTransportadoraDto, tenantId: string) {
+    return this.prisma.transportadora.create({ data: { ...dto, tenantId } });
   }
 
-  async findAll(filter: BaseFilterDto) {
-    const where: Prisma.TransportadoraWhereInput = {};
-    if (filter.tenantId) where.tenantId = filter.tenantId;
+  async findAll(filter: BaseFilterDto, tenantId: string) {
+    const where: Prisma.TransportadoraWhereInput = { tenantId };
     if (filter.search) where.nome = { contains: filter.search };
     where.ativo = filter.ativo !== undefined ? filter.ativo : true;
 
@@ -31,19 +30,19 @@ export class TransportadorasService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
-    const entity = await this.prisma.transportadora.findUnique({ where: { id } });
+  async findOne(id: string, tenantId: string) {
+    const entity = await this.prisma.transportadora.findUnique({ where: { id, tenantId } });
     if (!entity) throw new NotFoundException('Transportadora não encontrada');
     return entity;
   }
 
-  async update(id: string, dto: UpdateTransportadoraDto) {
-    await this.findOne(id);
-    return this.prisma.transportadora.update({ where: { id }, data: { ...dto } });
+  async update(id: string, dto: UpdateTransportadoraDto, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.transportadora.update({ where: { id, tenantId }, data: { ...dto } });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.transportadora.update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.transportadora.update({ where: { id, tenantId }, data: { ativo: false } });
   }
 }

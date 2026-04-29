@@ -114,7 +114,7 @@ describe('RomaneioService', () => {
 
   describe('vincularTickets', () => {
     beforeEach(() => {
-      prisma.romaneio.findUnique.mockResolvedValue({ id: 'r1' });
+      prisma.romaneio.findUnique.mockResolvedValue({ id: 'r1', clienteId: 'c' });
       prisma.itemRomaneio.create.mockResolvedValue({});
       prisma.ticketPesagem.update.mockResolvedValue({});
       prisma.romaneio.update.mockResolvedValue({});
@@ -124,7 +124,7 @@ describe('RomaneioService', () => {
       prisma.ticketPesagem.findMany.mockResolvedValue([
         { id: 't1', numero: 'TKT-1', pesoLiquidoFinal: null, statusComercial: 'NAO_ROMANEADO' },
       ]);
-      await expect(service.vincularTickets('r1', ['t1'])).rejects.toThrow(BadRequestException);
+      await expect(service.vincularTickets('r1', ['t1'], 't')).rejects.toThrow(BadRequestException);
     });
 
     it('lanca BadRequest quando ticket ja romaneado', async () => {
@@ -136,7 +136,7 @@ describe('RomaneioService', () => {
           statusComercial: StatusComercial.ROMANEADO,
         },
       ]);
-      await expect(service.vincularTickets('r1', ['t1'])).rejects.toThrow(BadRequestException);
+      await expect(service.vincularTickets('r1', ['t1'], 't')).rejects.toThrow(BadRequestException);
     });
 
     it('soma pesoTotal e atualiza romaneio dentro de transacao', async () => {
@@ -145,9 +145,9 @@ describe('RomaneioService', () => {
         { id: 't2', numero: 'TKT-2', pesoLiquidoFinal: 2500, statusComercial: 'NAO_ROMANEADO' },
       ]);
       prisma.romaneio.findUnique
-        .mockResolvedValueOnce({ id: 'r1' })
+        .mockResolvedValueOnce({ id: 'r1', clienteId: 'c' })
         .mockResolvedValue({ id: 'r1', pesoTotal: 3500 });
-      await service.vincularTickets('r1', ['t1', 't2']);
+      await service.vincularTickets('r1', ['t1', 't2'], 't');
       expect(prisma.itemRomaneio.createMany).toHaveBeenCalledWith({
         data: [
           { romaneioId: 'r1', ticketId: 't1', sequencia: 1, peso: 1000 },
@@ -155,11 +155,11 @@ describe('RomaneioService', () => {
         ],
       });
       expect(prisma.ticketPesagem.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: ['t1', 't2'] } },
+        where: { id: { in: ['t1', 't2'] }, tenantId: 't' },
         data: { statusComercial: StatusComercial.ROMANEADO },
       });
       expect(prisma.romaneio.update).toHaveBeenCalledWith({
-        where: { id: 'r1' },
+        where: { id: 'r1', tenantId: 't' },
         data: { pesoTotal: 3500 },
       });
       expect(prisma.$transaction).toHaveBeenCalled();

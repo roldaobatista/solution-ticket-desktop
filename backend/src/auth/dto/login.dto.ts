@@ -1,5 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@solutionticket.com' })
@@ -11,4 +11,11 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   senha!: string;
+
+  @ApiPropertyOptional({
+    description: 'Obrigatorio quando o mesmo e-mail existe em mais de um tenant',
+  })
+  @IsOptional()
+  @IsUUID()
+  tenantId?: string;
 }

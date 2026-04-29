@@ -12,6 +12,7 @@ import {
   UseGuards,
   HttpException,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Observable } from 'rxjs';
@@ -27,6 +28,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Permissao } from '../constants/permissoes';
+import { Public } from '../common/decorators/public.decorator';
+import { AuthService } from '../auth/auth.service';
 
 @ApiTags('Balanças')
 @ApiBearerAuth()
@@ -38,6 +41,7 @@ export class BalancaController {
     private readonly connService: BalancaConnectionService,
     private readonly realtimeService: BalancaRealtimeService,
     private readonly calibracaoService: CalibracaoService,
+    private readonly authService: AuthService,
   ) {}
 
   @Post()
@@ -106,15 +110,19 @@ export class BalancaController {
    * Evite passar tokens em query strings — URLs podem ser logadas por proxies/navegadores.
    */
   @Sse(':id/stream')
+  @Public()
   @ApiOperation({ summary: 'Stream SSE de peso em tempo real' })
-  stream(
+  async stream(
     @Param('id') id: string,
-    @CurrentUser('tenantId') tenantId: string,
-  ): Observable<MessageEvent> {
+    @Query('access_token') token?: string,
+  ): Promise<Observable<MessageEvent>> {
+    if (!token) throw new UnauthorizedException('Token SSE obrigatorio');
+    const { tenantId } = await this.authService.validateSseToken(token);
     return this.realtimeService.stream(id, tenantId) as unknown as Observable<MessageEvent>;
   }
 
   @Post(':id/capturar')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Captura peso estável (aguarda até 3s)' })
   async capturar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
     const leitura = await this.connService.capturar(id, tenantId, 3000);
@@ -131,12 +139,14 @@ export class BalancaController {
   }
 
   @Post(':id/testar')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Tenta abrir a conexão por 2s' })
   testar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
     return this.connService.testar(id, tenantId, 2000);
   }
 
   @Post(':id/conectar')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Inicia conexão contínua (daemon)' })
   async conectar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
     const status = await this.connService.conectar(id, tenantId);
@@ -144,6 +154,7 @@ export class BalancaController {
   }
 
   @Post(':id/desconectar')
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Encerra a conexão contínua' })
   async desconectar(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
     await this.balancaService.findOne(id, tenantId);

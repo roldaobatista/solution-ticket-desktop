@@ -150,7 +150,7 @@ jobs:
       - run: pnpm build:frontend
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3001/api
-          NEXT_PUBLIC_USE_MOCK: 'false'
+          NEXT_PUBLIC_ENABLE_LOCAL_MOCKS: 'false'
       - uses: actions/upload-artifact@v4
         with:
           name: build-outputs
@@ -175,7 +175,7 @@ jobs:
       - run: pnpm --filter ./frontend exec playwright install --with-deps chromium
       - run: pnpm --filter ./frontend test:e2e
         env:
-          NEXT_PUBLIC_USE_MOCK: 'true'
+          NEXT_PUBLIC_ENABLE_LOCAL_MOCKS: 'true'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -224,7 +224,7 @@ jobs:
       - run: pnpm --filter ./frontend test:e2e
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3001/api
-          NEXT_PUBLIC_USE_MOCK: 'false'
+          NEXT_PUBLIC_ENABLE_LOCAL_MOCKS: 'false'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

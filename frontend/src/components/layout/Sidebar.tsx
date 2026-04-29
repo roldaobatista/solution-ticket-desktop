@@ -36,7 +36,6 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         href: '/pesagem',
         icon: <Scale className="w-5 h-5" />,
         subItems: [
-          { label: 'Pesagem (classica)', href: '/pesagem' },
           { label: 'Pesagem Entrada', href: '/pesagem/entrada' },
           { label: 'Pesagem Saida', href: '/pesagem/saida' },
           { label: 'Tickets', href: '/tickets' },

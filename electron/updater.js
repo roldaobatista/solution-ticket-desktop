@@ -11,6 +11,7 @@
  */
 
 const { dialog, app } = require('electron');
+const crypto = require('crypto');
 const log = require('electron-log');
 
 let autoUpdater;
@@ -18,6 +19,26 @@ try {
   ({ autoUpdater } = require('electron-updater'));
 } catch (err) {
   log.warn('electron-updater não instalado. Auto-update desativado.');
+}
+
+function parseRolloutPercent(value) {
+  if (value === undefined || value === null || value === '') return 100;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 100;
+  return Math.max(0, Math.min(100, parsed));
+}
+
+function rolloutBucket(seed) {
+  const hex = crypto.createHash('sha256').update(seed).digest('hex').slice(0, 8);
+  return parseInt(hex, 16) % 100;
+}
+
+function isAllowedByRollout() {
+  const percent = parseRolloutPercent(process.env.UPDATE_ROLLOUT_PERCENT);
+  if (percent >= 100) return true;
+  if (percent <= 0) return false;
+  const seed = `${app.getPath('userData')}|${app.getVersion()}`;
+  return rolloutBucket(seed) < percent;
 }
 
 function setupAutoUpdate(mainWindow) {
@@ -30,10 +51,19 @@ function setupAutoUpdate(mainWindow) {
     log.info('Auto-update ignorado em desenvolvimento.');
     return;
   }
+  if (!isAllowedByRollout()) {
+    log.info(`Auto-update fora do rollout atual (${process.env.UPDATE_ROLLOUT_PERCENT}%).`);
+    return;
+  }
 
   autoUpdater.logger = log;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = process.env.UPDATE_CHANNEL === 'canary';
+  autoUpdater.channel = process.env.UPDATE_CHANNEL || 'latest';
+  if (process.env.UPDATE_FEED_URL) {
+    autoUpdater.setFeedURL({ provider: 'generic', url: process.env.UPDATE_FEED_URL });
+  }
 
   autoUpdater.on('update-available', async (info) => {
     log.info(`Update disponível: ${info.version}`);

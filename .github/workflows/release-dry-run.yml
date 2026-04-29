@@ -32,7 +32,7 @@ jobs:
         run: pnpm build:all
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3001/api
-          NEXT_PUBLIC_USE_MOCK: 'false'
+          NEXT_PUBLIC_ENABLE_LOCAL_MOCKS: 'false'
 
       - name: Build installer (dry-run)
         run: pnpm dist:win

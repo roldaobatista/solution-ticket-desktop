@@ -44,11 +44,8 @@ export async function excluirFoto(id: string): Promise<{ ok: true }> {
   return res.data;
 }
 
-export function getFotoRawUrl(id: string): string {
-  // Stream binario; <img src> nao envia headers customizados, entao
-  // anexa token via query (JwtStrategy aceita ?access_token=).
-  if (typeof window === 'undefined') return '';
-  const base = apiClient.defaults.baseURL || '';
-  const token = sessionStorage.getItem('access_token') ?? '';
-  return `${base}/camera/foto/${id}/raw${token ? `?access_token=${encodeURIComponent(token)}` : ''}`;
+export async function getFotoRawObjectUrl(id: string): Promise<string> {
+  if (USE_MOCK) return '';
+  const res = await apiClient.get(`/camera/foto/${id}/raw`, { responseType: 'blob' });
+  return URL.createObjectURL(res.data);
 }

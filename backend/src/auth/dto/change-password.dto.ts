@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class ChangePasswordDto {
   @ApiProperty()
@@ -22,6 +30,14 @@ export class RequestPasswordResetDto {
   @IsNotEmpty()
   @MaxLength(200)
   email!: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Obrigatorio quando o e-mail existe em mais de um tenant',
+  })
+  @IsOptional()
+  @IsUUID()
+  tenantId?: string;
 }
 
 export class ResetPasswordDto {

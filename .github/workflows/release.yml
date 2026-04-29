@@ -24,6 +24,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Supply-chain audit
+        run: pnpm audit --audit-level high
+
+      - name: Generate SBOM
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          pnpm dlx @cyclonedx/cyclonedx-npm --output-file release/sbom.cdx.json
+
       - name: Generate Prisma client
         run: pnpm db:generate
 
@@ -31,13 +40,30 @@ jobs:
         run: pnpm build:all
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3001/api
-          NEXT_PUBLIC_USE_MOCK: 'false'
+          NEXT_PUBLIC_ENABLE_LOCAL_MOCKS: 'false'
 
       - name: Build installer
         run: pnpm dist:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_RELEASE: 'true'
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Verify Authenticode signature
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem release -Filter *.exe
+          if (-not $files) { throw "Nenhum instalador .exe gerado" }
+          foreach ($file in $files) {
+            $sig = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            if ($sig.Status -ne 'Valid') {
+              throw "Assinatura invalida em $($file.Name): $($sig.Status)"
+            }
+            Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName |
+              ForEach-Object { "$($_.Hash)  $($file.Name)" } |
+              Out-File -Append -Encoding ascii release/SHA256SUMS.txt
+          }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -53,6 +79,8 @@ jobs:
             release/*.exe
             release/*.yml
             release/*.blockmap
+            release/SHA256SUMS.txt
+            release/sbom.cdx.json
           draft: true
           generate_release_notes: true
         env:

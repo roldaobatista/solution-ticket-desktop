@@ -1,5 +1,7 @@
 # Release & auto-update
 
+> Owner: Eng | Última revisão: 2026-04-27 | Versão: 5
+
 ## Versionamento
 
 - Sigamos **semver** rigoroso: `MAJOR.MINOR.PATCH`.
@@ -81,10 +83,68 @@ Antes do primeiro release real:
 2. Para repos privados, configurar `GH_TOKEN` no env do runner.
 3. Releases públicos são lidos sem token; auto-update funciona out-of-the-box.
 
+## Canary release por % de instalações
+
+> Auditoria Rodada 5 (Agente 3): estratégia de release ambígua — sem canary/feature flag/kill-switch. Esta seção fecha o gap.
+
+Cada release nova segue ramp progressivo via `latest.yml` rotacionado:
+
+| Fase             | % de instalações | Janela           | Critério de avanço                                             |
+| ---------------- | ---------------- | ---------------- | -------------------------------------------------------------- |
+| **Canary**       | 10 %             | 0 → 24 h         | nenhum P0; taxa de erro de auto-update < 1 %; SLOs respeitados |
+| **Half-rollout** | 50 %             | 24 → 48 h        | idem + feedback do suporte clean                               |
+| **Full**         | 100 %            | a partir de 48 h | sem regressão observada                                        |
+
+### Como o ramp é feito
+
+- Pipeline gera dois `latest.yml`:
+  - `latest-canary.yml` → versão nova
+  - `latest-stable.yml` → versão anterior
+- Cada cliente é colocado em bucket determinístico (hash do fingerprint de licença) entre 0–99.
+- Buckets 0–9 leem `latest-canary.yml` na primeira fase; 0–49 na segunda; 0–99 na terceira.
+- Implementação no `electron-updater` via `feed-url` parametrizado por bucket.
+
+### Drill mensal (rollback ensaiado)
+
+- 1× por mês, em ambiente de homologação:
+  1. Publicar versão de teste em `latest-canary.yml`.
+  2. Disparar 1 cliente sintético em bucket canary; validar update.
+  3. Reverter `latest.yml` para versão anterior; validar que próximo check NÃO faz downgrade automático.
+  4. Lançar `vX.Y.Z+1` com fix sintético; validar caminho "fix-forward".
+  5. Registrar em `docs/runbooks/release-drill-YYYY-MM.md`.
+
+## Feature flags server-side
+
+Configuração em `backend/data/feature-flags.json` (gerenciado por endpoint admin):
+
+```json
+{
+  "integracao.connector.bling": "on",
+  "integracao.connector.omie": "on",
+  "integracao.connector.sap-s4hana": "off",
+  "integracao.relay.cloudflare": "on",
+  "integracao.relay.aws": "off"
+}
+```
+
+### Kill-switch por conector
+
+- Endpoint admin: `POST /admin/feature-flags/integracao.connector.<erp>` body `{"value":"off"}`.
+- Efeito: worker pula eventos daquele conector (status `PAUSED` em `integracao_profile`); outbox preserva fila.
+- Reativação: `{"value":"on"}` → worker volta a processar do ponto onde parou (idempotência absorve eventuais duplicatas).
+- **Caso de uso típico**: ERP fora do ar por horas; bug em release específica de conector; rate-limit estourando.
+
+### Política de auto-rollback
+
+- Se taxa de `outbox_dlq_count` por conector explodir > 5× watermark crit em 1h após release: **kill-switch automático** + alerta P1.
+- Operador valida e decide: reativar com fix ou manter desligado até `vX.Y.Z+1`.
+
+---
+
 ## Rollback
 
 1. Despublicar o release ruim no GitHub (não basta deletar tag — deletar o release inteiro).
-2. Republicar release anterior como "latest".
+2. Republicar release anterior como "latest" (rotacionar `latest.yml`).
 3. `electron-updater` no próximo check oferece downgrade — usuário precisa aceitar.
 
-> ⚠️ Auto-update **não faz downgrade automático**. Em caso de bug crítico, lançar `vX.Y.Z+1` com fix, NÃO tentar voltar à versão anterior.
+> ⚠️ Auto-update **não faz downgrade automático**. Em caso de bug crítico, lançar `vX.Y.Z+1` com fix, NÃO tentar voltar à versão anterior. Use kill-switch de feature flag para mitigar enquanto o fix é preparado.

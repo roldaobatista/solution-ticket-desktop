@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
@@ -10,7 +10,7 @@ import { validarPessoaFiscal, normalizarDocumento, TipoPessoa } from '../common/
 export class EmpresaService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateEmpresaDto) {
+  async create(dto: CreateEmpresaDto, tenantId: string) {
     const tipoPessoa: TipoPessoa = (dto.tipoPessoa ?? 'PJ') as TipoPessoa;
     validarPessoaFiscal({
       tipoPessoa,
@@ -19,7 +19,7 @@ export class EmpresaService {
     });
     return this.prisma.empresa.create({
       data: {
-        tenantId: dto.tenantId,
+        tenantId,
         nomeEmpresarial: dto.nomeEmpresarial,
         nomeFantasia: dto.nomeFantasia,
         tipoPessoa,
@@ -36,24 +36,24 @@ export class EmpresaService {
     });
   }
 
-  async findAll(tenantId?: string) {
+  async findAll(tenantId: string) {
     return this.prisma.empresa.findMany({
-      where: tenantId ? { tenantId } : undefined,
+      where: { tenantId },
       include: { unidades: true },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, tenantId: string) {
     const empresa = await this.prisma.empresa.findUnique({
-      where: { id },
+      where: { id, tenantId },
       include: { unidades: true, tenant: true },
     });
     if (!empresa) throw new NotFoundException('Empresa não encontrada');
     return empresa;
   }
 
-  async update(id: string, dto: UpdateEmpresaDto) {
-    const atual = await this.findOne(id);
+  async update(id: string, dto: UpdateEmpresaDto, tenantId: string) {
+    const atual = await this.findOne(id, tenantId);
     // Re-valida pessoa fiscal se algum campo relevante mudou.
     if (
       dto.tipoPessoa !== undefined ||
@@ -75,41 +75,51 @@ export class EmpresaService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
     await this.prisma.unidade.deleteMany({ where: { empresaId: id } });
     await this.prisma.empresa.delete({ where: { id } });
     return { message: 'Empresa removida com sucesso' };
   }
 
   // Unidades
-  async createUnidade(dto: CreateUnidadeDto) {
+  async createUnidade(dto: CreateUnidadeDto, tenantId: string) {
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: dto.empresaId, tenantId },
+      select: { id: true },
+    });
+    if (!empresa) throw new ForbiddenException('Empresa nao pertence ao tenant');
     return this.prisma.unidade.create({ data: { ...dto } });
   }
 
-  async findAllUnidades(empresaId?: string) {
+  async findAllUnidades(tenantId: string, empresaId?: string) {
     return this.prisma.unidade.findMany({
-      where: empresaId ? { empresaId } : undefined,
+      where: {
+        ...(empresaId ? { empresaId } : {}),
+        empresa: { tenantId },
+      },
       include: { empresa: true },
     });
   }
 
-  async findOneUnidade(id: string) {
+  async findOneUnidade(id: string, tenantId: string) {
     const unidade = await this.prisma.unidade.findUnique({
       where: { id },
       include: { empresa: true },
     });
-    if (!unidade) throw new NotFoundException('Unidade não encontrada');
+    if (!unidade || unidade.empresa.tenantId !== tenantId) {
+      throw new NotFoundException('Unidade não encontrada');
+    }
     return unidade;
   }
 
-  async updateUnidade(id: string, dto: UpdateUnidadeDto) {
-    await this.findOneUnidade(id);
+  async updateUnidade(id: string, dto: UpdateUnidadeDto, tenantId: string) {
+    await this.findOneUnidade(id, tenantId);
     return this.prisma.unidade.update({ where: { id }, data: { ...dto } });
   }
 
-  async removeUnidade(id: string) {
-    await this.findOneUnidade(id);
+  async removeUnidade(id: string, tenantId: string) {
+    await this.findOneUnidade(id, tenantId);
     await this.prisma.unidade.delete({ where: { id } });
     return { message: 'Unidade removida com sucesso' };
   }

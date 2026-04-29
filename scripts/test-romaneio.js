@@ -1,7 +1,13 @@
 const http = require('http');
 function login() {
   return new Promise((resolve, reject) => {
-    const data = JSON.stringify({ email: 'admin@solutionticket.com', senha: '123456' });
+    const senha = process.env.ST_TEST_PASSWORD || process.env.SEED_DEFAULT_PASSWORD;
+    if (!senha) throw new Error('Defina ST_TEST_PASSWORD ou SEED_DEFAULT_PASSWORD');
+    const data = JSON.stringify({
+      email: process.env.ST_TEST_EMAIL || 'admin@solutionticket.com',
+      senha,
+      tenantId: process.env.ST_TEST_TENANT_ID,
+    });
     const req = http.request(
       {
         hostname: '127.0.0.1',
@@ -51,7 +57,7 @@ async function get(path, token) {
 }
 (async () => {
   const tok = await login();
-  console.log('Token obtido');
+  console.log('Token obtido (redigido)');
   const r = await get('/api/romaneios', tok);
   console.log('GET /romaneios STATUS:', r.status);
   console.log('BODY:', r.body);

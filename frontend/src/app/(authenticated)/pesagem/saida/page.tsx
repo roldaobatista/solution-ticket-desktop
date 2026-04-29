@@ -8,7 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { getBalancas, getTickets, getTicketById, registrarPassagem, fecharTicket } from '@/lib/api';
+import {
+  getBalancas,
+  getTickets,
+  getTicketById,
+  registrarPassagem,
+  fecharTicket,
+  adicionarDescontoTicket,
+} from '@/lib/api';
 import { formatWeight } from '@/lib/utils';
 import PesoRealtime from '@/components/peso/PesoRealtime';
 import TicketPreview from '@/components/ticket/TicketPreview';
@@ -21,7 +28,7 @@ export default function PesagemSaidaPage() {
   const [balancaId, setBalancaId] = useState('');
   const [pesagemManual, setPesagemManual] = useState(false);
   const [pesoAtual, setPesoAtual] = useState(0);
-  const [, setEstavel] = useState(false);
+  const [estavel, setEstavel] = useState(false);
   const [descontos, setDescontos] = useState(0);
   const [previewTicketId, setPreviewTicketId] = useState<string | null>(null);
 
@@ -67,11 +74,22 @@ export default function PesagemSaidaPage() {
     mutationFn: async () => {
       await registrarPassagem(ticketId, {
         tipo_passagem: 'SAIDA',
+        direcao_operacional: 'SAIDA',
         papel_calculo: 'TARA_OFICIAL',
+        condicao_veiculo: 'VAZIO',
         peso_capturado: pesoSaida,
         balanca_id: balancaId,
         origem_leitura: pesagemManual ? 'MANUAL' : 'BALANCA',
+        indicador_estabilidade: estavel ? 1 : 0,
       });
+      if (descontos > 0) {
+        await adicionarDescontoTicket(ticketId, {
+          tipo: 'PESO',
+          descricao: 'Desconto informado na pesagem de saida',
+          valor: descontos,
+          origem: 'OPERADOR',
+        });
+      }
       return fecharTicket(ticketId);
     },
     onSuccess: () => {
@@ -79,7 +97,7 @@ export default function PesagemSaidaPage() {
     },
   });
 
-  const canSave = !!ticketId && !!balancaId && pesoSaida > 0;
+  const canSave = !!ticketId && !!balancaId && pesoSaida > 0 && (pesagemManual || estavel);
 
   return (
     <div className="space-y-6">

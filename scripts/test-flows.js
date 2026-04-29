@@ -5,6 +5,11 @@ const http = require('http');
 
 const BASE = '127.0.0.1';
 const PORT = 3001;
+const TEST_EMAIL = process.env.ST_TEST_EMAIL || 'admin@solutionticket.com';
+const TEST_PASSWORD = process.env.ST_TEST_PASSWORD || process.env.SEED_DEFAULT_PASSWORD;
+if (!TEST_PASSWORD) {
+  throw new Error('Defina ST_TEST_PASSWORD ou SEED_DEFAULT_PASSWORD para executar os fluxos');
+}
 let token = '';
 let tenantId = '';
 let unidadeId = '';
@@ -76,22 +81,24 @@ async function main() {
 
   await step('Login admin', async () => {
     const r = await req('POST', '/auth/login', {
-      email: 'admin@solutionticket.com',
-      senha: '123456',
+      email: TEST_EMAIL,
+      senha: TEST_PASSWORD,
+      tenantId: process.env.ST_TEST_TENANT_ID,
     });
     if (r.status !== 201 && r.status !== 200) return false;
     const data = unwrap(r);
     token = data.accessToken || data.access_token || '';
     tenantId = data.usuario?.tenantId || '';
-    return token ? 'token len ' + token.length : false;
+    return token ? 'token emitido' : false;
   });
 
   await step('Login senha errada retorna 401', async () => {
     const tmp = token;
     token = '';
     const r = await req('POST', '/auth/login', {
-      email: 'admin@solutionticket.com',
+      email: TEST_EMAIL,
       senha: 'errada',
+      tenantId: process.env.ST_TEST_TENANT_ID,
     });
     token = tmp;
     return r.status === 401 || r.status === 400;

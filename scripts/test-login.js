@@ -1,5 +1,12 @@
 const http = require('http');
-const data = JSON.stringify({ email: 'admin@solutionticket.com', senha: '123456' });
+const data = JSON.stringify({
+  email: process.env.ST_TEST_EMAIL || 'admin@solutionticket.com',
+  senha: process.env.ST_TEST_PASSWORD || process.env.SEED_DEFAULT_PASSWORD,
+  tenantId: process.env.ST_TEST_TENANT_ID,
+});
+if (!JSON.parse(data).senha) {
+  throw new Error('Defina ST_TEST_PASSWORD ou SEED_DEFAULT_PASSWORD para executar o teste');
+}
 const req = http.request(
   {
     hostname: '127.0.0.1',
@@ -13,7 +20,10 @@ const req = http.request(
     res.on('data', (c) => (body += c));
     res.on('end', () => {
       console.log('STATUS:', res.statusCode);
-      console.log('BODY:', body.substring(0, 600));
+      console.log(
+        'BODY:',
+        body.replace(/"accessToken":"[^"]+"/g, '"accessToken":"[REDACTED]"').substring(0, 600),
+      );
     });
   },
 );

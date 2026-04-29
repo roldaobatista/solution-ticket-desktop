@@ -9,16 +9,15 @@ import { BaseFilterDto } from '../dto/base-filter.dto';
 export class VeiculosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateVeiculoDto) {
+  async create(dto: CreateVeiculoDto, tenantId: string) {
     return this.prisma.veiculo.create({
-      data: { ...dto },
+      data: { ...dto, tenantId },
       include: { transportadora: true },
     });
   }
 
-  async findAll(filter: BaseFilterDto) {
-    const where: Prisma.VeiculoWhereInput = {};
-    if (filter.tenantId) where.tenantId = filter.tenantId;
+  async findAll(filter: BaseFilterDto, tenantId: string) {
+    const where: Prisma.VeiculoWhereInput = { tenantId };
     if (filter.search) where.placa = { contains: filter.search };
     if (filter.transportadoraId) where.transportadoraId = filter.transportadoraId;
     where.ativo = filter.ativo !== undefined ? filter.ativo : true;
@@ -41,22 +40,22 @@ export class VeiculosService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, tenantId: string) {
     const entity = await this.prisma.veiculo.findUnique({
-      where: { id },
+      where: { id, tenantId },
       include: { transportadora: true },
     });
     if (!entity) throw new NotFoundException('Veículo não encontrado');
     return entity;
   }
 
-  async update(id: string, dto: UpdateVeiculoDto) {
-    await this.findOne(id);
-    return this.prisma.veiculo.update({ where: { id }, data: { ...dto } });
+  async update(id: string, dto: UpdateVeiculoDto, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.veiculo.update({ where: { id, tenantId }, data: { ...dto } });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.veiculo.update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.veiculo.update({ where: { id, tenantId }, data: { ativo: false } });
   }
 }

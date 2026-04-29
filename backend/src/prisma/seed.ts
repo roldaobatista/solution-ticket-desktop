@@ -37,6 +37,90 @@ async function seedTiposFaturaIdempotente(tenantId: string) {
   console.log('Tipos de fatura garantidos');
 }
 
+async function seedConectoresIntegracaoIdempotente() {
+  const connectors = [
+    {
+      code: 'mock',
+      name: 'Mock ERP Connector',
+      version: '1.0.0',
+      authMethods: ['none'],
+      entities: ['weighing_ticket', 'partner', 'product', 'vehicle'],
+    },
+    {
+      code: 'generic-rest',
+      name: 'Generic REST ERP Connector',
+      version: '1.0.0',
+      authMethods: ['none', 'api_key', 'basic'],
+      entities: ['weighing_ticket', 'partner', 'product', 'vehicle'],
+    },
+  ];
+
+  for (const connector of connectors) {
+    await prisma.integracaoConnector.upsert({
+      where: {
+        integracao_connector_code_version_unique: {
+          code: connector.code,
+          version: connector.version,
+        },
+      },
+      update: {
+        name: connector.name,
+        enabled: true,
+        supportedAuthMethods: JSON.stringify(connector.authMethods),
+        supportedEntities: JSON.stringify(connector.entities),
+      },
+      create: {
+        code: connector.code,
+        name: connector.name,
+        version: connector.version,
+        enabled: true,
+        supportedAuthMethods: JSON.stringify(connector.authMethods),
+        supportedEntities: JSON.stringify(connector.entities),
+      },
+    });
+  }
+  console.log('Conectores de integracao garantidos');
+}
+
+async function seedPermissoesIntegracaoAdminIdempotente(tenantId: string) {
+  const perfilAdmin = await prisma.perfil.findFirst({
+    where: { tenantId, nome: 'Administrador', ativo: true },
+  });
+  if (!perfilAdmin) return;
+
+  const permissoesIntegracao = [
+    Permissao.INTEGRACAO_VER,
+    Permissao.INTEGRACAO_CRIAR,
+    Permissao.INTEGRACAO_EDITAR,
+    Permissao.INTEGRACAO_ALTERAR_CREDENCIAL,
+    Permissao.INTEGRACAO_TESTAR_CONEXAO,
+    Permissao.INTEGRACAO_VER_PAYLOAD_MASCARADO,
+    Permissao.INTEGRACAO_VER_PAYLOAD_CRU,
+    Permissao.INTEGRACAO_REPROCESSAR,
+    Permissao.INTEGRACAO_REPROCESSAR_FISCAL,
+    Permissao.INTEGRACAO_IGNORAR_ERRO,
+    Permissao.INTEGRACAO_EXPORTAR_LOG,
+    Permissao.INTEGRACAO_RECONCILIAR,
+  ];
+
+  for (const acao of permissoesIntegracao) {
+    const existe = await prisma.permissao.findFirst({
+      where: { perfilId: perfilAdmin.id, acao },
+    });
+    if (!existe) {
+      await prisma.permissao.create({
+        data: {
+          perfilId: perfilAdmin.id,
+          modulo: acao.split(':')[0],
+          acao,
+          concedido: true,
+        },
+      });
+    }
+  }
+  console.log('Permissoes de integracao garantidas para Administrador');
+}
+
 async function main() {
   console.log('Seeding database...');
 
@@ -45,6 +129,8 @@ async function main() {
   if (tenantExistente) {
     console.log('Banco ja semeado. Aplicando upserts idempotentes...');
     await seedTiposFaturaIdempotente(tenantExistente.id);
+    await seedConectoresIntegracaoIdempotente();
+    await seedPermissoesIntegracaoAdminIdempotente(tenantExistente.id);
     return;
   }
 
@@ -134,6 +220,18 @@ async function main() {
     Permissao.PESO_MANUAL,
     Permissao.PASSAGEM_INVALIDAR,
     Permissao.PAGAMENTO_GERENCIAR,
+    Permissao.INTEGRACAO_VER,
+    Permissao.INTEGRACAO_CRIAR,
+    Permissao.INTEGRACAO_EDITAR,
+    Permissao.INTEGRACAO_ALTERAR_CREDENCIAL,
+    Permissao.INTEGRACAO_TESTAR_CONEXAO,
+    Permissao.INTEGRACAO_VER_PAYLOAD_MASCARADO,
+    Permissao.INTEGRACAO_VER_PAYLOAD_CRU,
+    Permissao.INTEGRACAO_REPROCESSAR,
+    Permissao.INTEGRACAO_REPROCESSAR_FISCAL,
+    Permissao.INTEGRACAO_IGNORAR_ERRO,
+    Permissao.INTEGRACAO_EXPORTAR_LOG,
+    Permissao.INTEGRACAO_RECONCILIAR,
   ];
   for (const acao of permissoesAdmin) {
     const modulo = acao.split(':')[0];
@@ -1094,6 +1192,8 @@ async function main() {
 
   // Seed de Tipos de Fatura (idempotente)
   await seedTiposFaturaIdempotente(tenant.id);
+  await seedConectoresIntegracaoIdempotente();
+  await seedPermissoesIntegracaoAdminIdempotente(tenant.id);
 
   console.log('Seed completed successfully!');
 }

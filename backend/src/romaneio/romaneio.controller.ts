@@ -26,7 +26,7 @@ export class RomaneioController {
   @Get()
   @ApiOperation({ summary: 'Listar romaneios (paginado)' })
   findAll(
-    @Query('tenantId') tenantId: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('clienteId') clienteId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -57,7 +57,11 @@ export class RomaneioController {
   @Post(':id/vincular-tickets')
   @Roles(Permissao.ROMANEIO_GERENCIAR)
   @ApiOperation({ summary: 'Vincular tickets ao romaneio' })
-  vincularTickets(@Param('id') id: string, @Body() dto: VincularTicketsDto) {
-    return this.romaneioService.vincularTickets(id, dto.ticketIds);
+  vincularTickets(
+    @Param('id') id: string,
+    @Body() dto: VincularTicketsDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.romaneioService.vincularTickets(id, dto.ticketIds, tenantId);
   }
 }

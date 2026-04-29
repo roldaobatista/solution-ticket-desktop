@@ -14,26 +14,38 @@
 
 ## Permissões do sistema
 
-| Permissão              | Endpoint(s) típicos                                           | Descrição                   |
-| ---------------------- | ------------------------------------------------------------- | --------------------------- |
-| `ticket:criar`         | `POST /api/tickets`                                           | Abrir ticket                |
-| `ticket:editar`        | `PATCH /api/tickets/:id`                                      | Editar ticket aberto        |
-| `ticket:fechar`        | `POST /api/tickets/:id/fechar`                                | Fechar ticket               |
-| `ticket:cancelar`      | `POST /api/tickets/:id/cancelar`                              | Cancelar ticket             |
-| `ticket:manutencao`    | `POST /api/tickets/:id/manutencao/*`                          | Manutenção pós-fechamento   |
-| `ticket:reimprimir`    | `POST /api/tickets/:id/reimprimir`                            | Reimprimir ticket           |
-| `cadastro:gerenciar`   | `POST /api/clientes`, `POST /api/produtos`, etc.              | CRUD de cadastros mestre    |
-| `config:gerenciar`     | `POST /api/balancas`, `PATCH /api/balancas/:id`               | Configurar balanças         |
-| `romaneio:gerenciar`   | `POST /api/romaneios`                                         | Gerenciar romaneios         |
-| `fatura:gerenciar`     | `POST /api/faturas`                                           | Gerenciar faturas           |
-| `relatorio:visualizar` | `GET /api/relatorios/*`                                       | Visualizar relatórios       |
-| `dashboard:visualizar` | `GET /api/dashboard/*`                                        | Visualizar dashboard        |
-| `usuarios:gerenciar`   | `POST /api/usuarios`, `POST /api/perfis`                      | Gerenciar usuários e perfis |
-| `licenca:gerenciar`    | `POST /api/licenca/ativar`, `POST /api/licenca/iniciar-trial` | Ativar/licenciar unidade    |
-| `auditoria:visualizar` | `GET /api/auditoria`                                          | Visualizar auditoria        |
-| `peso:manual`          | `POST /api/balancas/:id/capturar`                             | Capturar peso manualmente   |
-| `passagem:invalidar`   | `PATCH /api/tickets/:id/passagens/:pid/invalidar`             | Invalidar passagem          |
-| `pagamento:gerenciar`  | `POST /api/faturas/:id/pagamentos`                            | Registrar pagamento         |
+| Permissão                          | Endpoint(s) típicos                                           | Descrição                   |
+| ---------------------------------- | ------------------------------------------------------------- | --------------------------- |
+| `ticket:criar`                     | `POST /api/tickets`                                           | Abrir ticket                |
+| `ticket:editar`                    | `PATCH /api/tickets/:id`                                      | Editar ticket aberto        |
+| `ticket:fechar`                    | `POST /api/tickets/:id/fechar`                                | Fechar ticket               |
+| `ticket:cancelar`                  | `POST /api/tickets/:id/cancelar`                              | Cancelar ticket             |
+| `ticket:manutencao`                | `POST /api/tickets/:id/manutencao/*`                          | Manutenção pós-fechamento   |
+| `ticket:reimprimir`                | `POST /api/tickets/:id/reimprimir`                            | Reimprimir ticket           |
+| `cadastro:gerenciar`               | `POST /api/clientes`, `POST /api/produtos`, etc.              | CRUD de cadastros mestre    |
+| `config:gerenciar`                 | `POST /api/balancas`, `PATCH /api/balancas/:id`               | Configurar balanças         |
+| `romaneio:gerenciar`               | `POST /api/romaneios`                                         | Gerenciar romaneios         |
+| `fatura:gerenciar`                 | `POST /api/faturas`                                           | Gerenciar faturas           |
+| `relatorio:visualizar`             | `GET /api/relatorios/*`                                       | Visualizar relatórios       |
+| `dashboard:visualizar`             | `GET /api/dashboard/*`                                        | Visualizar dashboard        |
+| `usuarios:gerenciar`               | `POST /api/usuarios`, `POST /api/perfis`                      | Gerenciar usuários e perfis |
+| `licenca:gerenciar`                | `POST /api/licenca/ativar`, `POST /api/licenca/iniciar-trial` | Ativar/licenciar unidade    |
+| `auditoria:visualizar`             | `GET /api/auditoria`                                          | Visualizar auditoria        |
+| `peso:manual`                      | `POST /api/balancas/:id/capturar`                             | Capturar peso manualmente   |
+| `passagem:invalidar`               | `PATCH /api/tickets/:id/passagens/:pid/invalidar`             | Invalidar passagem          |
+| `pagamento:gerenciar`              | `POST /api/faturas/:id/pagamentos`                            | Registrar pagamento         |
+| `integracao:ver`                   | `GET /api/v1/integration/*`                                   | Visualizar hub ERP          |
+| `integracao:criar`                 | `POST /api/v1/integration/profiles`                           | Criar perfil ERP            |
+| `integracao:editar`                | `PATCH /api/v1/integration/profiles/:id`                      | Editar/desativar perfil ERP |
+| `integracao:alterar_credencial`    | Credenciais de perfil ERP                                     | Alterar segredo ERP         |
+| `integracao:testar_conexao`        | Teste de conector ERP                                         | Testar conexão externa      |
+| `integracao:ver_payload_mascarado` | Logs de integração                                            | Ver payload mascarado       |
+| `integracao:ver_payload_cru`       | Janela auditada de debug                                      | Ver payload cru             |
+| `integracao:reprocessar`           | Retry de outbox/inbox                                         | Reprocessar evento          |
+| `integracao:reprocessar_fiscal`    | Retry fiscal com dual control                                 | Reprocessar evento fiscal   |
+| `integracao:ignorar_erro`          | DLQ operacional                                               | Ignorar erro com auditoria  |
+| `integracao:exportar_log`          | Exportação de diagnóstico                                     | Exportar logs mascarados    |
+| `integracao:reconciliar`           | Reconciliação ERP                                             | Rodar reconciliação         |
 
 ---
 
@@ -63,6 +75,12 @@
 ### Usuários (`/api/usuarios`, `/api/perfis`)
 
 - Todo CRUD aplica `tenantId`. Email é globalmente único (identidade global).
+
+### Integração ERP (`/api/v1/integration`)
+
+- `profiles`: filtra por `tenantId` do JWT.
+- `create/update`: registra `createdBy`/`updatedBy` quando o JWT expõe `id`.
+- Payload cru não é permissão permanente; deve seguir janela auditada do plano de integração.
 
 ---
 

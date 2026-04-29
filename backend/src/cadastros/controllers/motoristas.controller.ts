@@ -15,6 +15,9 @@ import { CreateMotoristaDto } from '../dto/create-motorista.dto';
 import { UpdateMotoristaDto } from '../dto/update-motorista.dto';
 import { BaseFilterDto } from '../dto/base-filter.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Permissao } from '../../constants/permissoes';
 
 @ApiTags('Motoristas')
 @ApiBearerAuth()
@@ -24,32 +27,39 @@ export class MotoristasController {
   constructor(private readonly service: MotoristasService) {}
 
   @Post()
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Criar motorista' })
-  create(@Body() dto: CreateMotoristaDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateMotoristaDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.create(dto, tenantId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar motoristas' })
-  findAll(@Query() filter: BaseFilterDto) {
-    return this.service.findAll(filter);
+  findAll(@Query() filter: BaseFilterDto, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.findAll(filter, tenantId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Buscar motorista por ID' })
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.findOne(id, tenantId);
   }
 
   @Patch(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar motorista' })
-  update(@Param('id') id: string, @Body() dto: UpdateMotoristaDto) {
-    return this.service.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateMotoristaDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.service.update(id, dto, tenantId);
   }
 
   @Delete(':id')
+  @Roles(Permissao.CADASTRO_GERENCIAR)
   @ApiOperation({ summary: 'Remover motorista' })
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @CurrentUser('tenantId') tenantId: string) {
+    return this.service.remove(id, tenantId);
   }
 }

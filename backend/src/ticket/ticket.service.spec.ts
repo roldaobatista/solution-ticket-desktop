@@ -3,6 +3,15 @@ import { BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TicketService } from './ticket.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { OutboxService } from '../integracao/outbox/outbox.service';
+
+const outboxMock = {
+  enqueueInTransaction: jest.fn(),
+  makeIdempotencyKey: jest.fn(
+    (profileId: string, eventType: string, entityId: string, revision: number) =>
+      `${profileId}:${eventType}:${entityId}:${revision}`,
+  ),
+};
 
 describe('TicketService - cálculo de fechamento', () => {
   let service: TicketService;
@@ -50,6 +59,7 @@ describe('TicketService - cálculo de fechamento', () => {
       ticketContador: {
         upsert: jest.fn().mockResolvedValue({ ultimoNumero: 1 }),
       },
+      integracaoProfile: { findMany: jest.fn().mockResolvedValue([]) },
       snapshotComercialTicket: { create: jest.fn().mockResolvedValue({}) },
       tabelaPrecoProdutoCliente: { findFirst: jest.fn().mockResolvedValue(null) },
       tabelaPrecoProduto: { findFirst: jest.fn().mockResolvedValue(null) },
@@ -71,6 +81,7 @@ describe('TicketService - cálculo de fechamento', () => {
         TicketService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: OutboxService, useValue: outboxMock },
       ],
     }).compile();
 
@@ -234,6 +245,7 @@ describe('TicketService.create - bloqueio por licença', () => {
         TicketService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: OutboxService, useValue: outboxMock },
       ],
     }).compile();
     service = module.get(TicketService);
@@ -317,6 +329,7 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
         TicketService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: OutboxService, useValue: outboxMock },
       ],
     }).compile();
     service = module.get(TicketService);

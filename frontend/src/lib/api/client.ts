@@ -18,7 +18,8 @@ function generateTraceId(): string {
   return `00-${traceId}-${parentId}-01`;
 }
 
-export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
+export const USE_MOCK =
+  process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ENABLE_LOCAL_MOCKS === 'true';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
@@ -113,11 +114,8 @@ export function resolveUnidadeId(unidadeId?: string): string {
   return getUnidadeId();
 }
 
-/** Resolve tenantId a partir do localStorage (chaves tenant_id ou empresa_id). */
+/** Compatibilidade legada: endpoints novos devem obter tenant apenas do JWT. */
 export function resolveTenantId(): string {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('tenant_id') || localStorage.getItem('empresa_id') || '';
-  }
   return '';
 }
 

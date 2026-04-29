@@ -114,7 +114,7 @@ const ALLOWED_ENV_KEYS = new Set([
   'DATABASE_URL',
   'USER_DATA_PATH',
   'NEXT_PUBLIC_API_URL',
-  'NEXT_PUBLIC_USE_MOCK',
+  'NEXT_PUBLIC_ENABLE_LOCAL_MOCKS',
   'SENTRY_DSN',
   'SENTRY_ORG',
   'SENTRY_PROJECT',
@@ -163,6 +163,12 @@ function backupDatabase(dbPath) {
   const backupPath = `${dbPath}.backup.${timestamp}`;
   try {
     fs.copyFileSync(dbPath, backupPath);
+    for (const suffix of ['-wal', '-shm']) {
+      const sidecar = `${dbPath}${suffix}`;
+      if (fs.existsSync(sidecar)) {
+        fs.copyFileSync(sidecar, `${backupPath}${suffix}`);
+      }
+    }
     logLine('migrate', `backup criado: ${backupPath}`);
     return backupPath;
   } catch (err) {
@@ -175,6 +181,15 @@ function restoreDatabase(dbPath, backupPath) {
   if (!backupPath || !fs.existsSync(backupPath)) return;
   try {
     fs.copyFileSync(backupPath, dbPath);
+    for (const suffix of ['-wal', '-shm']) {
+      const backupSidecar = `${backupPath}${suffix}`;
+      const sidecar = `${dbPath}${suffix}`;
+      if (fs.existsSync(backupSidecar)) {
+        fs.copyFileSync(backupSidecar, sidecar);
+      } else if (fs.existsSync(sidecar)) {
+        fs.unlinkSync(sidecar);
+      }
+    }
     logLine('migrate', `backup restaurado: ${backupPath} -> ${dbPath}`);
   } catch (err) {
     logLine('migrate', `falha ao restaurar backup: ${err.message}`);

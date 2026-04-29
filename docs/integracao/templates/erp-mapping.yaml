@@ -1,0 +1,234 @@
+# =============================================================================
+# Template de Mapping YAML — Conector ERP (JSONata)
+# =============================================================================
+# Este arquivo é o template canônico para criar mappings de conector novo.
+# Copiar para `connectors/<erp>/mapping/<erp>-default.yaml` e adaptar.
+#
+# Schema validado pelo MappingEngineService.
+# Documentação completa: docs/integracao/006-mapping-engine.md
+#
+# IMPORTANTE — linguagem de expressão:
+#   - Toda transformação usa JSONata (ADR-011). NÃO usamos Mustache (`{{x}}`),
+#     NÃO usamos JSONPath (`$.path`) e NÃO usamos templates ad-hoc tipo
+#     `array-template` ou `array-direct`.
+#   - Caminhos do canônico são acessados como JSONata puro:
+#       ticket.ticketNumber, ticket.weights.netKg, ticket.partner.taxId, etc.
+#   - Arrays são gerados via construção de objeto JSONata:
+#       lines.{ "product": product.code, "qty": quantity }
+#   - Funções permitidas: ver §4.10 "Whitelist JSONata" em
+#     docs/integracao/006-mapping-engine.md.
+# =============================================================================
+
+version: 1
+connector: example-erp                  # código do conector
+description: "Mapping default para Example ERP — push de WeighingTicket"
+author: "Solution Ticket Team"
+created: 2026-04-26
+updated: 2026-04-27
+
+# -----------------------------------------------------------------------------
+# Identificação da operação
+# -----------------------------------------------------------------------------
+entity: WeighingTicket                  # entidade canônica
+operation: push                         # push | pull | bidirectional
+endpoint:
+  method: POST
+  path: /api/v1/orders                  # path relativo ao baseUrl do profile
+  headers:
+    Content-Type: application/json
+    X-Source: SOLUTION_TICKET
+
+# -----------------------------------------------------------------------------
+# Auth (referenciado do profile, não duplicar credenciais aqui)
+# -----------------------------------------------------------------------------
+auth:
+  type: oauth2-bearer                   # oauth2-bearer | api-key | basic | hmac | none
+  ref: profile.secretRef                # resolvido do cofre via secretManager
+
+# -----------------------------------------------------------------------------
+# Mapeamento de campos (todas as expressões são JSONata)
+# -----------------------------------------------------------------------------
+fields:
+
+  # 1. Campo direto: copia valor canônico para campo remoto via JSONata simples
+  - remote: documentNumber
+    expression: ticket.ticketNumber
+    required: true
+
+  # 2. Valor fixo: literal JSONata entre aspas
+  - remote: sourceSystem
+    expression: '"SOLUTION_TICKET"'
+
+  # 3. Conversão de unidade (kg → ton): aritmética JSONata
+  - remote: quantity
+    expression: |
+      $number($string(ticket.weights.netKg / 1000))
+
+  # 4. Normalização de string (uppercase placa)
+  - remote: vehiclePlate
+    expression: $uppercase(ticket.vehicle.plate)
+
+  # 5. CPF/CNPJ só dígitos (regex via $replace) — required
+  - remote: customerTaxId
+    expression: $replace(ticket.partner.taxId, /[^0-9]/, "")
+    required: true
+
+  # 6. Data com formato customizado (ISO → YYYY-MM-DD)
+  - remote: postingDate
+    expression: $substring(ticket.timestamps.closedAt, 0, 10)
+
+  # 7. Lookup em tabela de equivalência (função custom $lookup)
+  - remote: itemCode
+    expression: $lookup("product-erp-mapping", ticket.product.code)
+    onMissing: fail                     # fail | use-local | use-default | skip
+    default: null
+    required: true
+
+  # 8. Expressão composta — concatenação JSONata com &
+  - remote: description
+    expression: |
+      "Pesagem " & ticket.ticketNumber
+      & " - placa " & ticket.vehicle.plate
+      & " - bruto " & $string(ticket.weights.grossKg) & "kg"
+
+  # 9. Condicional (operador ternário JSONata)
+  - remote: orderType
+    expression: |
+      ticket.operationType = "PURCHASE"  ? "PURCHASE_ORDER" :
+      ticket.operationType = "SALE"      ? "SALES_ORDER"    :
+      ticket.operationType = "TRANSFER"  ? "TRANSFER"       :
+      "OTHER"
+
+  # 10. Array gerado a partir de coleção do canônico (construção de objeto)
+  #
+  # Em JSONata, `coleção.{...}` projeta cada item para um novo objeto.
+  # Quando o canônico tem 1 produto único (modelo atual de WeighingTicket),
+  # gera-se array de 1 item via construção literal.
+  - remote: items
+    expression: |
+      [{
+        "sku":         ticket.product.code,
+        "description": ticket.product.description,
+        "quantity":    ticket.weights.netKg,
+        "unit":        "kg",
+        "unitPrice":   0
+      }]
+
+  # 11. Array a partir de coleção real (ex.: ticket.lines, se existir)
+  #     Mostra a forma idiomática JSONata de mapear N → N:
+  - remote: linesExample
+    expression: |
+      ticket.lines.{
+        "product": product.code,
+        "qty":     quantity,
+        "unit":    unit
+      }
+    when: $exists(ticket.lines)
+
+  # 12. Anexos opcionais — filtrar e projetar
+  - remote: attachments
+    expression: |
+      ticket.attachments[$exists(url)].{
+        "name": name,
+        "url":  url
+      }
+    when: $count(ticket.attachments) > 0
+
+# -----------------------------------------------------------------------------
+# Mapeamento da resposta do ERP (extração de external ID via JSONata)
+# -----------------------------------------------------------------------------
+response:
+  externalId: data.id                   # JSONata sobre o body da resposta
+  externalCode: data.code               # opcional
+  successCondition: success = true      # opcional — default = HTTP 2xx
+
+# -----------------------------------------------------------------------------
+# Validação pré-envio (executada antes de chamar o ERP)
+# -----------------------------------------------------------------------------
+validation:
+  - field: customerTaxId
+    rule: cnpj-or-cpf
+    message: "CNPJ/CPF do parceiro inválido"
+
+  - field: itemCode
+    rule: required
+    message: "Produto não mapeado em product-erp-mapping"
+
+  - field: quantity
+    rule: greater-than-zero
+    message: "Quantidade líquida deve ser positiva"
+
+# -----------------------------------------------------------------------------
+# Tabelas de equivalência referenciadas via $lookup(...)
+# -----------------------------------------------------------------------------
+equivalenceTables:
+  - name: product-erp-mapping
+    description: "Mapeia código de produto local → código no ERP"
+    keyField: localCode
+    valueField: remoteCode
+
+  - name: unit-erp-warehouse
+    description: "Mapeia unidade do ST → depósito do ERP"
+    keyField: unitId
+    valueField: warehouseCode
+
+# -----------------------------------------------------------------------------
+# Cancelamento (operação separada — body também usa JSONata)
+# -----------------------------------------------------------------------------
+cancel:
+  endpoint:
+    method: PUT
+    path: /api/v1/orders/{externalId}/cancel
+  body:
+    - remote: reason
+      expression: event.cancelReason
+    - remote: cancelledBy
+      expression: event.cancelledBy
+    - remote: cancelledAt
+      expression: $now()
+
+# -----------------------------------------------------------------------------
+# Webhooks consumidos (entrantes via relay) — extração via JSONata
+# -----------------------------------------------------------------------------
+webhooks:
+  - event: customer.blocked
+    canonical: PartnerStatusChanged
+    fields:
+      - canonical: partner.blocked
+        expression: data.blocked       # JSONata sobre o payload do webhook
+
+  - event: order.released
+    canonical: OrderReleased
+    fields:
+      - canonical: order.externalId
+        expression: data.id
+
+# -----------------------------------------------------------------------------
+# Configurações de runtime
+# -----------------------------------------------------------------------------
+runtime:
+  rateLimit:
+    requestsPerSecond: 10
+    burstSize: 50
+  timeout:
+    connectMs: 5000
+    requestMs: 30000
+  retry:
+    maxAttempts: 5
+    baseDelayMs: 30000
+    maxDelayMs: 3600000
+    respectRetryAfter: true             # honrar header Retry-After do ERP
+  pagination:
+    type: offset                        # offset | cursor | page
+    pageSize: 100
+
+# -----------------------------------------------------------------------------
+# Notas finais
+# -----------------------------------------------------------------------------
+# - Campos NÃO mapeados aqui simplesmente NÃO vão para o payload do ERP.
+# - Toda expressão é JSONata pura — proibido Mustache, JSONPath, eval.
+# - Sempre validar mapping com `POST /api/v1/integration/mapping/validate`
+#   antes de publicar.
+# - Usar a tela de "Testar com payload real" para preview antes de salvar.
+# - Versionar este arquivo no Git junto com o conector.
+# - Whitelist de funções JSONata: ver 006-mapping-engine.md §4.10.

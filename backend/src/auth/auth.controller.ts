@@ -82,7 +82,7 @@ export class AuthController {
   @Post('request-password-reset')
   @ApiOperation({ summary: 'Solicita reset de senha (envia token por canal externo)' })
   async requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
-    return this.authService.requestPasswordReset(dto.email);
+    return this.authService.requestPasswordReset(dto.email, dto.tenantId);
   }
 
   @Public()

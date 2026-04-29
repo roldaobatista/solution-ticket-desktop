@@ -9,16 +9,15 @@ import { BaseFilterDto } from '../dto/base-filter.dto';
 export class MotoristasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateMotoristaDto) {
+  async create(dto: CreateMotoristaDto, tenantId: string) {
     return this.prisma.motorista.create({
-      data: { ...dto },
+      data: { ...dto, tenantId },
       include: { transportadora: true },
     });
   }
 
-  async findAll(filter: BaseFilterDto) {
-    const where: Prisma.MotoristaWhereInput = {};
-    if (filter.tenantId) where.tenantId = filter.tenantId;
+  async findAll(filter: BaseFilterDto, tenantId: string) {
+    const where: Prisma.MotoristaWhereInput = { tenantId };
     if (filter.search) where.nome = { contains: filter.search };
     if (filter.transportadoraId) where.transportadoraId = filter.transportadoraId;
     where.ativo = filter.ativo !== undefined ? filter.ativo : true;
@@ -41,22 +40,22 @@ export class MotoristasService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, tenantId: string) {
     const entity = await this.prisma.motorista.findUnique({
-      where: { id },
+      where: { id, tenantId },
       include: { transportadora: true },
     });
     if (!entity) throw new NotFoundException('Motorista não encontrado');
     return entity;
   }
 
-  async update(id: string, dto: UpdateMotoristaDto) {
-    await this.findOne(id);
-    return this.prisma.motorista.update({ where: { id }, data: { ...dto } });
+  async update(id: string, dto: UpdateMotoristaDto, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.motorista.update({ where: { id, tenantId }, data: { ...dto } });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.motorista.update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.motorista.update({ where: { id, tenantId }, data: { ativo: false } });
   }
 }

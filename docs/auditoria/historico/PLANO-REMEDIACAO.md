@@ -1,5 +1,7 @@
 # Plano de Remediação — Solution Ticket Desktop
 
+> ⚠️ **ARQUIVADO 2026-04-27** — substituído por `auditoria/SNAPSHOT-FINAL-2026-04-27.md` e auditorias 10-agentes (Rodadas 1-5). Mantido como referência histórica. Refs a `docs/SECRETS.md` e `docs/CODING-STYLE.md` aqui não foram criadas.
+
 **Data:** 2026-04-24
 **Base:** Auditoria consolidada (arquitetura, segurança, qualidade, testes/CI, domínio)
 **Objetivo:** resolver 100% dos achados — crítico, alto, médio e menor — antes do go-live em produção.

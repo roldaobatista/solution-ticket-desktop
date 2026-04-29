@@ -23,10 +23,11 @@ model Tenant {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  empresas Empresa[]
-  perfis   Perfil[]
-  usuarios Usuario[]
-  balancas Balanca[]
+  empresas           Empresa[]
+  perfis             Perfil[]
+  usuarios           Usuario[]
+  balancas           Balanca[]
+  integracaoProfiles IntegracaoProfile[]
 
   @@map("tenant")
 }
@@ -61,6 +62,7 @@ model Empresa {
   motoristas         Motorista[]
   configuracoes      ConfiguracaoOperacionalUnidade[]
   regrasOperacionais MatrizRegraOperacional[]
+  integracaoProfiles IntegracaoProfile[]
 
   @@unique([tenantId, documento])
   @@index([tenantId])
@@ -85,6 +87,7 @@ model Unidade {
   configuracoes      ConfiguracaoOperacionalUnidade[]
   regrasOperacionais MatrizRegraOperacional[]
   licencas           LicencaInstalacao[]
+  integracaoProfiles IntegracaoProfile[]
 
   @@index([empresaId])
   @@map("unidade")
@@ -190,8 +193,8 @@ model Cliente {
   romaneios           Romaneio[]
   faturas             Fatura[]
 
-  @@index([tenantId])
   @@unique([tenantId, documento], name: "cliente_documento_unique")
+  @@index([tenantId])
   @@map("cliente")
 }
 
@@ -431,9 +434,9 @@ model Balanca {
   // toleranciaEstabilidade: max-min admissivel na janela movel (em kg)
   // janelaEstabilidade: numero de leituras consecutivas exigidas
   // debugMode: quando true, dump hex de cada trama em logs/balanca-<id>.log
-  toleranciaEstabilidade Int?     @map("tolerancia_estabilidade")
-  janelaEstabilidade     Int?     @map("janela_estabilidade")
-  debugMode              Boolean  @default(false) @map("debug_mode")
+  toleranciaEstabilidade Int?    @map("tolerancia_estabilidade")
+  janelaEstabilidade     Int?    @map("janela_estabilidade")
+  debugMode              Boolean @default(false) @map("debug_mode")
 
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
@@ -463,15 +466,15 @@ model Balanca {
 // peso_lido:       peso retornado pelo indicador antes do ajuste
 // fator_calculado: peso_referencia / peso_lido (1 se ZERO)
 model CalibracaoBalanca {
-  id              String   @id @default(uuid()) @map("id")
-  balancaId       String   @map("balanca_id")
-  tipo            String   @map("tipo")
-  pesoReferencia  Decimal  @map("peso_referencia")
-  pesoLido        Decimal  @map("peso_lido")
-  fatorCalculado  Decimal  @map("fator_calculado")
-  observacao      String?  @map("observacao")
-  usuarioId       String?  @map("usuario_id")
-  realizadoEm     DateTime @default(now()) @map("realizado_em")
+  id             String   @id @default(uuid()) @map("id")
+  balancaId      String   @map("balanca_id")
+  tipo           String   @map("tipo")
+  pesoReferencia Decimal  @map("peso_referencia")
+  pesoLido       Decimal  @map("peso_lido")
+  fatorCalculado Decimal  @map("fator_calculado")
+  observacao     String?  @map("observacao")
+  usuarioId      String?  @map("usuario_id")
+  realizadoEm    DateTime @default(now()) @map("realizado_em")
 
   balanca Balanca @relation(fields: [balancaId], references: [id], onDelete: Cascade)
 
@@ -1283,4 +1286,269 @@ model AssinaturaTicket {
 
   @@index([ticketId])
   @@map("assinatura_ticket")
+}
+
+// ============================================================
+// INTEGRACAO ERP
+// ============================================================
+
+model IntegracaoConnector {
+  id                   String   @id @default(uuid()) @map("id")
+  code                 String   @map("code")
+  name                 String   @map("name")
+  version              String   @map("version")
+  enabled              Boolean  @default(true) @map("enabled")
+  supportedAuthMethods String   @map("supported_auth_methods")
+  supportedEntities    String   @map("supported_entities")
+  criadoEm             DateTime @default(now()) @map("created_at")
+  atualizadoEm         DateTime @updatedAt @map("updated_at")
+
+  profiles IntegracaoProfile[]
+
+  @@unique([code, version], name: "integracao_connector_code_version_unique")
+  @@map("integracao_connector")
+}
+
+model IntegracaoProfile {
+  id            String   @id @default(uuid()) @map("id")
+  tenantId      String   @map("tenant_id")
+  empresaId     String   @map("empresa_id")
+  unidadeId     String?  @map("unidade_id")
+  connectorId   String   @map("connector_id")
+  environment   String   @map("environment")
+  baseUrl       String?  @map("base_url")
+  authMethod    String   @map("auth_method")
+  secretRef     String?  @map("secret_ref")
+  configJson    String?  @map("config_json")
+  enabled       Boolean  @default(true) @map("enabled")
+  syncDirection String   @map("sync_direction")
+  createdBy     String?  @map("created_by")
+  updatedBy     String?  @map("updated_by")
+  criadoEm      DateTime @default(now()) @map("created_at")
+  atualizadoEm  DateTime @updatedAt @map("updated_at")
+
+  tenant             Tenant                        @relation(fields: [tenantId], references: [id])
+  empresa            Empresa                       @relation(fields: [empresaId], references: [id])
+  unidade            Unidade?                      @relation(fields: [unidadeId], references: [id])
+  connector          IntegracaoConnector           @relation(fields: [connectorId], references: [id])
+  secrets            IntegracaoProfileSecret[]
+  mappings           IntegracaoMapping[]
+  equivalenceTables  IntegracaoEquivalenceTable[]
+  externalLinks      IntegracaoExternalLink[]
+  outboxEvents       IntegracaoOutbox[]
+  inboxEvents        IntegracaoInbox[]
+  checkpoints        IntegracaoCheckpoint[]
+  logs               IntegracaoLog[]
+  reconciliationRuns IntegracaoReconciliationRun[]
+
+  @@index([tenantId])
+  @@index([empresaId])
+  @@index([unidadeId])
+  @@index([connectorId])
+  @@map("integracao_profile")
+}
+
+model IntegracaoProfileSecret {
+  id                String    @id @default(uuid()) @map("id")
+  profileId         String    @map("profile_id")
+  secretKey         String    @map("secret_key")
+  encryptedValue    String    @map("encrypted_value")
+  encryptionVersion Int       @default(1) @map("encryption_version")
+  rotatedAt         DateTime? @map("rotated_at")
+  criadoEm          DateTime  @default(now()) @map("created_at")
+  atualizadoEm      DateTime  @updatedAt @map("updated_at")
+
+  profile IntegracaoProfile @relation(fields: [profileId], references: [id])
+
+  @@unique([profileId, secretKey], name: "integracao_secret_profile_key_unique")
+  @@map("integracao_profile_secret")
+}
+
+model IntegracaoMapping {
+  id                       String   @id @default(uuid()) @map("id")
+  profileId                String   @map("profile_id")
+  entityType               String   @map("entity_type")
+  localField               String   @map("local_field")
+  remoteField              String   @map("remote_field")
+  transformationType       String   @map("transformation_type")
+  transformationExpression String?  @map("transformation_expression")
+  required                 Boolean  @default(false) @map("required")
+  defaultValue             String?  @map("default_value")
+  enabled                  Boolean  @default(true) @map("enabled")
+  criadoEm                 DateTime @default(now()) @map("created_at")
+  atualizadoEm             DateTime @updatedAt @map("updated_at")
+
+  profile IntegracaoProfile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, entityType])
+  @@map("integracao_mapping")
+}
+
+model IntegracaoEquivalenceTable {
+  id           String   @id @default(uuid()) @map("id")
+  profileId    String   @map("profile_id")
+  entityType   String   @map("entity_type")
+  name         String   @map("name")
+  description  String?  @map("description")
+  enabled      Boolean  @default(true) @map("enabled")
+  criadoEm     DateTime @default(now()) @map("created_at")
+  atualizadoEm DateTime @updatedAt @map("updated_at")
+
+  profile IntegracaoProfile           @relation(fields: [profileId], references: [id])
+  items   IntegracaoEquivalenceItem[]
+
+  @@unique([profileId, entityType, name], name: "integracao_equivalence_table_unique")
+  @@map("integracao_equivalence_table")
+}
+
+model IntegracaoEquivalenceItem {
+  id           String   @id @default(uuid()) @map("id")
+  tableId      String   @map("table_id")
+  localValue   String   @map("local_value")
+  remoteValue  String   @map("remote_value")
+  metadata     String?  @map("metadata")
+  criadoEm     DateTime @default(now()) @map("created_at")
+  atualizadoEm DateTime @updatedAt @map("updated_at")
+
+  table IntegracaoEquivalenceTable @relation(fields: [tableId], references: [id])
+
+  @@unique([tableId, localValue], name: "integracao_equivalence_item_local_unique")
+  @@map("integracao_equivalence_item")
+}
+
+model IntegracaoExternalLink {
+  id              String    @id @default(uuid()) @map("id")
+  profileId       String    @map("profile_id")
+  entityType      String    @map("entity_type")
+  localId         String    @map("local_id")
+  externalId      String    @map("external_id")
+  externalCode    String?   @map("external_code")
+  externalVersion String?   @map("external_version")
+  lastSyncedAt    DateTime? @map("last_synced_at")
+  checksum        String?   @map("checksum")
+  criadoEm        DateTime  @default(now()) @map("created_at")
+  atualizadoEm    DateTime  @updatedAt @map("updated_at")
+
+  profile IntegracaoProfile @relation(fields: [profileId], references: [id])
+
+  @@unique([profileId, entityType, localId], name: "integracao_external_link_local_unique")
+  @@unique([profileId, entityType, externalId], name: "integracao_external_link_remote_unique")
+  @@map("integracao_external_link")
+}
+
+model IntegracaoOutbox {
+  id                String    @id @default(uuid()) @map("id")
+  profileId         String    @map("profile_id")
+  eventType         String    @map("event_type")
+  entityType        String    @map("entity_type")
+  entityId          String    @map("entity_id")
+  revision          Int       @map("revision")
+  idempotencyKey    String    @unique @map("idempotency_key")
+  payloadCanonical  String    @map("payload_canonical")
+  payloadRemote     String?   @map("payload_remote")
+  status            String    @default("pending") @map("status")
+  attempts          Int       @default(0) @map("attempts")
+  nextRetryAt       DateTime? @map("next_retry_at")
+  lastError         String?   @map("last_error")
+  lastErrorCategory String?   @map("last_error_category")
+  correlationId     String    @map("correlation_id")
+  criadoEm          DateTime  @default(now()) @map("created_at")
+  processedAt       DateTime? @map("processed_at")
+
+  profile IntegracaoProfile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, status, nextRetryAt])
+  @@index([correlationId])
+  @@map("integracao_outbox")
+}
+
+model IntegracaoInbox {
+  id               String    @id @default(uuid()) @map("id")
+  profileId        String    @map("profile_id")
+  sourceEventId    String    @map("source_event_id")
+  entityType       String    @map("entity_type")
+  externalId       String    @map("external_id")
+  payloadRemote    String    @map("payload_remote")
+  payloadCanonical String?   @map("payload_canonical")
+  status           String    @default("pending") @map("status")
+  idempotencyKey   String    @unique @map("idempotency_key")
+  criadoEm         DateTime  @default(now()) @map("created_at")
+  processedAt      DateTime? @map("processed_at")
+
+  profile IntegracaoProfile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, status])
+  @@map("integracao_inbox")
+}
+
+model IntegracaoCheckpoint {
+  id           String    @id @default(uuid()) @map("id")
+  profileId    String    @map("profile_id")
+  entityType   String    @map("entity_type")
+  lastToken    String?   @map("last_token")
+  lastDate     DateTime? @map("last_date")
+  lastPage     Int?      @map("last_page")
+  lastSequence BigInt?   @map("last_sequence")
+  atualizadoEm DateTime  @updatedAt @map("updated_at")
+
+  profile IntegracaoProfile @relation(fields: [profileId], references: [id])
+
+  @@unique([profileId, entityType], name: "integracao_checkpoint_profile_entity_unique")
+  @@map("integracao_checkpoint")
+}
+
+model IntegracaoLog {
+  id                    String   @id @default(uuid()) @map("id")
+  profileId             String?  @map("profile_id")
+  direction             String   @map("direction")
+  operation             String   @map("operation")
+  status                String   @map("status")
+  correlationId         String   @map("correlation_id")
+  requestPayloadMasked  String?  @map("request_payload_masked")
+  responsePayloadMasked String?  @map("response_payload_masked")
+  httpStatus            Int?     @map("http_status")
+  durationMs            Int?     @map("duration_ms")
+  errorCode             String?  @map("error_code")
+  errorMessage          String?  @map("error_message")
+  criadoEm              DateTime @default(now()) @map("created_at")
+
+  profile IntegracaoProfile? @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, criadoEm])
+  @@index([correlationId])
+  @@map("integracao_log")
+}
+
+model IntegracaoReconciliationRun {
+  id          String    @id @default(uuid()) @map("id")
+  profileId   String    @map("profile_id")
+  status      String    @default("running") @map("status")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  summary     String?   @map("summary")
+  triggeredBy String?   @map("triggered_by")
+
+  profile IntegracaoProfile              @relation(fields: [profileId], references: [id])
+  items   IntegracaoReconciliationItem[]
+
+  @@index([profileId, startedAt])
+  @@map("integracao_reconciliation_run")
+}
+
+model IntegracaoReconciliationItem {
+  id           String   @id @default(uuid()) @map("id")
+  runId        String   @map("run_id")
+  entityType   String   @map("entity_type")
+  localId      String?  @map("local_id")
+  externalId   String?  @map("external_id")
+  issueType    String   @map("issue_type")
+  status       String   @default("open") @map("status")
+  details      String?  @map("details")
+  criadoEm     DateTime @default(now()) @map("created_at")
+  atualizadoEm DateTime @updatedAt @map("updated_at")
+
+  run IntegracaoReconciliationRun @relation(fields: [runId], references: [id])
+
+  @@index([runId, status])
+  @@map("integracao_reconciliation_item")
 }

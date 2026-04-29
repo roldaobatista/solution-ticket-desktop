@@ -36,12 +36,17 @@ export class AuthService {
     private readonly mailer: MailerService,
   ) {}
 
-  async validateUser(email: string, senha: string) {
+  async validateUser(email: string, senha: string, tenantId?: string) {
     const normalizedEmail = email.toLowerCase().trim();
-    const usuario = await this.prisma.usuario.findFirst({
-      where: { email: normalizedEmail },
+    const matches = await this.prisma.usuario.findMany({
+      where: { email: normalizedEmail, ...(tenantId ? { tenantId } : {}) },
       include: { perfis: { include: { perfil: true } } },
+      take: 2,
     });
+    if (!tenantId && matches.length > 1) {
+      throw new UnauthorizedException('Tenant obrigatorio para este e-mail');
+    }
+    const usuario = matches[0];
 
     if (!usuario) {
       throw new UnauthorizedException('Credenciais inválidas');
@@ -143,10 +148,14 @@ export class AuthService {
     return { ok: true };
   }
 
-  async requestPasswordReset(email: string) {
+  async requestPasswordReset(email: string, tenantId?: string) {
     // Tempo aproximadamente constante + resposta neutra para evitar enumeration de e-mails.
     const normalizedEmail = email.toLowerCase().trim();
-    const usuario = await this.prisma.usuario.findFirst({ where: { email: normalizedEmail } });
+    const matches = await this.prisma.usuario.findMany({
+      where: { email: normalizedEmail, ...(tenantId ? { tenantId } : {}) },
+      take: 2,
+    });
+    const usuario = !tenantId && matches.length > 1 ? null : matches[0];
     if (usuario) {
       const rawToken = crypto.randomBytes(32).toString('hex');
       const tokenHash = hashResetToken(rawToken);
@@ -228,5 +237,25 @@ export class AuthService {
       },
       { expiresIn: '60s' },
     );
+  }
+
+  async validateSseToken(token: string): Promise<{ userId: string; tenantId: string }> {
+    let payload: { sub?: string; tenantId?: string; scope?: string };
+    try {
+      payload = this.jwtService.verify(token);
+    } catch {
+      throw new UnauthorizedException('Token SSE invalido');
+    }
+    if (!payload.sub || !payload.tenantId || payload.scope !== 'sse') {
+      throw new UnauthorizedException('Token SSE invalido');
+    }
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: payload.sub },
+      select: { ativo: true, tenantId: true },
+    });
+    if (!usuario?.ativo || usuario.tenantId !== payload.tenantId) {
+      throw new UnauthorizedException('Token SSE invalido');
+    }
+    return { userId: payload.sub, tenantId: payload.tenantId };
   }
 }

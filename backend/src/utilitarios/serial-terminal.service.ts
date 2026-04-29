@@ -11,7 +11,10 @@ type PortInfo = Awaited<ReturnType<typeof SerialPortType.list>>[number];
 interface Sessao {
   port: SerialPortType;
   buffer: Buffer[];
+  bytesBufferizados: number;
   ultimaAtividade: number;
+  userId: string;
+  tenantId: string;
   config: { porta: string; baudrate: number; databits: number; parity: string; stopbits: number };
 }
 
@@ -20,6 +23,7 @@ export class SerialTerminalService implements OnModuleDestroy {
   private readonly logger = new Logger(SerialTerminalService.name);
   private sessoes = new Map<string, Sessao>();
   private cleanupInterval: NodeJS.Timeout;
+  private readonly maxBufferBytes = 64 * 1024;
 
   constructor() {
     this.cleanupInterval = setInterval(() => this.limpaInativas(), 60000);
@@ -59,13 +63,17 @@ export class SerialTerminalService implements OnModuleDestroy {
     }
   }
 
-  async criarSessao(config: {
-    porta: string;
-    baudrate?: number;
-    databits?: number;
-    parity?: string;
-    stopbits?: number;
-  }) {
+  async criarSessao(
+    config: {
+      porta: string;
+      baudrate?: number;
+      databits?: number;
+      parity?: string;
+      stopbits?: number;
+    },
+    userId: string,
+    tenantId: string,
+  ) {
     const baudrate = Number(config.baudrate) || 9600;
     const databits = Number(config.databits) || 8;
     const stopbits = Number(config.stopbits) || 1;
@@ -82,19 +90,33 @@ export class SerialTerminalService implements OnModuleDestroy {
       autoOpen: false,
     });
 
-    await new Promise<void>((resolve, reject) => {
-      port.open((err: Error | null) => (err ? reject(err) : resolve()));
-    });
+    await Promise.race([
+      new Promise<void>((resolve, reject) => {
+        port.open((err: Error | null) => (err ? reject(err) : resolve()));
+      }),
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout abrindo porta serial')), 5000),
+      ),
+    ]);
 
     const sessao: Sessao = {
       port,
       buffer: [],
+      bytesBufferizados: 0,
       ultimaAtividade: Date.now(),
+      userId,
+      tenantId,
       config: { porta: config.porta, baudrate, databits, parity, stopbits },
     };
 
     port.on('data', (data: Buffer) => {
-      sessao.buffer.push(Buffer.from(data));
+      const chunk = Buffer.from(data);
+      sessao.buffer.push(chunk);
+      sessao.bytesBufferizados += chunk.length;
+      while (sessao.bytesBufferizados > this.maxBufferBytes && sessao.buffer.length) {
+        const removed = sessao.buffer.shift();
+        sessao.bytesBufferizados -= removed?.length ?? 0;
+      }
       sessao.ultimaAtividade = Date.now();
     });
     port.on('error', (err: Error) => {
@@ -105,9 +127,14 @@ export class SerialTerminalService implements OnModuleDestroy {
     return { sessionId, config: sessao.config };
   }
 
-  async enviar(sessionId: string, data: string, formato: 'ASCII' | 'HEX') {
-    const s = this.sessoes.get(sessionId);
-    if (!s) throw new NotFoundException('Sessao nao encontrada');
+  async enviar(
+    sessionId: string,
+    userId: string,
+    tenantId: string,
+    data: string,
+    formato: 'ASCII' | 'HEX',
+  ) {
+    const s = this.getOwnedSession(sessionId, userId, tenantId);
     let buf: Buffer;
     if (formato === 'HEX') {
       const clean = (data || '').replace(/[^0-9a-fA-F]/g, '');
@@ -123,11 +150,11 @@ export class SerialTerminalService implements OnModuleDestroy {
     return { enviado: buf.length };
   }
 
-  lerBuffer(sessionId: string) {
-    const s = this.sessoes.get(sessionId);
-    if (!s) throw new NotFoundException('Sessao nao encontrada');
+  lerBuffer(sessionId: string, userId: string, tenantId: string) {
+    const s = this.getOwnedSession(sessionId, userId, tenantId);
     const all = Buffer.concat(s.buffer);
     s.buffer = [];
+    s.bytesBufferizados = 0;
     s.ultimaAtividade = Date.now();
     return {
       ascii: all.toString('ascii'),
@@ -140,9 +167,12 @@ export class SerialTerminalService implements OnModuleDestroy {
     };
   }
 
-  async encerrar(sessionId: string) {
+  async encerrar(sessionId: string, userId?: string, tenantId?: string) {
     const s = this.sessoes.get(sessionId);
     if (!s) return { ok: true, inexistente: true };
+    if ((userId && s.userId !== userId) || (tenantId && s.tenantId !== tenantId)) {
+      throw new NotFoundException('Sessao nao encontrada');
+    }
     try {
       await new Promise<void>((resolve) => {
         try {
@@ -157,5 +187,13 @@ export class SerialTerminalService implements OnModuleDestroy {
     }
     this.sessoes.delete(sessionId);
     return { ok: true };
+  }
+
+  private getOwnedSession(sessionId: string, userId: string, tenantId: string) {
+    const s = this.sessoes.get(sessionId);
+    if (!s || s.userId !== userId || s.tenantId !== tenantId) {
+      throw new NotFoundException('Sessao nao encontrada');
+    }
+    return s;
   }
 }

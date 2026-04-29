@@ -8,8 +8,10 @@ import { CaptureRawService } from './capture-raw.service';
 import { CalibracaoService } from './calibracao.service';
 import { NetworkDiscoveryService } from './diagnostics/network-discovery.service';
 import { BalancaConfigController } from './presets.controller';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
+  imports: [AuthModule],
   controllers: [BalancaController, BalancaConfigController],
   providers: [
     BalancaService,

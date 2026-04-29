@@ -38,6 +38,7 @@ import { HealthModule } from './health/health.module';
 import { AutomacaoModule } from './automacao/automacao.module';
 import { IndicadorModule } from './indicadores/indicador.module';
 import { MailerModule } from './mailer/mailer.module';
+import { IntegracaoModule } from './integracao/integracao.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -85,6 +86,7 @@ import { AppController } from './app.controller';
     AutomacaoModule,
     IndicadorModule,
     MailerModule,
+    IntegracaoModule,
   ],
   controllers: [AppController],
   providers: [

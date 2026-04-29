@@ -1,5 +1,7 @@
 # Operação — Atalhos e modo quiosque
 
+> Owner: SRE | Última revisão: 2026-04-27 | Versão: 5
+
 ## Atalhos de teclado (tela `/pesagem`)
 
 Ativos quando há ticket aberto. Tecla é ignorada se foco estiver em campo de texto.

@@ -116,7 +116,9 @@ export default function PesagemEntradaPage() {
 
   const salvarMutation = useMutation({
     mutationFn: async () => {
+      const balanca = balancas?.data?.find((b) => b.id === form.balanca_id);
       const ticket = await createTicket({
+        unidade_id: balanca?.unidade_id ?? balanca?.unidadeId,
         cliente_id: form.cliente_id,
         produto_id: form.produto_id,
         veiculo_id: form.veiculo_id || undefined,
@@ -131,10 +133,13 @@ export default function PesagemEntradaPage() {
 
       await registrarPassagem(ticket.id, {
         tipo_passagem: 'ENTRADA',
+        direcao_operacional: 'ENTRADA',
         papel_calculo: 'BRUTO_OFICIAL',
+        condicao_veiculo: 'CARREGADO',
         peso_capturado: pesoAtual,
         balanca_id: form.balanca_id,
         origem_leitura: pesagemManual ? 'MANUAL' : 'BALANCA',
+        indicador_estabilidade: estavel ? 1 : 0,
       });
 
       return ticket;
@@ -149,7 +154,8 @@ export default function PesagemEntradaPage() {
     !!form.veiculo_placa &&
     !!form.cliente_id &&
     !!form.produto_id &&
-    pesoAtual > 0;
+    pesoAtual > 0 &&
+    (pesagemManual || estavel);
 
   const onSelecionaVeiculo = (id: string) => {
     const v = veiculos?.data?.find((x) => x.id === id);

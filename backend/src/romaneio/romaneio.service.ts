@@ -27,7 +27,7 @@ export class RomaneioService {
 
     // Vincular tickets
     if (dto.ticketIds?.length) {
-      await this.vincularTickets(romaneio.id, dto.ticketIds);
+      await this.vincularTickets(romaneio.id, dto.ticketIds, effectiveTenantId);
     }
 
     return this.findOne(romaneio.id, effectiveTenantId);
@@ -97,15 +97,15 @@ export class RomaneioService {
     return this.prisma.romaneio.delete({ where: { id, tenantId } });
   }
 
-  async vincularTickets(romaneioId: string, ticketIds: string[]) {
+  async vincularTickets(romaneioId: string, ticketIds: string[], tenantId: string) {
     // B4: vinculacao N tickets — eliminado N+1 via findMany + createMany + updateMany
     return this.prisma
       .$transaction(async (tx) => {
-        const romaneio = await tx.romaneio.findUnique({ where: { id: romaneioId } });
+        const romaneio = await tx.romaneio.findUnique({ where: { id: romaneioId, tenantId } });
         if (!romaneio) throw new NotFoundException('Romaneio nao encontrado');
 
         const tickets = await tx.ticketPesagem.findMany({
-          where: { id: { in: ticketIds } },
+          where: { id: { in: ticketIds }, tenantId, clienteId: romaneio.clienteId },
         });
 
         if (tickets.length !== ticketIds.length) {
@@ -136,14 +136,14 @@ export class RomaneioService {
 
         await tx.itemRomaneio.createMany({ data: itens });
         await tx.ticketPesagem.updateMany({
-          where: { id: { in: ticketIds } },
+          where: { id: { in: ticketIds }, tenantId },
           data: { statusComercial: StatusComercial.ROMANEADO },
         });
-        await tx.romaneio.update({ where: { id: romaneioId }, data: { pesoTotal } });
+        await tx.romaneio.update({ where: { id: romaneioId, tenantId }, data: { pesoTotal } });
 
         return romaneioId;
       })
-      .then((id) => this.findOne(id));
+      .then((id) => this.findOne(id, tenantId));
   }
 
   private async gerarNumero(tenantId: string): Promise<string> {

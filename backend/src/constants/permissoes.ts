@@ -46,6 +46,20 @@ export const Permissao = {
 
   // Pagamento
   PAGAMENTO_GERENCIAR: 'pagamento:gerenciar',
+
+  // Integracao ERP
+  INTEGRACAO_VER: 'integracao:ver',
+  INTEGRACAO_CRIAR: 'integracao:criar',
+  INTEGRACAO_EDITAR: 'integracao:editar',
+  INTEGRACAO_ALTERAR_CREDENCIAL: 'integracao:alterar_credencial',
+  INTEGRACAO_TESTAR_CONEXAO: 'integracao:testar_conexao',
+  INTEGRACAO_VER_PAYLOAD_MASCARADO: 'integracao:ver_payload_mascarado',
+  INTEGRACAO_VER_PAYLOAD_CRU: 'integracao:ver_payload_cru',
+  INTEGRACAO_REPROCESSAR: 'integracao:reprocessar',
+  INTEGRACAO_REPROCESSAR_FISCAL: 'integracao:reprocessar_fiscal',
+  INTEGRACAO_IGNORAR_ERRO: 'integracao:ignorar_erro',
+  INTEGRACAO_EXPORTAR_LOG: 'integracao:exportar_log',
+  INTEGRACAO_RECONCILIAR: 'integracao:reconciliar',
 } as const;
 
 export type PermissaoValue = (typeof Permissao)[keyof typeof Permissao];

@@ -226,7 +226,7 @@ cp -r /tmp/backend-standalone/node_modules release/win-unpacked/resources/backen
 ## Documentos de referência
 
 - `docs/PLANO-DESKTOP.md` — plano completo de execução (etapas 1–8) e arquitetura
-- `docs/AUDITORIA-PESOLOG-vs-SOLUTION-TICKET.md` — auditoria detalhada de paridade com PesoLog
+- `docs/auditoria/historico/AUDITORIA-PESOLOG-vs-SOLUTION-TICKET.md` — auditoria detalhada de paridade com PesoLog
 - Skill global `pesolog-inspector` (em `~/.claude/skills/pesolog-inspector/SKILL.md`) — como ler dados do PesoLog (banco, telas, configs)
 
 ---

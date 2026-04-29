@@ -14,9 +14,12 @@ interface PrismaMock {
   pagamentoFatura: {
     create: jest.Mock;
     aggregate: jest.Mock;
-    findUnique: jest.Mock;
+    findFirst: jest.Mock;
     update: jest.Mock;
   };
+  cliente: { findUnique: jest.Mock };
+  romaneio: { findUnique: jest.Mock };
+  formaPagamento: { findUnique: jest.Mock };
   tipoFatura: { findMany: jest.Mock };
   $transaction: jest.Mock;
 }
@@ -33,9 +36,12 @@ function makePrismaMock(): PrismaMock {
     pagamentoFatura: {
       create: jest.fn(),
       aggregate: jest.fn(),
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
     },
+    cliente: { findUnique: jest.fn().mockResolvedValue({ id: 'c' }) },
+    romaneio: { findUnique: jest.fn().mockResolvedValue({ id: 'r' }) },
+    formaPagamento: { findUnique: jest.fn().mockResolvedValue({ id: 'fp' }) },
     tipoFatura: { findMany: jest.fn().mockResolvedValue([]) },
     $transaction: jest.fn(),
   };
@@ -123,14 +129,14 @@ describe('FaturaService', () => {
       prisma.pagamentoFatura.create.mockResolvedValue({ id: 'p1', valor: 100 });
       prisma.pagamentoFatura.aggregate.mockResolvedValue({ _sum: { valor: 100 } });
 
-      await service.registrarPagamento('f1', {
+      await service.registrarPagamento('f1', 't', {
         formaPagamentoId: 'fp',
         valor: 100,
         dataEmissao: '2026-04-25',
       });
 
       expect(prisma.fatura.update).toHaveBeenCalledWith({
-        where: { id: 'f1' },
+        where: { id: 'f1', tenantId: 't' },
         data: { status: 'BAIXADA' },
       });
     });
@@ -140,14 +146,14 @@ describe('FaturaService', () => {
       prisma.pagamentoFatura.create.mockResolvedValue({ id: 'p1' });
       prisma.pagamentoFatura.aggregate.mockResolvedValue({ _sum: { valor: 50 } });
 
-      await service.registrarPagamento('f1', {
+      await service.registrarPagamento('f1', 't', {
         formaPagamentoId: 'fp',
         valor: 50,
         dataEmissao: '2026-04-25',
       });
 
       expect(prisma.fatura.update).toHaveBeenCalledWith({
-        where: { id: 'f1' },
+        where: { id: 'f1', tenantId: 't' },
         data: { status: 'PARCIAL' },
       });
     });
@@ -155,7 +161,7 @@ describe('FaturaService', () => {
     it('lanca NotFound se fatura nao existe', async () => {
       prisma.fatura.findUnique.mockResolvedValue(null);
       await expect(
-        service.registrarPagamento('nope', {
+        service.registrarPagamento('nope', 't', {
           formaPagamentoId: 'fp',
           valor: 10,
           dataEmissao: '2026-04-25',
@@ -167,7 +173,7 @@ describe('FaturaService', () => {
       prisma.fatura.findUnique.mockResolvedValue({ id: 'f1', totalGeral: 100 });
       prisma.pagamentoFatura.create.mockResolvedValue({ id: 'p1' });
       prisma.pagamentoFatura.aggregate.mockResolvedValue({ _sum: { valor: 100 } });
-      await service.registrarPagamento('f1', {
+      await service.registrarPagamento('f1', 't', {
         formaPagamentoId: 'fp',
         valor: 100,
         dataEmissao: '2026-04-25',
@@ -178,14 +184,14 @@ describe('FaturaService', () => {
 
   describe('baixarPagamento', () => {
     it('lanca NotFound quando pagamento inexistente', async () => {
-      prisma.pagamentoFatura.findUnique.mockResolvedValue(null);
-      await expect(service.baixarPagamento('xx')).rejects.toThrow(NotFoundException);
+      prisma.pagamentoFatura.findFirst.mockResolvedValue(null);
+      await expect(service.baixarPagamento('xx', 't')).rejects.toThrow(NotFoundException);
     });
 
     it('marca BAIXADO + dataBaixa + usuario', async () => {
-      prisma.pagamentoFatura.findUnique.mockResolvedValue({ id: 'p1' });
+      prisma.pagamentoFatura.findFirst.mockResolvedValue({ id: 'p1' });
       prisma.pagamentoFatura.update.mockResolvedValue({ id: 'p1', status: 'BAIXADO' });
-      await service.baixarPagamento('p1', 'u1');
+      await service.baixarPagamento('p1', 't', 'u1');
       expect(prisma.pagamentoFatura.update).toHaveBeenCalledWith({
         where: { id: 'p1' },
         data: expect.objectContaining({ status: 'BAIXADO', usuarioBaixa: 'u1' }),

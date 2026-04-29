@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -24,6 +25,7 @@ import { TicketStateMachine } from './ticket-state-machine';
 import { TicketCalculator } from './ticket-calculator';
 import { TicketLicenseGuard } from './ticket-license-guard';
 import { TicketEventPublisher } from './ticket-event-publisher';
+import { OutboxService } from '../integracao/outbox/outbox.service';
 
 @Injectable()
 export class TicketService {
@@ -33,6 +35,7 @@ export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly outbox: OutboxService,
   ) {
     this.licenseGuard = new TicketLicenseGuard(prisma);
     this.eventPublisher = new TicketEventPublisher(eventEmitter);
@@ -203,6 +206,8 @@ export class TicketService {
     ) {
       throw new ForbiddenException('Ticket fechado ou cancelado nao pode ser editado diretamente');
     }
+
+    await this.validarRelacoesTenant({ ...ticket, ...dto } as CreateTicketDto, tenantId);
 
     const updated = await this.prisma.ticketPesagem.update({
       where: { id, tenantId },
@@ -416,6 +421,7 @@ export class TicketService {
       });
 
       await this.licenseGuard.decrementarPesagemTrial(ticket.unidadeId, tx);
+      await this.enqueueTicketFechadoTx(tx, ticketId, ticket.tenantId);
 
       return { tenantId: ticket.tenantId };
     });
@@ -574,6 +580,54 @@ export class TicketService {
       await tx.ticketPesagem.update({
         where: { id: ticketId },
         data: { snapshotComercialVersao: versao, valorUnitario, valorTotal },
+      });
+    }
+  }
+
+  private async enqueueTicketFechadoTx(
+    tx: Prisma.TransactionClient,
+    ticketId: string,
+    tenantId: string,
+  ) {
+    const profiles = await tx.integracaoProfile.findMany({
+      where: { tenantId, enabled: true },
+      select: { id: true },
+    });
+    if (!profiles.length) return;
+
+    const ticket = await tx.ticketPesagem.findUnique({
+      where: { id: ticketId, tenantId },
+      include: {
+        cliente: true,
+        transportadora: true,
+        motorista: true,
+        veiculo: true,
+        produto: true,
+        origem: true,
+        destino: true,
+        armazem: true,
+        passagens: { orderBy: { sequencia: 'asc' } },
+        descontos: true,
+      },
+    });
+    if (!ticket) return;
+
+    for (const profile of profiles) {
+      await this.outbox.enqueueInTransaction(tx, {
+        profileId: profile.id,
+        eventType: 'ticket.fechado',
+        entityType: 'weighing_ticket',
+        entityId: ticketId,
+        revision: 1,
+        idempotencyKey: this.outbox.makeIdempotencyKey(
+          tenantId,
+          profile.id,
+          'weighing_ticket',
+          ticketId,
+          1,
+        ),
+        payloadCanonical: ticket,
+        correlationId: randomUUID(),
       });
     }
   }

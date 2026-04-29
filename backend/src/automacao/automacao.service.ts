@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, Inject, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AutomacaoAdapter } from './automacao.adapter';
 import { AUTOMACAO_ADAPTER } from './automacao.tokens';
@@ -24,14 +24,17 @@ export class AutomacaoService {
     @Inject(AUTOMACAO_ADAPTER) private readonly adapter: AutomacaoAdapter,
   ) {}
 
-  async enviarComando(input: {
-    unidadeId: string;
-    dispositivo: string;
-    comando: string;
-    motivo?: string;
-    ticketId?: string;
-    usuarioId?: string;
-  }) {
+  async enviarComando(
+    input: {
+      unidadeId: string;
+      dispositivo: string;
+      comando: string;
+      motivo?: string;
+      ticketId?: string;
+      usuarioId?: string;
+    },
+    tenantId: string,
+  ) {
     const dispositivo = input.dispositivo?.toUpperCase();
     const comando = input.comando?.toUpperCase();
     if (!DISPOSITIVOS_VALIDOS.has(dispositivo)) {
@@ -40,6 +43,8 @@ export class AutomacaoService {
     if (!COMANDOS_POR_DISPOSITIVO[dispositivo].has(comando)) {
       throw new BadRequestException(`Comando ${comando} não suportado por ${dispositivo}`);
     }
+    await this.ensureUnidadeTenant(input.unidadeId, tenantId);
+    if (input.ticketId) await this.ensureTicketTenant(input.ticketId, tenantId);
 
     const evento = await this.prisma.eventoAutomacao.create({
       data: {
@@ -88,25 +93,50 @@ export class AutomacaoService {
     }
   }
 
-  async marcarExecutado(id: string) {
+  async marcarExecutado(id: string, tenantId?: string) {
+    if (tenantId) await this.ensureEventoTenant(id, tenantId);
     return this.prisma.eventoAutomacao.update({
       where: { id },
       data: { status: 'EXECUTADO', executadoEm: new Date() },
     });
   }
 
-  async marcarFalha(id: string, motivo: string) {
+  async marcarFalha(id: string, motivo: string, tenantId?: string) {
+    if (tenantId) await this.ensureEventoTenant(id, tenantId);
     return this.prisma.eventoAutomacao.update({
       where: { id },
       data: { status: 'FALHA', motivo, executadoEm: new Date() },
     });
   }
 
-  async historico(unidadeId: string, limit = 50) {
+  async historico(unidadeId: string, tenantId: string, limit = 50) {
+    await this.ensureUnidadeTenant(unidadeId, tenantId);
     return this.prisma.eventoAutomacao.findMany({
       where: { unidadeId },
       orderBy: { criadoEm: 'desc' },
       take: limit,
     });
+  }
+
+  private async ensureUnidadeTenant(unidadeId: string, tenantId: string) {
+    const unidade = await this.prisma.unidade.findFirst({
+      where: { id: unidadeId, empresa: { tenantId } },
+      select: { id: true },
+    });
+    if (!unidade) throw new NotFoundException('Unidade nao encontrada');
+  }
+
+  private async ensureTicketTenant(ticketId: string, tenantId: string) {
+    const ticket = await this.prisma.ticketPesagem.findUnique({
+      where: { id: ticketId, tenantId },
+      select: { id: true },
+    });
+    if (!ticket) throw new NotFoundException('Ticket nao encontrado');
+  }
+
+  private async ensureEventoTenant(id: string, tenantId: string) {
+    const evento = await this.prisma.eventoAutomacao.findUnique({ where: { id } });
+    if (!evento) throw new NotFoundException('Evento de automacao nao encontrado');
+    await this.ensureUnidadeTenant(evento.unidadeId, tenantId);
   }
 }

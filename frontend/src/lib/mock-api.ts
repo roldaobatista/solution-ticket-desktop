@@ -554,11 +554,18 @@ export const mockApi = {
     senha: string,
   ): Promise<{ access_token: string; usuario: Usuario }> => {
     await delay(300);
+    if (process.env.NODE_ENV !== 'development') {
+      throw new Error('Mock API indisponivel fora de desenvolvimento');
+    }
+    const expectedPassword = process.env.NEXT_PUBLIC_LOCAL_MOCK_PASSWORD;
+    if (!expectedPassword) {
+      throw new Error('Defina NEXT_PUBLIC_LOCAL_MOCK_PASSWORD para usar mocks locais');
+    }
     const user = usuarios.find((u) => u.email === email);
     if (!user) throw new Error('Usuario nao encontrado');
-    if (senha !== '123456') throw new Error('Senha incorreta');
+    if (senha !== expectedPassword) throw new Error('Senha incorreta');
     currentUser = user;
-    return { access_token: 'mock-jwt-token-' + Date.now(), usuario: user };
+    return { access_token: `local-dev-token-${Date.now()}`, usuario: user };
   },
 
   getMe: async (): Promise<Usuario> => {

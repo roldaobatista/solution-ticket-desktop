@@ -9,13 +9,12 @@ import { BaseFilterDto } from '../dto/base-filter.dto';
 export class ProdutosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateProdutoDto) {
-    return this.prisma.produto.create({ data: { ...dto } });
+  async create(dto: CreateProdutoDto, tenantId: string) {
+    return this.prisma.produto.create({ data: { ...dto, tenantId } });
   }
 
-  async findAll(filter: BaseFilterDto) {
-    const where: Prisma.ProdutoWhereInput = {};
-    if (filter.tenantId) where.tenantId = filter.tenantId;
+  async findAll(filter: BaseFilterDto, tenantId: string) {
+    const where: Prisma.ProdutoWhereInput = { tenantId };
     if (filter.search) {
       where.OR = [
         { descricao: { contains: filter.search } },
@@ -36,19 +35,19 @@ export class ProdutosService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
-    const entity = await this.prisma.produto.findUnique({ where: { id } });
+  async findOne(id: string, tenantId: string) {
+    const entity = await this.prisma.produto.findUnique({ where: { id, tenantId } });
     if (!entity) throw new NotFoundException('Produto não encontrado');
     return entity;
   }
 
-  async update(id: string, dto: UpdateProdutoDto) {
-    await this.findOne(id);
-    return this.prisma.produto.update({ where: { id }, data: { ...dto } });
+  async update(id: string, dto: UpdateProdutoDto, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.produto.update({ where: { id, tenantId }, data: { ...dto } });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.produto.update({ where: { id }, data: { ativo: false } });
+  async remove(id: string, tenantId: string) {
+    await this.findOne(id, tenantId);
+    return this.prisma.produto.update({ where: { id, tenantId }, data: { ativo: false } });
   }
 }

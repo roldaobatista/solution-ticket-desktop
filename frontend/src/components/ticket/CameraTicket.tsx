@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   excluirFoto,
-  getFotoRawUrl,
+  getFotoRawObjectUrl,
   listarFotosTicket,
   uploadFoto,
   type FotoOrigem,
@@ -43,6 +43,7 @@ export function CameraTicket({ ticketId, passagemId }: Props) {
   const [erro, setErro] = useState<string | null>(null);
   const [ipUrl, setIpUrl] = useState('');
   const [previewIp, setPreviewIp] = useState<string | null>(null);
+  const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
 
   const { data: fotos = [], isLoading } = useQuery({
     queryKey: ['fotos-ticket', ticketId],
@@ -64,6 +65,27 @@ export function CameraTicket({ ticketId, passagemId }: Props) {
     mutationFn: (id: string) => excluirFoto(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fotos-ticket', ticketId] }),
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: Record<string, string> = {};
+    (async () => {
+      for (const foto of fotos) {
+        try {
+          urls[foto.id] = await getFotoRawObjectUrl(foto.id);
+        } catch {
+          urls[foto.id] = '';
+        }
+      }
+      if (!cancelled) setFotoUrls(urls);
+    })();
+    return () => {
+      cancelled = true;
+      Object.values(urls).forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, [fotos]);
 
   // Inicia/encerra stream da webcam quando o modo muda
   useEffect(() => {
@@ -262,7 +284,7 @@ export function CameraTicket({ ticketId, passagemId }: Props) {
             <li key={f.id} className="relative group border rounded overflow-hidden bg-slate-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={getFotoRawUrl(f.id)}
+                src={fotoUrls[f.id] || ''}
                 alt={`Foto ${f.id}`}
                 className="w-full h-32 object-cover"
                 loading="lazy"

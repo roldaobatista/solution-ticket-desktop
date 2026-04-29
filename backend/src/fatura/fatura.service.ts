@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginated, resolvePaging } from '../common/dto/pagination.dto';
@@ -12,6 +12,8 @@ export class FaturaService {
 
   async create(dto: CreateFaturaDto & { tenantId?: string }, tenantId?: string) {
     const effectiveTenantId = tenantId ?? dto.tenantId!;
+    await this.ensureClienteTenant(dto.clienteId, effectiveTenantId);
+    if (dto.romaneioId) await this.ensureRomaneioTenant(dto.romaneioId, effectiveTenantId);
     const numero = await this.gerarNumero(effectiveTenantId);
 
     const fatura = await this.prisma.fatura.create({
@@ -82,13 +84,19 @@ export class FaturaService {
     return this.prisma.fatura.delete({ where: { id, tenantId } });
   }
 
-  async registrarPagamento(faturaId: string, dto: RegistrarPagamentoDto) {
+  async registrarPagamento(faturaId: string, tenantId: string, dto: RegistrarPagamentoDto) {
     // B4: encapsula create-pagamento + recalculo-total + update-status numa
     // unica transacao. Sem isto, dois pagamentos concorrentes podiam ler
     // soma desatualizada e gravar status divergente do total real.
     return this.prisma.$transaction(async (tx) => {
-      const fatura = await tx.fatura.findUnique({ where: { id: faturaId } });
+      const fatura = await tx.fatura.findUnique({ where: { id: faturaId, tenantId } });
       if (!fatura) throw new NotFoundException('Fatura nao encontrada');
+      const formaPagamento = await tx.formaPagamento.findUnique({
+        where: { id: dto.formaPagamentoId, tenantId },
+        select: { id: true },
+      });
+      if (!formaPagamento)
+        throw new ForbiddenException('Forma de pagamento nao pertence ao tenant');
 
       const pagamento = await tx.pagamentoFatura.create({
         data: {
@@ -113,7 +121,7 @@ export class FaturaService {
       if (totalPago >= totalFatura) novoStatus = 'BAIXADA';
       else if (totalPago > 0) novoStatus = 'PARCIAL';
 
-      await tx.fatura.update({ where: { id: faturaId }, data: { status: novoStatus } });
+      await tx.fatura.update({ where: { id: faturaId, tenantId }, data: { status: novoStatus } });
 
       return pagamento;
     });
@@ -125,8 +133,10 @@ export class FaturaService {
     return this.prisma.tipoFatura.findMany({ where, orderBy: { descricao: 'asc' } });
   }
 
-  async baixarPagamento(pagamentoId: string, usuarioId?: string) {
-    const pagamento = await this.prisma.pagamentoFatura.findUnique({ where: { id: pagamentoId } });
+  async baixarPagamento(pagamentoId: string, tenantId: string, usuarioId?: string) {
+    const pagamento = await this.prisma.pagamentoFatura.findFirst({
+      where: { id: pagamentoId, fatura: { tenantId } },
+    });
     if (!pagamento) throw new NotFoundException('Pagamento nao encontrado');
 
     const updated = await this.prisma.pagamentoFatura.update({
@@ -143,5 +153,21 @@ export class FaturaService {
   private async gerarNumero(tenantId: string): Promise<string> {
     const count = await this.prisma.fatura.count({ where: { tenantId } });
     return `FAT-${String(count + 1).padStart(6, '0')}`;
+  }
+
+  private async ensureClienteTenant(clienteId: string, tenantId: string) {
+    const cliente = await this.prisma.cliente.findUnique({
+      where: { id: clienteId, tenantId },
+      select: { id: true },
+    });
+    if (!cliente) throw new ForbiddenException('Cliente nao pertence ao tenant');
+  }
+
+  private async ensureRomaneioTenant(romaneioId: string, tenantId: string) {
+    const romaneio = await this.prisma.romaneio.findUnique({
+      where: { id: romaneioId, tenantId },
+      select: { id: true },
+    });
+    if (!romaneio) throw new ForbiddenException('Romaneio nao pertence ao tenant');
   }
 }

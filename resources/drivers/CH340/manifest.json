@@ -1,0 +1,57 @@
+{
+  "name": "CH340 USB serial driver bundle",
+  "source": {
+    "vendor": "WCH / QinHeng Electronics",
+    "url": "https://www.wch.cn/downloads/CH341SER_EXE.html",
+    "retrievedAt": "PENDENTE_DOCUMENTAR",
+    "notes": "Validar origem exata antes de empacotar em release de producao."
+  },
+  "policy": {
+    "productionPackage": true,
+    "requiresCatalogSignature": true,
+    "requiresHashVerification": true
+  },
+  "files": [
+    {
+      "path": "CH341PT.DLL",
+      "sha256": "45494CE819C1B5C21ABB72DC47A0CA36807E0ED74CE55B631DA174C77A9B24DB",
+      "size": 6712,
+      "version": "1.0",
+      "company": "www.winchiphead.com",
+      "signatureStatus": "NotSigned"
+    },
+    {
+      "path": "CH341S64.SYS",
+      "sha256": "1A48A57D7FF5332AD380AF7884F516548DB535CFE23F3AE7D5AF291307CBC435",
+      "size": 58368,
+      "version": "3.30 built by: WinDDK",
+      "company": "www.winchiphead.com",
+      "signatureStatus": "NotSigned"
+    },
+    {
+      "path": "CH341SER.CAT",
+      "sha256": "18FAB08BA0A79CC57B7A0CE8724CD17E0724B3E0A51BDBA364AE9C236D02DDDC",
+      "size": 9822,
+      "version": null,
+      "company": null,
+      "signatureStatus": "Valid",
+      "signer": "CN=Microsoft Windows Hardware Compatibility Publisher, OU=MOPR, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+    },
+    {
+      "path": "ch341ser.inf",
+      "sha256": "855213B81A595AD11E2BB8738698BAF1C7EA11BE964AEB473A3BA47F778E2C75",
+      "size": 5895,
+      "version": null,
+      "company": null,
+      "signatureStatus": "CatalogSigned"
+    },
+    {
+      "path": "ch341ser.PNF",
+      "sha256": "1136016C2BD946F2B318E1391C75CB8646331A2ED1B0EFB1A85D51BAF95EE87B",
+      "size": 14988,
+      "version": null,
+      "company": null,
+      "signatureStatus": "GeneratedCache"
+    }
+  ]
+}

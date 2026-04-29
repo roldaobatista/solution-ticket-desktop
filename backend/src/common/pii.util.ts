@@ -77,6 +77,12 @@ const SENSITIVE_KEYS = new Set([
 ]);
 
 const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const CPF_RE = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
+const CNPJ_RE = /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g;
+const PHONE_RE = /\b(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}-?\d{4}\b/g;
+const CARD_RE = /\b(?:\d[ -]*?){13,19}\b/g;
+const ACCESS_TOKEN_QS_RE = /(access_token=)[^&\s]+/gi;
 const REDACTED = '[REDACTED]';
 const MAX_DEPTH = 6;
 
@@ -85,8 +91,15 @@ function isSensitiveKey(name: string): boolean {
 }
 
 function scrubScalar(value: unknown): unknown {
-  if (typeof value === 'string' && JWT_RE.test(value)) return REDACTED;
-  return value;
+  if (typeof value !== 'string') return value;
+  if (JWT_RE.test(value)) return REDACTED;
+  return value
+    .replace(ACCESS_TOKEN_QS_RE, `$1${REDACTED}`)
+    .replace(EMAIL_RE, REDACTED)
+    .replace(CNPJ_RE, REDACTED)
+    .replace(CPF_RE, REDACTED)
+    .replace(PHONE_RE, REDACTED)
+    .replace(CARD_RE, REDACTED);
 }
 
 export function scrubPii(input: unknown, depth = 0): unknown {

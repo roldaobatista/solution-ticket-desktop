@@ -199,7 +199,8 @@ export class BackupService {
 
     await this.prisma.$disconnect();
     fs.copyFileSync(target.path, getDatabasePath());
-    this.logger.warn(`Restore concluído de ${filename}. Reinicie o aplicativo.`);
+    this.logger.warn(`Restore concluído de ${filename}. Encerrando processo para reinicio limpo.`);
+    setTimeout(() => process.exit(99), 250);
     return { ok: true, preRestoreBackup: pre.filename };
   }
 

@@ -23,16 +23,20 @@ export class FaturaController {
 
   @Get('tipos')
   @ApiOperation({ summary: 'Listar tipos de fatura' })
-  listarTipos(@Query('tenantId') tenantId?: string) {
+  listarTipos(@CurrentUser('tenantId') tenantId: string) {
     return this.faturaService.listarTipos(tenantId);
   }
 
   @Post('pagamentos/:id/baixar')
   @Roles(Permissao.FATURA_GERENCIAR)
   @ApiOperation({ summary: 'Baixar pagamento' })
-  baixarPagamento(@Param('id') id: string, @Req() req: AuthRequest) {
+  baixarPagamento(
+    @Param('id') id: string,
+    @Req() req: AuthRequest,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
     const usuarioId = req.user?.id ?? req.user?.sub ?? undefined;
-    return this.faturaService.baixarPagamento(id, usuarioId);
+    return this.faturaService.baixarPagamento(id, tenantId, usuarioId);
   }
 
   @Post()
@@ -45,7 +49,7 @@ export class FaturaController {
   @Get()
   @ApiOperation({ summary: 'Listar faturas (paginado)' })
   findAll(
-    @Query('tenantId') tenantId: string,
+    @CurrentUser('tenantId') tenantId: string,
     @Query('clienteId') clienteId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -76,7 +80,11 @@ export class FaturaController {
   @Post(':id/pagamentos')
   @Roles(Permissao.FATURA_GERENCIAR)
   @ApiOperation({ summary: 'Registrar pagamento da fatura' })
-  registrarPagamento(@Param('id') id: string, @Body() dto: RegistrarPagamentoDto) {
-    return this.faturaService.registrarPagamento(id, dto);
+  registrarPagamento(
+    @Param('id') id: string,
+    @Body() dto: RegistrarPagamentoDto,
+    @CurrentUser('tenantId') tenantId: string,
+  ) {
+    return this.faturaService.registrarPagamento(id, tenantId, dto);
   }
 }
