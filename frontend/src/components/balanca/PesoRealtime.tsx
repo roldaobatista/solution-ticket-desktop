@@ -30,6 +30,11 @@ export function PesoRealtime({
   const [secondsAgo, setSecondsAgo] = useState<number>(0);
   const esRef = useRef<EventSource | null>(null);
   const reconnectRef = useRef<number | null>(null);
+  const onPesoChangeRef = useRef<PesoRealtimeProps['onPesoChange']>(onPesoChange);
+
+  useEffect(() => {
+    onPesoChangeRef.current = onPesoChange;
+  }, [onPesoChange]);
 
   // SSE connection (real mode) or polling simulation (mock mode)
   useEffect(() => {
@@ -45,7 +50,7 @@ export function PesoRealtime({
         const estavel = Math.random() > 0.4;
         const peso = Math.max(0, base);
         setLeitura({ peso, estavel, timestamp: new Date().toISOString() });
-        onPesoChange?.(peso, estavel);
+        onPesoChangeRef.current?.(peso, estavel);
       }, 800);
       return () => clearInterval(interval);
     }
@@ -70,7 +75,7 @@ export function PesoRealtime({
             setLeitura(data);
             setConn('ONLINE');
             setErro(null);
-            onPesoChange?.(data.peso, data.estavel);
+            onPesoChangeRef.current?.(data.peso, data.estavel);
           } catch {
             // ignora mensagens nao JSON
           }
@@ -106,7 +111,7 @@ export function PesoRealtime({
         esRef.current = null;
       }
     };
-  }, [balancaId, onPesoChange]);
+  }, [balancaId]);
 
   // Poll status para fallback (mesmo com SSE, marca erro/offline)
   useEffect(() => {

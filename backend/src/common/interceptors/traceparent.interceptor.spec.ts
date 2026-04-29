@@ -1,4 +1,36 @@
+import type { CallHandler, ExecutionContext } from '@nestjs/common';
+import { of } from 'rxjs';
 import { TraceparentInterceptor } from './traceparent.interceptor';
+
+type TraceRequest = {
+  headers: Record<string, string | undefined>;
+  traceId?: string;
+};
+
+type TraceResponse = {
+  setHeader: jest.Mock<void, [string, string]>;
+};
+
+function makeContext(req: TraceRequest, res: TraceResponse): ExecutionContext {
+  return {
+    switchToHttp: () => ({
+      getRequest: () => req,
+      getResponse: () => res,
+      getNext: jest.fn(),
+    }),
+    getClass: jest.fn(),
+    getHandler: jest.fn(),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn(),
+  } as unknown as ExecutionContext;
+}
+
+function makeNext(): CallHandler {
+  return { handle: jest.fn(() => of(null)) };
+}
 
 describe('TraceparentInterceptor', () => {
   let interceptor: TraceparentInterceptor;
@@ -9,12 +41,10 @@ describe('TraceparentInterceptor', () => {
 
   it('preserva traceparent válido do frontend', () => {
     const valid = '00-1234567890abcdef1234567890abcdef-1234567890abcdef-01';
-    const req: any = { headers: { traceparent: valid } };
-    const res: any = { setHeader: jest.fn() };
-    const context: any = {
-      switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }),
-    };
-    const next: any = { handle: jest.fn().mockReturnValue({ subscribe: jest.fn() }) };
+    const req: TraceRequest = { headers: { traceparent: valid } };
+    const res: TraceResponse = { setHeader: jest.fn() };
+    const context = makeContext(req, res);
+    const next = makeNext();
 
     interceptor.intercept(context, next);
     expect(req.traceId).toBe(valid);
@@ -22,12 +52,10 @@ describe('TraceparentInterceptor', () => {
   });
 
   it('gera traceparent válido quando header ausente', () => {
-    const req: any = { headers: {} };
-    const res: any = { setHeader: jest.fn() };
-    const context: any = {
-      switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }),
-    };
-    const next: any = { handle: jest.fn().mockReturnValue({ subscribe: jest.fn() }) };
+    const req: TraceRequest = { headers: {} };
+    const res: TraceResponse = { setHeader: jest.fn() };
+    const context = makeContext(req, res);
+    const next = makeNext();
 
     interceptor.intercept(context, next);
     const generated = req.traceId as string;
@@ -36,12 +64,10 @@ describe('TraceparentInterceptor', () => {
   });
 
   it('gera traceparent válido quando header malformado', () => {
-    const req: any = { headers: { traceparent: 'invalid' } };
-    const res: any = { setHeader: jest.fn() };
-    const context: any = {
-      switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }),
-    };
-    const next: any = { handle: jest.fn().mockReturnValue({ subscribe: jest.fn() }) };
+    const req: TraceRequest = { headers: { traceparent: 'invalid' } };
+    const res: TraceResponse = { setHeader: jest.fn() };
+    const context = makeContext(req, res);
+    const next = makeNext();
 
     interceptor.intercept(context, next);
     const generated = req.traceId as string;

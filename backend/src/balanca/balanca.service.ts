@@ -29,7 +29,6 @@ export class BalancaService {
     let normalizado = protocolo;
     if (['rs232', 'rs485'].includes(protocolo)) normalizado = 'serial';
     if (['tcpip', 'tcp/ip', 'ethernet'].includes(protocolo)) normalizado = 'tcp';
-    if (protocolo === 'modbus-rtu' || protocolo === 'modbus-tcp') normalizado = 'modbus';
     return { ...dto, protocolo: normalizado } as T;
   }
 
@@ -54,7 +53,11 @@ export class BalancaService {
     dto: CreateBalancaDto | UpdateBalancaDto,
     excluirId?: string,
   ) {
-    if (dto.protocolo === 'serial' || dto.protocolo === 'modbus') {
+    const protocolo = dto.protocolo ?? 'serial';
+    const usaSerial = protocolo === 'serial' || protocolo === 'modbus-rtu';
+    const usaTcp = protocolo === 'tcp' || protocolo === 'modbus-tcp';
+
+    if (usaSerial) {
       if (!dto.porta) {
         throw new BadRequestException(`protocolo=${dto.protocolo} exige porta serial (ex: COM3)`);
       }
@@ -72,10 +75,8 @@ export class BalancaService {
         );
       }
     }
-    if (dto.protocolo === 'tcp' || dto.protocolo === 'modbus') {
-      if (dto.protocolo === 'tcp' && (!dto.enderecoIp || !dto.portaTcp)) {
-        throw new BadRequestException(`protocolo=tcp exige enderecoIp e portaTcp`);
-      }
+    if (usaTcp && (!dto.enderecoIp || !dto.portaTcp)) {
+      throw new BadRequestException(`protocolo=${protocolo} exige enderecoIp e portaTcp`);
     }
   }
 

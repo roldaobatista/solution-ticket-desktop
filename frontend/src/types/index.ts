@@ -67,6 +67,8 @@ export interface Produto {
 export interface Balanca {
   id: string;
   nome: string;
+  empresaId?: string;
+  empresa_id?: string;
   unidadeId?: string;
   unidade_id?: string;
   unidade_nome?: string;
@@ -83,7 +85,26 @@ export interface Balanca {
   protocolo?: string;
   baud_rate?: number;
   host?: string;
+  enderecoIp?: string;
+  endereco_ip?: string;
+  portaTcp?: number;
   porta_tcp?: number;
+  modbusUnitId?: number;
+  modbus_unit_id?: number;
+  modbusRegister?: number;
+  modbus_register?: number;
+  modbusFunction?: 'holding' | 'input';
+  modbus_function?: 'holding' | 'input';
+  modbusByteOrder?: 'BE' | 'LE';
+  modbus_byte_order?: 'BE' | 'LE';
+  modbusWordOrder?: 'BE' | 'LE';
+  modbus_word_order?: 'BE' | 'LE';
+  modbusSigned?: boolean;
+  modbus_signed?: boolean;
+  modbusScale?: number;
+  modbus_scale?: number;
+  modbusOffset?: number;
+  modbus_offset?: number;
   status_conexao?: string;
   balanca_entrada?: boolean;
   balanca_saida?: boolean;
@@ -129,6 +150,8 @@ export interface TestarConexaoResult {
 
 export interface Unidade {
   id: string;
+  empresaId?: string;
+  empresa_id?: string;
   nome: string;
   endereco?: string;
   cidade?: string;
@@ -344,6 +367,10 @@ export interface Usuario {
   perfil: string;
   permissoes: string[];
   unidade_id?: string;
+  unidadeId?: string | null;
+  unidadeNome?: string | null;
+  unidadeCidade?: string | null;
+  unidadeUf?: string | null;
   ultimo_acesso?: string;
 }
 

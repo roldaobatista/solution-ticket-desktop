@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { BCRYPT_COST_PROD } from '../auth/bcrypt-cost';
+import { validarPoliticaSenha } from '../auth/password-policy';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
@@ -13,6 +19,9 @@ export class UsersService {
 
   async create(dto: CreateUserDto, tenantId: string) {
     const normalizedEmail = dto.email.toLowerCase().trim();
+    validarPoliticaSenha(dto.senha);
+    await this.ensurePerfilIdsBelongToTenant(dto.perfilIds, tenantId);
+
     const existente = await this.prisma.usuario.findFirst({
       where: { email: normalizedEmail, tenantId },
     });
@@ -119,7 +128,11 @@ export class UsersService {
     if (dto.nome) data.nome = dto.nome;
     if (dto.email) data.email = dto.email.toLowerCase().trim();
     if (dto.ativo !== undefined) data.ativo = dto.ativo;
-    if (dto.senha) data.senhaHash = await bcrypt.hash(dto.senha, BCRYPT_COST_PROD);
+    if (dto.senha) {
+      validarPoliticaSenha(dto.senha);
+      data.senhaHash = await bcrypt.hash(dto.senha, BCRYPT_COST_PROD);
+      data.tokenVersion = { increment: 1 };
+    }
 
     const usuario = await this.prisma.usuario.update({
       where: { id },
@@ -137,6 +150,7 @@ export class UsersService {
 
     // Atualizar perfis
     if (dto.perfilIds) {
+      await this.ensurePerfilIdsBelongToTenant(dto.perfilIds, tenantId);
       await this.prisma.usuarioPerfil.deleteMany({ where: { usuarioId: id } });
       await this.prisma.usuarioPerfil.createMany({
         data: dto.perfilIds.map((perfilId) => ({ usuarioId: id, perfilId })),
@@ -151,5 +165,20 @@ export class UsersService {
     await this.prisma.usuarioPerfil.deleteMany({ where: { usuarioId: id } });
     await this.prisma.usuario.delete({ where: { id } });
     return { message: 'Usuário removido com sucesso' };
+  }
+
+  private async ensurePerfilIdsBelongToTenant(perfilIds: string[] | undefined, tenantId: string) {
+    if (!perfilIds?.length) return;
+    const uniquePerfilIds = Array.from(new Set(perfilIds));
+    const validCount = await this.prisma.perfil.count({
+      where: {
+        id: { in: uniquePerfilIds },
+        tenantId,
+        ativo: true,
+      },
+    });
+    if (validCount !== uniquePerfilIds.length) {
+      throw new BadRequestException('Um ou mais perfis nao pertencem ao tenant do usuario');
+    }
   }
 }

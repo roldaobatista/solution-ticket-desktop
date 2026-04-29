@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, USE_MOCK } from './client';
 
 // --- Diagnostico ---
 export interface DiagnosticoSistema {
@@ -82,6 +82,19 @@ export interface AuditoriaEntry {
 }
 
 export async function getAuditoriaRecentes(limit = 20): Promise<AuditoriaEntry[]> {
+  if (USE_MOCK) {
+    return [
+      {
+        id: 'audit-mock-1',
+        entidade: 'ticket',
+        entidadeId: 'tk1',
+        evento: 'post.create',
+        usuarioId: 'u1',
+        dataHora: new Date().toISOString(),
+      },
+    ].slice(0, limit);
+  }
+
   const res = await apiClient.get('/auditoria/recentes', { params: { limit } });
   const data = res.data;
   return Array.isArray(data) ? data : data?.data || [];

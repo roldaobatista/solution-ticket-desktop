@@ -1,17 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GenericCrudService } from '../../common/generic-crud/generic-crud.service';
+import { CrudConfig, GenericCrudService } from '../../common/generic-crud/generic-crud.service';
 import { CreateFormaPagamentoDto } from '../dto/create-forma-pagamento.dto';
 import { UpdateFormaPagamentoDto } from '../dto/update-forma-pagamento.dto';
 
 @Injectable()
 export class FormasPagamentoService extends GenericCrudService<
-  any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
+  Prisma.FormaPagamentoWhereInput,
   CreateFormaPagamentoDto,
   UpdateFormaPagamentoDto
 > {
-  protected config = {
+  protected config: CrudConfig<
+    Prisma.FormaPagamentoWhereInput,
+    CreateFormaPagamentoDto,
+    UpdateFormaPagamentoDto
+  > = {
     prismaModel: 'formaPagamento' as const,
     searchFields: ['descricao'],
     orderByField: 'descricao',

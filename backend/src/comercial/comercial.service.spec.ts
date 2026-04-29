@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ForbiddenException } from '@nestjs/common';
 import { ComercialService } from './comercial.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -18,6 +19,9 @@ interface PrismaMock {
   tabelaFrete: { create: jest.Mock; findMany: jest.Mock; update: jest.Mock };
   tabelaUmidade: { create: jest.Mock; findMany: jest.Mock; update: jest.Mock };
   historicoPreco: { create: jest.Mock; findMany: jest.Mock };
+  produto: { findFirst: jest.Mock };
+  cliente: { findFirst: jest.Mock };
+  destino: { findFirst: jest.Mock };
   fatura: { findMany: jest.Mock };
   snapshotComercialTicket: { findMany: jest.Mock };
 }
@@ -50,6 +54,9 @@ function makePrismaMock(): PrismaMock {
       create: jest.fn().mockResolvedValue({}),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    produto: { findFirst: jest.fn().mockResolvedValue({ id: 'p' }) },
+    cliente: { findFirst: jest.fn().mockResolvedValue({ id: 'c' }) },
+    destino: { findFirst: jest.fn().mockResolvedValue({ id: 'd' }) },
     fatura: { findMany: jest.fn().mockResolvedValue([]) },
     snapshotComercialTicket: { findMany: jest.fn().mockResolvedValue([]) },
   };
@@ -76,7 +83,7 @@ describe('ComercialService', () => {
           valor: 10,
           unidade: 'kg',
           vigenciaInicio: '2026-04-01',
-        } as any,
+        } as never,
         'tenant-jwt',
       );
       expect(prisma.tabelaPrecoProduto.create).toHaveBeenCalledWith({
@@ -90,6 +97,66 @@ describe('ComercialService', () => {
           ativo: true,
         }),
       });
+    });
+
+    it('rejeita produto de outro tenant', async () => {
+      prisma.produto.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createTabelaPrecoProduto(
+          {
+            produtoId: 'p-outro-tenant',
+            valor: 10,
+            unidade: 'kg',
+            vigenciaInicio: '2026-04-01',
+          },
+          'tenant-jwt',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.tabelaPrecoProduto.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createTabelaPrecoCliente', () => {
+    it('valida produto e cliente dentro do tenant antes de criar preco especifico', async () => {
+      await service.createTabelaPrecoCliente(
+        {
+          produtoId: 'p',
+          clienteId: 'c',
+          valor: 12,
+          unidade: 'kg',
+          vigenciaInicio: '2026-04-01',
+        },
+        'tenant-jwt',
+      );
+
+      expect(prisma.produto.findFirst).toHaveBeenCalledWith({
+        where: { id: 'p', tenantId: 'tenant-jwt' },
+        select: { id: true },
+      });
+      expect(prisma.cliente.findFirst).toHaveBeenCalledWith({
+        where: { id: 'c', tenantId: 'tenant-jwt' },
+        select: { id: true },
+      });
+    });
+
+    it('rejeita destino de outro tenant no preco especifico', async () => {
+      prisma.destino.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createTabelaPrecoCliente(
+          {
+            produtoId: 'p',
+            clienteId: 'c',
+            destinoId: 'd-outro-tenant',
+            valor: 12,
+            unidade: 'kg',
+            vigenciaInicio: '2026-04-01',
+          },
+          'tenant-jwt',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.tabelaPrecoProdutoCliente.create).not.toHaveBeenCalled();
     });
   });
 
@@ -227,7 +294,7 @@ describe('ComercialService', () => {
           tenantId: 'tenant-invasor',
           valor: 50,
           vigenciaInicio: '2026-04-01',
-        } as any,
+        } as never,
         'tenant-jwt',
       );
       expect(prisma.tabelaFrete.create).toHaveBeenCalledWith({
@@ -253,7 +320,7 @@ describe('ComercialService', () => {
           faixaFinal: 14,
           descontoPercentual: 1.5,
           vigenciaInicio: '2026-04-01',
-        } as any,
+        } as never,
         'tenant-jwt',
       );
       expect(prisma.tabelaUmidade.create).toHaveBeenCalledWith({

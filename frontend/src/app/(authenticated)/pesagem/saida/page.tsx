@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,11 +15,15 @@ import {
   registrarPassagem,
   fecharTicket,
   adicionarDescontoTicket,
+  capturarPeso,
 } from '@/lib/api';
 import { formatWeight } from '@/lib/utils';
 import PesoRealtime from '@/components/peso/PesoRealtime';
 import TicketPreview from '@/components/ticket/TicketPreview';
+import { Toast, useToast } from '@/components/ui/toast';
+import { extractMessage } from '@/lib/errors';
 import { Save, X, ArrowUpFromLine, Search } from 'lucide-react';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function PesagemSaidaPage() {
   const router = useRouter();
@@ -31,6 +35,7 @@ export default function PesagemSaidaPage() {
   const [estavel, setEstavel] = useState(false);
   const [descontos, setDescontos] = useState(0);
   const [previewTicketId, setPreviewTicketId] = useState<string | null>(null);
+  const { toast, showToast, hideToast } = useToast();
 
   const { data: balancas } = useQuery({
     queryKey: ['balancas'],
@@ -95,9 +100,47 @@ export default function PesagemSaidaPage() {
     onSuccess: () => {
       setPreviewTicketId(ticketId);
     },
+    onError: (e: unknown) => showToast(extractMessage(e, 'Erro ao finalizar pesagem'), 'error'),
   });
 
   const canSave = !!ticketId && !!balancaId && pesoSaida > 0 && (pesagemManual || estavel);
+  const handlePesoChange = useCallback(
+    (p: number, e: boolean) => {
+      if (!pesagemManual) {
+        setPesoAtual(p);
+        setEstavel(e);
+      }
+    },
+    [pesagemManual],
+  );
+
+  const capturarPesoAtual = useCallback(async () => {
+    if (!balancaId) {
+      showToast('Selecione uma balanca antes de capturar', 'warning');
+      return;
+    }
+    try {
+      const leitura = await capturarPeso(balancaId);
+      setPesoAtual(leitura.peso);
+      setEstavel(leitura.estavel);
+    } catch (e: unknown) {
+      showToast(extractMessage(e, 'Erro ao capturar peso'), 'error');
+    }
+  }, [balancaId, showToast]);
+
+  const finalizarPesagem = useCallback(() => {
+    if (canSave && !finalizarMutation.isPending) finalizarMutation.mutate();
+  }, [canSave, finalizarMutation]);
+
+  const shortcuts = useMemo(
+    () => ({
+      F1: capturarPesoAtual,
+      F2: finalizarPesagem,
+      Escape: () => router.push('/tickets'),
+    }),
+    [capturarPesoAtual, finalizarPesagem, router],
+  );
+  useKeyboardShortcuts(shortcuts);
 
   return (
     <div className="space-y-6">
@@ -192,15 +235,7 @@ export default function PesagemSaidaPage() {
 
           {/* Peso e calculo */}
           <div className="space-y-4">
-            <PesoRealtime
-              balancaId={balancaId || undefined}
-              onPesoChange={(p, e) => {
-                if (!pesagemManual) {
-                  setPesoAtual(p);
-                  setEstavel(e);
-                }
-              }}
-            />
+            <PesoRealtime balancaId={balancaId || undefined} onPesoChange={handlePesoChange} />
 
             {pesagemManual && (
               <Card>
@@ -244,11 +279,11 @@ export default function PesagemSaidaPage() {
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
         <Button variant="secondary" onClick={() => router.push('/tickets')}>
           <X className="w-4 h-4 mr-2" />
-          Cancelar
+          Voltar
         </Button>
         <Button
           variant="primary"
-          onClick={() => finalizarMutation.mutate()}
+          onClick={finalizarPesagem}
           disabled={!canSave}
           isLoading={finalizarMutation.isPending}
         >
@@ -265,6 +300,7 @@ export default function PesagemSaidaPage() {
           router.push('/tickets');
         }}
       />
+      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
     </div>
   );
 }

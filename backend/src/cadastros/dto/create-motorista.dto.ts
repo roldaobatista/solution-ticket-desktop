@@ -2,10 +2,6 @@ import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateMotoristaDto {
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()

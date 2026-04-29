@@ -1,11 +1,15 @@
 import { Injectable, Logger, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter } from 'events';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { createAdapter } from './adapters/adapter.factory';
 import { IBalancaAdapter } from './adapters/adapter.interface';
 import { createParser } from './parsers/parser.factory';
 import { IBalancaParser, LeituraPeso } from './parsers/parser.interface';
 import { errorMessage } from '../common/error-message.util';
+import { resolveEffectiveConfig } from './config-resolver';
+import { getUserDataDir } from '../common/desktop-paths';
 
 export interface BalancaStatus {
   online: boolean;
@@ -15,6 +19,7 @@ export interface BalancaStatus {
 }
 
 interface ConexaoAtiva {
+  id: string;
   adapter: IBalancaAdapter;
   parser: IBalancaParser;
   buffer: Buffer;
@@ -23,6 +28,8 @@ interface ConexaoAtiva {
   historico: number[];
   toleranciaEstabilidade: number;
   janelaEstabilidade: number;
+  comandoTimer?: NodeJS.Timeout | null;
+  debugLogPath?: string | null;
 }
 
 /**
@@ -33,8 +40,10 @@ interface ConexaoAtiva {
 export class BalancaConnectionService implements OnModuleDestroy {
   private readonly logger = new Logger(BalancaConnectionService.name);
   private readonly conexoes = new Map<string, ConexaoAtiva>();
+  private readonly conexoesPendentes = new Map<string, Promise<BalancaStatus>>();
   private static readonly TOLERANCIA_ESTAVEL = 2; // kg
   private static readonly JANELA_ESTAVEL = 5;
+  private static readonly LEITURA_ESTAVEL_TTL_MS = 1000;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -75,31 +84,50 @@ export class BalancaConnectionService implements OnModuleDestroy {
 
   async conectar(id: string, tenantId: string): Promise<BalancaStatus> {
     if (this.conexoes.has(id)) return this.getStatus(id);
+    const pendente = this.conexoesPendentes.get(id);
+    if (pendente) return pendente;
+
+    const tarefa = this.conectarNova(id, tenantId);
+    this.conexoesPendentes.set(id, tarefa);
+    try {
+      return await tarefa;
+    } finally {
+      this.conexoesPendentes.delete(id);
+    }
+  }
+
+  private async conectarNova(id: string, tenantId: string): Promise<BalancaStatus> {
     const balanca = await this.getBalancaComIndicador(id, tenantId);
-    const indicador = balanca.indicador;
+    const config = resolveEffectiveConfig(balanca, balanca.indicador);
 
-    const adapter = createAdapter(balanca.protocolo ?? 'serial', {
-      porta: balanca.porta,
-      baudrate: balanca.baudRate ?? indicador?.baudrate ?? null,
-      databits: indicador?.databits ?? 8,
-      stopbits: indicador?.stopbits ?? 1,
-      parity: indicador?.parity ?? 'none',
-      flowControl: indicador?.flowControl ?? 'none',
-      enderecoIp: balanca.enderecoIp,
-      portaTcp: balanca.portaTcp,
+    const adapter = createAdapter(config.protocolo, {
+      porta:
+        config.protocolo === 'serial' || config.protocolo === 'modbus-rtu' ? balanca.porta : null,
+      baudrate: config.serial.baudRate,
+      databits: config.serial.dataBits,
+      stopbits: config.serial.stopBits,
+      parity: config.serial.parity,
+      flowControl: config.serial.flowControl,
+      enderecoIp:
+        config.protocolo === 'tcp' || config.protocolo === 'modbus-tcp' ? balanca.enderecoIp : null,
+      portaTcp:
+        config.protocolo === 'tcp' || config.protocolo === 'modbus-tcp' ? balanca.portaTcp : null,
+      intervalMs: config.atraso || null,
+      modbusUnitId: config.modbus.unitId,
+      modbusRegister: config.modbus.register,
+      modbusFunction: config.modbus.function,
+      modbusByteOrder: config.modbus.byteOrder,
+      modbusWordOrder: config.modbus.wordOrder,
+      modbusSigned: config.modbus.signed,
+      modbusScale: config.modbus.scale,
+      modbusOffset: config.modbus.offset,
     });
 
-    const parser = createParser({
-      parserTipo: indicador?.parserTipo ?? 'generic',
-      inicioPeso: indicador?.inicioPeso ?? null,
-      tamanhoPeso: indicador?.tamanhoPeso ?? null,
-      tamanhoString: indicador?.tamanhoString ?? null,
-      marcador: indicador?.marcador ?? null,
-      fator: indicador?.fator ?? null,
-      invertePeso: indicador?.invertePeso ?? false,
-    });
+    const parser = createParser(config.parser);
+    const debugLogPath = balanca.debugMode ? this.criarDebugLogPath(id) : null;
 
     const conexao: ConexaoAtiva = {
+      id,
       adapter,
       parser,
       buffer: Buffer.alloc(0),
@@ -109,6 +137,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
       toleranciaEstabilidade:
         balanca.toleranciaEstabilidade ?? BalancaConnectionService.TOLERANCIA_ESTAVEL,
       janelaEstabilidade: balanca.janelaEstabilidade ?? BalancaConnectionService.JANELA_ESTAVEL,
+      debugLogPath,
     };
 
     adapter.on('data', (chunk: Buffer) => this.processarChunk(conexao, chunk));
@@ -153,6 +182,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
       conexao.status.online = true;
       conexao.status.erro = null;
       this.conexoes.set(id, conexao);
+      this.iniciarPollingComando(conexao, config.parser.parserTipo, config.atraso);
     } catch (err: unknown) {
       conexao.status.online = false;
       conexao.status.erro = errorMessage(err) ?? String(err);
@@ -165,6 +195,10 @@ export class BalancaConnectionService implements OnModuleDestroy {
     const c = this.conexoes.get(id);
     if (!c) return;
     await c.adapter.close().catch(() => undefined);
+    if (c.comandoTimer) {
+      clearInterval(c.comandoTimer);
+      c.comandoTimer = null;
+    }
     // RC1: limpa listeners do adapter alem do emitter interno para evitar leak
     c.adapter.removeAllListeners();
     c.emitter.removeAllListeners();
@@ -178,49 +212,95 @@ export class BalancaConnectionService implements OnModuleDestroy {
     timeoutMs = 2000,
   ): Promise<{ sucesso: boolean; erro?: string }> {
     const balanca = await this.getBalancaComIndicador(id, tenantId);
-    const indicador = balanca.indicador;
+    const config = resolveEffectiveConfig(balanca, balanca.indicador);
+    const parser = createParser(config.parser);
     const adapter = createAdapter(
-      balanca.protocolo ?? 'serial',
+      config.protocolo,
       {
-        porta: balanca.porta,
-        baudrate: balanca.baudRate ?? indicador?.baudrate ?? null,
-        databits: indicador?.databits ?? 8,
-        stopbits: indicador?.stopbits ?? 1,
-        parity: indicador?.parity ?? 'none',
-        flowControl: indicador?.flowControl ?? 'none',
-        enderecoIp: balanca.enderecoIp,
-        portaTcp: balanca.portaTcp,
+        porta:
+          config.protocolo === 'serial' || config.protocolo === 'modbus-rtu' ? balanca.porta : null,
+        baudrate: config.serial.baudRate,
+        databits: config.serial.dataBits,
+        stopbits: config.serial.stopBits,
+        parity: config.serial.parity,
+        flowControl: config.serial.flowControl,
+        enderecoIp:
+          config.protocolo === 'tcp' || config.protocolo === 'modbus-tcp'
+            ? balanca.enderecoIp
+            : null,
+        portaTcp:
+          config.protocolo === 'tcp' || config.protocolo === 'modbus-tcp' ? balanca.portaTcp : null,
+        intervalMs: config.atraso || null,
+        modbusUnitId: config.modbus.unitId,
+        modbusRegister: config.modbus.register,
+        modbusFunction: config.modbus.function,
+        modbusByteOrder: config.modbus.byteOrder,
+        modbusWordOrder: config.modbus.wordOrder,
+        modbusSigned: config.modbus.signed,
+        modbusScale: config.modbus.scale,
+        modbusOffset: config.modbus.offset,
         connectTimeoutMs: timeoutMs,
       },
       { autoReconnect: false }, // teste de conexao: falhar rapido
     );
     try {
+      let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+      const leituraPromise = new Promise<boolean>((resolve) => {
+        const onData = (chunk: Buffer) => {
+          buffer = Buffer.concat([buffer, chunk]);
+          const { leitura, restante } = parser.parse(buffer);
+          buffer = restante;
+          if (leitura) {
+            adapter.off('data', onData);
+            resolve(true);
+          }
+        };
+        adapter.on('data', onData);
+      });
       await Promise.race([
         adapter.connect(),
         new Promise<void>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
       ]);
+      if (this.parserPrecisaEnq(config.parser.parserTipo)) {
+        await adapter.write?.(Buffer.from([0x05])).catch(() => undefined);
+      }
+      const recebeuLeitura = await Promise.race([
+        leituraPromise,
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+      ]);
       await adapter.close();
-      return { sucesso: true };
+      return recebeuLeitura
+        ? { sucesso: true }
+        : { sucesso: false, erro: 'Conexao aberta, mas nenhuma leitura parseavel foi recebida' };
     } catch (err: unknown) {
       await adapter.close().catch(() => undefined);
       return { sucesso: false, erro: errorMessage(err) ?? String(err) };
     }
   }
 
-  /** Aguarda peso estável ou retorna a última leitura após timeout. */
+  /** Aguarda uma leitura estável nova; no timeout falha sem reutilizar peso antigo. */
   async capturar(id: string, tenantId: string, timeoutMs = 3000): Promise<LeituraPeso | null> {
     if (!this.conexoes.has(id)) await this.conectar(id, tenantId);
     const c = this.conexoes.get(id);
     if (!c) return null;
-    if (c.status.ultimaLeitura?.estavel) return c.status.ultimaLeitura;
+    const startedAt = Date.now();
+    if (
+      c.status.ultimaLeitura?.estavel &&
+      c.status.ultimaLeituraEm &&
+      startedAt - c.status.ultimaLeituraEm.getTime() <=
+        BalancaConnectionService.LEITURA_ESTAVEL_TTL_MS
+    ) {
+      return c.status.ultimaLeitura;
+    }
 
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         c.emitter.off('leitura', onLeitura);
-        resolve(c.status.ultimaLeitura);
+        resolve(null);
       }, timeoutMs);
       const onLeitura = (l: LeituraPeso) => {
-        if (l.estavel) {
+        const leituraEm = c.status.ultimaLeituraEm?.getTime() ?? Date.now();
+        if (l.estavel && leituraEm >= startedAt) {
           clearTimeout(timer);
           c.emitter.off('leitura', onLeitura);
           resolve(l);
@@ -231,6 +311,7 @@ export class BalancaConnectionService implements OnModuleDestroy {
   }
 
   private processarChunk(conexao: ConexaoAtiva, chunk: Buffer) {
+    this.dumpDebug(conexao, chunk);
     conexao.buffer = Buffer.concat([conexao.buffer, chunk]);
     // RC4: registra trim do buffer (descarte de tramas antigas) para diagnostico
     if (conexao.buffer.length > 4096) {
@@ -252,6 +333,43 @@ export class BalancaConnectionService implements OnModuleDestroy {
       conexao.status.ultimaLeituraEm = new Date();
       conexao.emitter.emit('leitura', leitura);
     }
+  }
+
+  private criarDebugLogPath(id: string): string {
+    const dir = path.join(getUserDataDir(), 'logs');
+    fs.mkdirSync(dir, { recursive: true });
+    return path.join(dir, `balanca-${id}.log`);
+  }
+
+  private dumpDebug(conexao: ConexaoAtiva, chunk: Buffer): void {
+    if (!conexao.debugLogPath) return;
+    const ascii = chunk.toString('ascii').replace(/[^\x20-\x7E\r\n\t]/g, '.');
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      balancaId: conexao.id,
+      bytes: chunk.length,
+      hex: chunk.toString('hex'),
+      ascii,
+    });
+    fs.promises
+      .appendFile(conexao.debugLogPath, `${line}\n`, 'utf8')
+      .catch((err) => this.logger.warn(`Falha ao gravar debug da balanca ${conexao.id}: ${err}`));
+  }
+
+  private iniciarPollingComando(
+    conexao: ConexaoAtiva,
+    parserTipo: string | null | undefined,
+    atraso: number,
+  ) {
+    if (!this.parserPrecisaEnq(parserTipo) || !conexao.adapter.write) return;
+    const enviar = () => conexao.adapter.write?.(Buffer.from([0x05])).catch(() => undefined);
+    enviar();
+    conexao.comandoTimer = setInterval(enviar, Math.max(atraso || 500, 200));
+  }
+
+  private parserPrecisaEnq(parserTipo: string | null | undefined): boolean {
+    const tipo = (parserTipo ?? '').toLowerCase();
+    return tipo === 'toledo-c' || tipo === 'filizola-at' || tipo === 'filizola-@';
   }
 
   private aplicarEstabilidade(conexao: ConexaoAtiva, leitura: { peso: number; estavel: boolean }) {

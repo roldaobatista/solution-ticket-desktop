@@ -1,12 +1,19 @@
 import { ModbusAdapter } from './modbus.adapter';
 
+type RtuConfig = {
+  baudRate?: number;
+  dataBits?: number;
+  stopBits?: number;
+  parity?: string;
+};
+
 /** Mock do client modbus-serial. */
 class MockModbusClient {
   public id = 0;
   public timeoutMs = 0;
   public closed = false;
   public connectTcpCalls: Array<{ host: string; port: number }> = [];
-  public connectRtuCalls: Array<{ porta: string; cfg: any }> = [];
+  public connectRtuCalls: Array<{ porta: string; cfg: RtuConfig }> = [];
   public reads: Array<{ reg: number; len: number }> = [];
   public dataSequence: Array<{ data: number[] }> = [];
   public readError: Error | null = null;
@@ -20,7 +27,7 @@ class MockModbusClient {
   async connectTCP(host: string, opts: { port: number }) {
     this.connectTcpCalls.push({ host, port: opts.port });
   }
-  async connectRTUBuffered(porta: string, cfg: any) {
+  async connectRTUBuffered(porta: string, cfg: RtuConfig) {
     this.connectRtuCalls.push({ porta, cfg });
   }
   async readHoldingRegisters(reg: number, len: number) {

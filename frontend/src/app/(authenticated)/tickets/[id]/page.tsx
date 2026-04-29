@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,15 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { getTicketById } from '@/lib/api';
+import { getTicketById, reimprimirTicket } from '@/lib/api';
 import { DocumentosTicket } from '@/components/ticket/DocumentosTicket';
 import { CameraTicket } from '@/components/ticket/CameraTicket';
+import TicketPreview from '@/components/ticket/TicketPreview';
+import { Toast, useToast } from '@/components/ui/toast';
+import { extractMessage } from '@/lib/errors';
 import { formatWeight, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { use } from 'react';
+import { use, useState } from 'react';
 import {
   ArrowLeft,
   Printer,
@@ -43,10 +46,17 @@ interface PageProps {
 
 export default function TicketDetailPage({ params }: PageProps) {
   const { id } = use(params);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const { toast, showToast, hideToast } = useToast();
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['ticket', id],
     queryFn: () => getTicketById(id),
+  });
+  const reimprimirMutation = useMutation({
+    mutationFn: () => reimprimirTicket(id),
+    onSuccess: () => setPreviewOpen(true),
+    onError: (e: unknown) => showToast(extractMessage(e, 'Erro ao reimprimir ticket'), 'error'),
   });
 
   if (isLoading) {
@@ -390,7 +400,12 @@ export default function TicketDetailPage({ params }: PageProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => reimprimirMutation.mutate()}
+            isLoading={reimprimirMutation.isPending}
+          >
             <Printer className="w-4 h-4 mr-2" />
             Reimprimir
           </Button>
@@ -435,6 +450,12 @@ export default function TicketDetailPage({ params }: PageProps) {
           <Tabs tabs={tabs} defaultValue="passagens" />
         </CardContent>
       </Card>
+      <TicketPreview
+        ticketId={previewOpen ? id : null}
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+      />
+      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
     </div>
   );
 }

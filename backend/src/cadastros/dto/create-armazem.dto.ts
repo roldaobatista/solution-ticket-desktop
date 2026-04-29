@@ -1,11 +1,7 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateArmazemDto {
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()

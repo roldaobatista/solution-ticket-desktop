@@ -9,13 +9,29 @@ describe('JwtStrategy', () => {
     else process.env.JWT_SECRET = originalSecret;
   });
 
-  function makeStrategy(usuario: any) {
+  function makeStrategy(usuario: {
+    id: string;
+    email: string;
+    nome: string;
+    tenantId: string;
+    ativo: boolean;
+    tokenVersion: number;
+    perfis: unknown[];
+  }) {
     process.env.JWT_SECRET = 's'.repeat(48);
     return new JwtStrategy({
       usuario: {
         findUnique: jest.fn().mockResolvedValue(usuario),
       },
-    } as any);
+      unidade: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'un1',
+          nome: 'Unidade Matriz',
+          cidade: 'Campo Grande',
+          uf: 'MS',
+        }),
+      },
+    } as never);
   }
 
   it('usa tenantId atual do banco em vez do claim do token', async () => {
@@ -64,6 +80,8 @@ describe('JwtStrategy', () => {
       email: 'atual@example.com',
       nome: 'Atual',
       tenantId: 'tenant-1',
+      unidadeId: 'un1',
+      unidadeNome: 'Unidade Matriz',
     });
   });
 });

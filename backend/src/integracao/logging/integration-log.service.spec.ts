@@ -6,6 +6,7 @@ describe('IntegrationLogService', () => {
   const prisma = {
     integracaoLog: {
       create: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
     },
   };
@@ -15,7 +16,10 @@ describe('IntegrationLogService', () => {
     ),
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.integracaoLog.findFirst.mockResolvedValue(null);
+  });
 
   it('persiste payloads mascarados serializados', async () => {
     prisma.integracaoLog.create.mockResolvedValue({ id: 'log-1' });
@@ -36,6 +40,30 @@ describe('IntegrationLogService', () => {
       data: expect.objectContaining({
         requestPayloadMasked: JSON.stringify({ token: '[REDACTED]' }),
         responsePayloadMasked: undefined,
+        prevHash: null,
+        hash: expect.any(String),
+      }),
+    });
+  });
+
+  it('mascara PII em mensagens de erro antes de persistir', async () => {
+    prisma.integracaoLog.create.mockResolvedValue({ id: 'log-1' });
+    const service = new IntegrationLogService(
+      prisma as unknown as PrismaService,
+      masker as unknown as PayloadMaskerService,
+    );
+
+    await service.log({
+      direction: 'outbound',
+      operation: 'pushTicket',
+      status: 'error',
+      correlationId: 'corr-1',
+      errorMessage: 'ERP retornou CPF 123.456.789-09 e access_token=segredo',
+    });
+
+    expect(prisma.integracaoLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        errorMessage: 'ERP retornou CPF [REDACTED] e access_token=[REDACTED]',
       }),
     });
   });

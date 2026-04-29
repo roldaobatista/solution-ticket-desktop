@@ -4,6 +4,8 @@ import { NotificacaoService } from './notificacao.service';
 import { UpdateNotificacaoDto } from './dto/update-notificacao.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Permissao } from '../constants/permissoes';
 
 @ApiTags('Notificacoes')
 @ApiBearerAuth()
@@ -27,6 +29,7 @@ export class NotificacaoController {
   }
 
   @Put()
+  @Roles(Permissao.CONFIG_GERENCIAR)
   @ApiOperation({ summary: 'Atualizar preferencias de notificacao do tenant' })
   upsert(@CurrentUser('tenantId') tenantId: string, @Body() dto: UpdateNotificacaoDto) {
     return this.service.upsertConfig(tenantId, dto);

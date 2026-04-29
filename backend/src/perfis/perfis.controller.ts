@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PerfisService } from './perfis.service';
 import { CreatePerfilDto } from './dto/create-perfil.dto';
@@ -27,7 +17,7 @@ export class PerfisController {
 
   @Get()
   @ApiOperation({ summary: 'Listar perfis' })
-  findAll(@Query('tenantId') tenantId?: string) {
+  findAll(@CurrentUser('tenantId') tenantId: string) {
     return this.service.findAll(tenantId);
   }
 

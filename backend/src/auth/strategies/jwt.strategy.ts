@@ -53,15 +53,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token emitido para outro tenant');
     }
 
-    const permissoes = usuario.perfis.flatMap((up) =>
-      up.perfil.permissoes.filter((p) => p.concedido).map((p) => p.acao),
-    );
+    const permissoes = usuario.perfis
+      .filter((up) => up.perfil.tenantId === usuario.tenantId && up.perfil.ativo)
+      .flatMap((up) => up.perfil.permissoes.filter((p) => p.concedido).map((p) => p.acao));
+    const unidadeAtiva = await this.prisma.unidade.findFirst({
+      where: { ativo: true, empresa: { tenantId: usuario.tenantId } },
+      orderBy: { criadoEm: 'asc' },
+      select: { id: true, nome: true, cidade: true, uf: true },
+    });
 
     return {
       id: payload.sub,
       email: usuario.email,
       nome: usuario.nome,
       tenantId: usuario.tenantId,
+      unidadeId: unidadeAtiva?.id ?? null,
+      unidadeNome: unidadeAtiva?.nome ?? null,
+      unidadeCidade: unidadeAtiva?.cidade ?? null,
+      unidadeUf: unidadeAtiva?.uf ?? null,
       permissoes,
     };
   }

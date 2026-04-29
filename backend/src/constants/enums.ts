@@ -75,6 +75,7 @@ export type StatusLicenca = (typeof StatusLicenca)[keyof typeof StatusLicenca];
 
 export const TaraReferenciaTipo = {
   CADASTRADA: 'CADASTRADA',
+  MANUAL: 'MANUAL',
   PESADA: 'PESADA',
   CAPTURADA_EM_BALANCA: 'CAPTURADA_EM_BALANCA',
 } as const;

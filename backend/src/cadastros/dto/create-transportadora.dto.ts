@@ -1,11 +1,7 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTransportadoraDto {
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()

@@ -31,6 +31,20 @@ describe('AftsParser', () => {
     expect(leitura!.peso).toBe(-2.5);
   });
 
+  it('converte toneladas para kg', () => {
+    const parser = new AftsParser({});
+    const trama = Buffer.from('ST,GS,+    2.000 t\r\n');
+    const { leitura } = parser.parse(trama);
+    expect(leitura!.peso).toBe(2000);
+  });
+
+  it('converte gramas para kg', () => {
+    const parser = new AftsParser({});
+    const trama = Buffer.from('ST,GS,+  500.000 g\r\n');
+    const { leitura } = parser.parse(trama);
+    expect(leitura!.peso).toBe(0.5);
+  });
+
   it('descarta linha sem ST/US/OL prefix', () => {
     const parser = new AftsParser({});
     const trama = Buffer.from('XX,GS,+    1.000 kg\r\n');

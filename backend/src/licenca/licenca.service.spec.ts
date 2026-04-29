@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { LicencaService, StatusLicenca } from './licenca.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrlService } from './crl.service';
@@ -12,16 +12,35 @@ import {
 
 const FAKE_FP = 'fp-maquina-teste-abc123';
 
+type LicencaCreateArgs = { data: Record<string, unknown> };
+type LicencaUpdateArgs = { data: Record<string, unknown>; where: { id: string } };
+type LicencaPrismaMock = {
+  unidade: {
+    findFirst: jest.Mock;
+  };
+  licencaInstalacao: {
+    findFirst: jest.Mock;
+    create: jest.Mock<Promise<Record<string, unknown>>, [LicencaCreateArgs]>;
+    update: jest.Mock<Promise<Record<string, unknown>>, [LicencaUpdateArgs]>;
+  };
+  eventoLicenciamento: {
+    create: jest.Mock;
+  };
+};
+
 describe('LicencaService', () => {
   let service: LicencaService;
-  let prisma: any;
+  let prisma: LicencaPrismaMock;
 
   beforeEach(async () => {
     prisma = {
+      unidade: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'u1' }),
+      },
       licencaInstalacao: {
         findFirst: jest.fn(),
-        create: jest.fn(async ({ data }: any) => ({ id: 'lic1', ...data })),
-        update: jest.fn(async ({ data, where }: any) => ({ id: where.id, ...data })),
+        create: jest.fn(async ({ data }: LicencaCreateArgs) => ({ id: 'lic1', ...data })),
+        update: jest.fn(async ({ data, where }: LicencaUpdateArgs) => ({ id: where.id, ...data })),
       },
       eventoLicenciamento: {
         create: jest.fn().mockResolvedValue({}),
@@ -45,7 +64,7 @@ describe('LicencaService', () => {
 
     service = module.get(LicencaService);
     // Injeta chave pública manualmente (evitamos onModuleInit filesystem)
-    (service as any).publicKey = TEST_PUBLIC_KEY;
+    (service as unknown as { publicKey: string }).publicKey = TEST_PUBLIC_KEY;
   });
 
   describe('iniciarTrial', () => {
@@ -63,6 +82,13 @@ describe('LicencaService', () => {
       expect(r.statusLicenca).toBe('TRIAL');
       expect(r.limitePesagensTrial).toBe(100);
       expect(prisma.eventoLicenciamento.create).toHaveBeenCalled();
+    });
+
+    it('rejeita trial quando unidade nao pertence ao tenant autenticado', async () => {
+      prisma.unidade.findFirst.mockResolvedValue(null);
+
+      await expect(service.iniciarTrial('u2', 't1')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.licencaInstalacao.create).not.toHaveBeenCalled();
     });
   });
 
@@ -113,6 +139,19 @@ describe('LicencaService', () => {
       expect(r.expira).toBeInstanceOf(Date);
     });
 
+    it('rejeita ativacao quando unidade nao pertence ao tenant autenticado', async () => {
+      prisma.unidade.findFirst.mockResolvedValue(null);
+      const chave = gerarChaveRSA({
+        fingerprints: [FAKE_FP],
+        validadeSegundos: 86400 * 30,
+      });
+
+      await expect(
+        service.ativar({ unidadeId: 'u2', tenantId: 't1', chave }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.licencaInstalacao.create).not.toHaveBeenCalled();
+    });
+
     it('rejeita chave expirada', async () => {
       const chave = gerarChaveRSA({ fingerprints: [FAKE_FP], validadeSegundos: -10 });
       prisma.licencaInstalacao.findFirst.mockResolvedValue(null);
@@ -153,6 +192,52 @@ describe('LicencaService', () => {
       const r = await service.decrementarPesagemTrial('u1');
       expect(r.ok).toBe(false);
       expect(r.motivo).toBe('sem_licenca');
+    });
+  });
+
+  describe('verificarStatus', () => {
+    it('nao expoe fingerprint nem hashes em endpoint publico quando nao ha licenca', async () => {
+      prisma.licencaInstalacao.findFirst.mockResolvedValue(null);
+
+      const status = await service.verificarStatus('u1');
+
+      expect(status).toEqual(
+        expect.not.objectContaining({
+          fingerprint: expect.anything(),
+          chaveValidacaoHash: expect.anything(),
+          chaveLicenciamentoHash: expect.anything(),
+        }),
+      );
+    });
+
+    it('nao expoe fingerprint nem hashes em endpoint publico quando existe licenca', async () => {
+      prisma.licencaInstalacao.findFirst.mockResolvedValue({
+        id: 'l1',
+        statusLicenca: StatusLicenca.ATIVA,
+        tipoLicenca: 'PRO',
+        expiraEm: null,
+        trialExpiraEm: null,
+        pesagensRestantesTrial: null,
+        ativadoEm: new Date('2026-04-01T00:00:00Z'),
+        trialIniciadoEm: null,
+        limitePesagensTrial: null,
+        chaveValidacaoHash: 'hash-validacao',
+        chaveLicenciamentoHash: 'hash-licenca',
+        bloqueadoEm: null,
+        motivoBloqueio: null,
+        chaveJti: 'jti-1',
+      });
+
+      const status = await service.verificarStatus('u1');
+
+      expect(status.status).toBe(StatusLicenca.ATIVA);
+      expect(status).toEqual(
+        expect.not.objectContaining({
+          fingerprint: expect.anything(),
+          chaveValidacaoHash: expect.anything(),
+          chaveLicenciamentoHash: expect.anything(),
+        }),
+      );
     });
   });
 });

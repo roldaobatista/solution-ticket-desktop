@@ -1,6 +1,7 @@
+import type { Balanca, IndicadorPesagem } from '@prisma/client';
 import { resolveEffectiveConfig } from './config-resolver';
 
-const baseBalanca: any = {
+const baseBalanca = {
   id: 'b1',
   protocolo: 'serial',
   porta: 'COM3',
@@ -19,9 +20,9 @@ const baseBalanca: any = {
   ovrInvertePeso: null,
   ovrAtraso: null,
   ovrParserTipo: null,
-};
+} as unknown as Balanca;
 
-const indToledo: any = {
+const indToledo = {
   parserTipo: 'toledo',
   baudrate: 4800,
   databits: 7,
@@ -36,7 +37,7 @@ const indToledo: any = {
   invertePeso: false,
   atraso: 100,
   protocolo: 'serial',
-};
+} as unknown as IndicadorPesagem;
 
 describe('resolveEffectiveConfig', () => {
   it('aplica defaults seguros sem indicador', () => {

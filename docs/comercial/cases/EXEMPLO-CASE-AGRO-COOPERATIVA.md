@@ -69,7 +69,7 @@ Cooperativa opera 4 unidades de recebimento, 7 balanças rodoviárias, com pico 
 ### Arquitetura implantada
 
 - **Plano**: Enterprise
-- **Conectores nativos**: TOTVS Protheus (REST + SOAP), 1 conector NF-e via XML
+- **Integração**: cenário fictício com conector dedicado TOTVS Protheus + XML fiscal; não representa funcionalidade pronta hoje
 - **Volume mensal**: 6.500 pesagens (média), 9.200 em pico
 - **Balanças integradas**: 7
 - **Unidades**: 4

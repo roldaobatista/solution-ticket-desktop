@@ -1,4 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { stdout } from 'process';
+
+const log = (message: string) => stdout.write(`${message}\n`);
 
 /**
  * 12 indicadores de pesagem pré-configurados (extraídos do PesoLog).
@@ -171,5 +174,5 @@ export async function seedIndicadoresHardware(prisma: PrismaClient, tenantId: st
       });
     }
   }
-  console.log(`Seeded ${INDICADORES_PADRAO.length} indicadores de hardware`);
+  log(`Seeded ${INDICADORES_PADRAO.length} indicadores de hardware`);
 }

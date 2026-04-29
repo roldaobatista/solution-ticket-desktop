@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -7,6 +7,7 @@ import { getUserDataDir, getDatabasePath } from '../common/desktop-paths';
 import { PrismaService } from '../prisma/prisma.service';
 import { PrismaClient } from '@prisma/client';
 import { NotificacaoService } from '../mailer/notificacao.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 const DAILY_RETENTION = 30;
 const MONTHLY_RETENTION = 12;
@@ -27,6 +28,7 @@ export class BackupService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificacao: NotificacaoService,
+    private readonly auditoria?: AuditoriaService,
   ) {}
 
   private get backupsDir(): string {
@@ -171,7 +173,10 @@ export class BackupService {
    * Restaura um backup. Operação destrutiva: cria backup pré-restore,
    * substitui o .db atual e força reinício (cliente precisa reconectar).
    */
-  async restore(filename: string): Promise<{ ok: true; preRestoreBackup: string }> {
+  async restore(
+    filename: string,
+    auditContext?: { tenantId?: string; usuarioId?: string },
+  ): Promise<{ ok: true; preRestoreBackup: string }> {
     this.assertSafeBackupFilename(filename);
     const all = this.list();
     const target = all.find((b) => b.filename === filename);
@@ -198,6 +203,21 @@ export class BackupService {
     // Salva estado atual antes de sobrescrever
     const pre = await this.create('manual');
     this.logger.warn(`Restore: backup pré-restore em ${pre.filename}`);
+    if (this.auditoria && auditContext?.tenantId) {
+      await this.auditoria.registrar({
+        entidade: 'backup',
+        entidadeId: filename,
+        evento: 'restore.requested',
+        usuarioId: auditContext.usuarioId,
+        tenantId: auditContext.tenantId,
+        estadoNovo: {
+          filename,
+          sha256: target.sha256 || null,
+          preRestoreBackup: pre.filename,
+          preRestoreSha256: pre.sha256,
+        },
+      });
+    }
 
     await this.prisma.$disconnect();
     const dbPath = getDatabasePath();

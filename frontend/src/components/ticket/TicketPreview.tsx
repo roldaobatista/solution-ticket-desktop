@@ -1,8 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { getTicketPdfUrl, listarTemplatesTicket } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { getTicketPdfObjectUrl, listarTemplatesTicket } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog } from '@/components/ui/dialog';
@@ -23,7 +23,17 @@ export function TicketPreview({ ticketId, open, onClose }: TicketPreviewProps) {
     enabled: open,
   });
 
-  const pdfUrl = ticketId ? getTicketPdfUrl(ticketId, template) : null;
+  const { data: pdfUrl } = useQuery({
+    queryKey: ['ticket-pdf-preview', ticketId, template],
+    queryFn: () => getTicketPdfObjectUrl(ticketId as string, template),
+    enabled: open && !!ticketId,
+  });
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl?.startsWith('blob:')) URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
 
   const handlePrint = () => {
     const iframe = document.getElementById('ticket-print-frame') as HTMLIFrameElement | null;

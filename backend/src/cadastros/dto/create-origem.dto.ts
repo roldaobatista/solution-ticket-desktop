@@ -3,10 +3,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateOrigemDto {
   @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   descricao!: string;

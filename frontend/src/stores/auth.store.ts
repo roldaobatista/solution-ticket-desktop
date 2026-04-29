@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Usuario } from '@/types';
-import { login as apiLogin, getMe } from '@/lib/api';
+import { login as apiLogin, getMe, logout as apiLogout } from '@/lib/api';
+import { clearUnidadeId } from './unidade.store';
 
 interface AuthState {
   user: Usuario | null;
@@ -9,7 +10,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (email: string, senha: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -34,11 +35,18 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
-        sessionStorage.removeItem('access_token');
-        set({ user: null, isAuthenticated: false, error: null });
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+      logout: async () => {
+        try {
+          await apiLogout();
+        } catch {
+          // O token local sera descartado mesmo se o backend ja tiver recusado a sessao.
+        } finally {
+          sessionStorage.removeItem('access_token');
+          clearUnidadeId();
+          set({ user: null, isAuthenticated: false, error: null });
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
         }
       },
 
@@ -53,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
           set({ user, isAuthenticated: true });
         } catch {
           sessionStorage.removeItem('access_token');
+          clearUnidadeId();
           set({ isAuthenticated: false, user: null });
         }
       },

@@ -8,6 +8,7 @@ import { BCRYPT_COST_PROD } from './bcrypt-cost';
 import { validarPoliticaSenha } from './password-policy';
 
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
+const LOGIN_INVALIDO_MSG = 'Credenciais inválidas';
 
 // Onda 2.2 — bloqueio progressivo de login
 const MAX_TENTATIVAS_LOGIN = 5;
@@ -49,15 +50,15 @@ export class AuthService {
     const usuario = matches[0];
 
     if (!usuario) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException(LOGIN_INVALIDO_MSG);
     }
 
     if (!usuario.ativo) {
-      throw new UnauthorizedException('Usuário inativo');
+      throw new UnauthorizedException(LOGIN_INVALIDO_MSG);
     }
 
     if (usuario.bloqueadoAte && new Date() < usuario.bloqueadoAte) {
-      throw new UnauthorizedException('Usuário temporariamente bloqueado');
+      throw new UnauthorizedException(LOGIN_INVALIDO_MSG);
     }
 
     const senhaValida = await bcrypt.compare(senha, usuario.senhaHash);
@@ -75,7 +76,7 @@ export class AuthService {
         data.tentativasLogin = 0; // reseta apos bloquear
       }
       await this.prisma.usuario.update({ where: { id: usuario.id }, data });
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException(LOGIN_INVALIDO_MSG);
     }
 
     // Reseta tentativas e remove bloqueio expirado
@@ -88,11 +89,12 @@ export class AuthService {
       },
     });
 
-    const { senhaHash, ...result } = usuario;
+    const { senhaHash: _senhaHash, ...result } = usuario;
     return result;
   }
 
   async login(user: AuthenticatedUser) {
+    const unidadeAtiva = user.tenantId ? await this.resolveUnidadeAtiva(user.tenantId) : null;
     // Onda 2.3: payload inclui tokenVersion ('tv'). JwtStrategy compara
     // com o valor atual no DB e rejeita tokens com versao antiga.
     const payload = {
@@ -110,9 +112,21 @@ export class AuthService {
         nome: user.nome,
         email: user.email,
         tenantId: user.tenantId,
+        unidadeId: unidadeAtiva?.id ?? null,
+        unidadeNome: unidadeAtiva?.nome ?? null,
+        unidadeCidade: unidadeAtiva?.cidade ?? null,
+        unidadeUf: unidadeAtiva?.uf ?? null,
         perfis: user.perfis?.map((up) => up.perfil.nome) ?? [],
       },
     };
+  }
+
+  private resolveUnidadeAtiva(tenantId: string) {
+    return this.prisma.unidade.findFirst({
+      where: { ativo: true, empresa: { tenantId } },
+      orderBy: { criadoEm: 'asc' },
+      select: { id: true, nome: true, cidade: true, uf: true },
+    });
   }
 
   async changePassword(usuarioId: string, senhaAtual: string, novaSenha: string) {

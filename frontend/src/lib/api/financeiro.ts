@@ -1,4 +1,4 @@
-import { apiClient, USE_MOCK } from './client';
+import { apiClient, toApiPayload, USE_MOCK } from './client';
 import {
   Fatura,
   PagamentoFatura,
@@ -29,12 +29,33 @@ export async function getFaturaById(id: string): Promise<Fatura> {
 
 export async function createFatura(data: {
   cliente_id: string;
-  tipo_fatura_id: string;
-  tickets_ids: string[];
+  tipo_fatura_id?: string;
+  tickets_ids?: string[];
+  data_emissao?: string;
+  total_geral?: number;
+  romaneio_id?: string;
   observacao?: string;
 }): Promise<Fatura> {
-  if (USE_MOCK) return mockApi.createFatura(data);
-  const res = await apiClient.post('/faturas', data);
+  if (USE_MOCK) {
+    return mockApi.createFatura({
+      cliente_id: data.cliente_id,
+      tipo_fatura_id: data.tipo_fatura_id ?? '',
+      tickets_ids: data.tickets_ids ?? [],
+      observacao: data.observacao,
+    });
+  }
+  if (data.total_geral === undefined) {
+    throw new Error('total_geral e obrigatorio para criar fatura');
+  }
+  const payload = toApiPayload({
+    cliente_id: data.cliente_id,
+    romaneio_id: data.romaneio_id,
+    tickets_ids: data.tickets_ids,
+    data_emissao: data.data_emissao ?? new Date().toISOString().slice(0, 10),
+    total_geral: data.total_geral,
+    observacao: data.observacao,
+  });
+  const res = await apiClient.post('/faturas', payload);
   return mapFatura(res.data);
 }
 
@@ -53,7 +74,12 @@ export async function getTicketsPendentesFaturamento(
   if (USE_MOCK) return mockApi.getTicketsPendentesFaturamento(cliente_id);
   try {
     const res = await apiClient.get('/tickets', {
-      params: { status: 'FECHADO', faturado: false, cliente_id, limit: 1000 },
+      params: {
+        statusOperacional: 'FECHADO',
+        statusComercial: 'NAO_ROMANEADO',
+        clienteId: cliente_id,
+        limit: 1000,
+      },
     });
     const d = res.data;
     const arr = Array.isArray(d) ? d : d?.data || [];
@@ -80,7 +106,7 @@ export async function getPagamentos(
   if (fatura_id) {
     try {
       const res = await apiClient.get(`/faturas/${fatura_id}`);
-      const pagamentos = res.data?.pagamentos || [];
+      const pagamentos = (res.data?.pagamentos || []).map(mapPagamentoFatura);
       return {
         data: pagamentos,
         total: pagamentos.length,
@@ -96,12 +122,24 @@ export async function getPagamentos(
 }
 
 export async function createPagamento(
-  data: Partial<PagamentoFatura> & { fatura_id?: string; faturaId?: string },
+  data: Partial<PagamentoFatura> & {
+    fatura_id?: string;
+    faturaId?: string;
+    formaPagamentoId?: string;
+  },
 ): Promise<PagamentoFatura> {
   if (USE_MOCK) return mockApi.createPagamento(data);
   const faturaId = data.faturaId || data.fatura_id;
   if (!faturaId) throw new Error('faturaId e obrigatorio para registrar pagamento');
-  const res = await apiClient.post(`/faturas/${faturaId}/pagamentos`, data);
+  const payload = toApiPayload({
+    forma_pagamento_id: data.formaPagamentoId ?? data.forma_pagamento_id,
+    valor: data.valor,
+    data_emissao: data.data_emissao,
+    data_vencimento: data.data_vencimento,
+    numero_documento: data.numero_documento,
+    observacao: data.observacao,
+  });
+  const res = await apiClient.post(`/faturas/${faturaId}/pagamentos`, payload);
   return mapPagamentoFatura(res.data);
 }
 

@@ -60,7 +60,7 @@ const casos: Caso[] = [
     config: {},
     frame: Buffer.from([STX, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, CR, LF]),
     pesoEsperado: 12345,
-    estavelEsperado: true,
+    estavelEsperado: false,
   },
   {
     tipo: 'toledo-2180',
@@ -81,7 +81,7 @@ const casos: Caso[] = [
     config: {},
     frame: Buffer.concat([Buffer.from('@002.448'), Buffer.from([CR])]),
     pesoEsperado: 2.448,
-    estavelEsperado: true,
+    estavelEsperado: false,
   },
   {
     tipo: 'digitron',
@@ -108,7 +108,7 @@ const casos: Caso[] = [
     config: {},
     frame: Buffer.concat([Buffer.from([STX]), Buffer.from('012345'), Buffer.from([ETX])]),
     pesoEsperado: 12345,
-    estavelEsperado: true,
+    estavelEsperado: false,
   },
   {
     tipo: 'sics',

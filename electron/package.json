@@ -5,8 +5,12 @@
   "private": true,
   "main": "main.js",
   "scripts": {
+    "check": "node --check main.js && node --check updater.js && node --check prep-cache.js && node --check sign.js && node --check rebuild-native.js",
     "dev": "cross-env NODE_ENV=development electron .",
+    "lint": "pnpm check",
+    "lint:check": "pnpm check",
     "start": "electron .",
+    "typecheck": "pnpm check",
     "build": "echo 'Build handled by electron-builder in dist script'",
     "rebuild:native": "node rebuild-native.js",
     "dist": "node prep-cache.js && cross-env REBUILD_STRICT=true node rebuild-native.js && electron-builder"

@@ -48,7 +48,7 @@ describe('RecibosService', () => {
           cedente: 'Cedente',
           sacado: 'Sacado',
           valor: 1234.56,
-        } as any,
+        } as never,
         'tenant-jwt',
       );
       const arg = prisma.recibo.create.mock.calls[0][0];
@@ -67,7 +67,7 @@ describe('RecibosService', () => {
           sacado: 'S',
           valor: 100,
           valorExtenso: 'cem reais',
-        } as any,
+        } as never,
         'tenant-jwt',
       );
       expect(prisma.recibo.create).toHaveBeenCalledWith(

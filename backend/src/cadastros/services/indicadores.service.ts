@@ -1,17 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GenericCrudService } from '../../common/generic-crud/generic-crud.service';
+import { CrudConfig, GenericCrudService } from '../../common/generic-crud/generic-crud.service';
 import { CreateIndicadorDto } from '../dto/create-indicador.dto';
 import { UpdateIndicadorDto } from '../dto/update-indicador.dto';
 
 @Injectable()
 export class IndicadoresService extends GenericCrudService<
-  any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
+  Prisma.IndicadorPesagemWhereInput,
   CreateIndicadorDto,
   UpdateIndicadorDto
 > {
-  protected config = {
+  protected config: CrudConfig<
+    Prisma.IndicadorPesagemWhereInput,
+    CreateIndicadorDto,
+    UpdateIndicadorDto
+  > = {
     prismaModel: 'indicadorPesagem' as const,
     searchFields: ['descricao'],
     orderByField: 'descricao',

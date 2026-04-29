@@ -12,7 +12,7 @@
 
 - **Promessa central**: zero perda de ticket fiscal, rastro de 5 anos, operação não para se ERP cair.
 - **Não somos**: RPA, planilha, consultoria custom.
-- **Somos**: produto pronto, com hub de integração local-first + conectores nativos para 20+ ERPs brasileiros e globais.
+- **Somos**: produto pronto de pesagem local-first, com outbox auditável e conector REST genérico; conectores nativos por ERP seguem a matriz de maturidade.
 
 ---
 
@@ -71,7 +71,7 @@
 ### Exemplos
 
 - ❌ "A Solution Ticket revolucionou a integração ERP no Brasil."
-- ✅ "Solution Ticket cobre 20+ ERPs com outbox transacional auditável; RPA não."
+- ✅ "Solution Ticket entrega outbox transacional auditável e conector REST genérico; conectores nativos só entram na proposta quando homologados."
 
 - ❌ "ROI de 1500% em 3 meses, garantido."
 - ✅ "Em cenário típico (cooperativa agro 6.500 pesagens/mês), payback estimado de 5 meses — variável por operação."

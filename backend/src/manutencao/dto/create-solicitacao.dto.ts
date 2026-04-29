@@ -17,9 +17,10 @@ export class CreateSolicitacaoDto {
   @IsNotEmpty()
   entidadeId!: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID()
-  solicitanteId!: string;
+  solicitanteId?: string;
 
   @ApiProperty()
   @IsString()

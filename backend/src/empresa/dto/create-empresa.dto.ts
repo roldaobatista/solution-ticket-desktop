@@ -1,11 +1,7 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEmpresaDto {
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
   @ApiProperty()
   @IsString()
   @IsNotEmpty()

@@ -166,4 +166,25 @@ describe('OutboxProcessorService', () => {
       errorCode: 'PRODUCT_NOT_FOUND',
     });
   });
+
+  it('marca evento como falha tecnica quando connector.push lança excecao', async () => {
+    outbox.dequeue.mockResolvedValue({ id: 'evt-1' });
+    prisma.integracaoOutbox.findUnique.mockResolvedValue(baseEvent);
+    connector.push.mockRejectedValue(new Error('timeout CPF 123.456.789-09'));
+    outbox.markFailed.mockResolvedValue({
+      id: 'evt-1',
+      status: 'awaiting_retry',
+      lastErrorCategory: 'technical',
+    });
+
+    const result = await makeService().processNext();
+
+    expect(outbox.markFailed).toHaveBeenCalledWith('evt-1', expect.any(Error), 'technical');
+    expect(result).toEqual({
+      processed: true,
+      eventId: 'evt-1',
+      status: 'awaiting_retry',
+      errorCategory: 'technical',
+    });
+  });
 });

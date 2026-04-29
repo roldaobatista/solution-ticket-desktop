@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TicketService } from './ticket.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OutboxService } from '../integracao/outbox/outbox.service';
+import { CreateTicketDto } from './dto/create-ticket.dto';
 
 const outboxMock = {
   enqueueInTransaction: jest.fn(),
@@ -15,7 +16,34 @@ const outboxMock = {
 
 describe('TicketService - cálculo de fechamento', () => {
   let service: TicketService;
-  let prisma: any;
+  let prisma: {
+    ticketPesagem: {
+      findUnique: jest.Mock;
+      findMany: jest.Mock;
+      update: jest.Mock;
+      count: jest.Mock;
+      create: jest.Mock;
+    };
+    passagemPesagem: {
+      findMany: jest.Mock;
+      create: jest.Mock;
+      updateMany: jest.Mock;
+    };
+    balanca: { findFirst: jest.Mock };
+    descontoPesagem: { findMany: jest.Mock };
+    auditoria: { create: jest.Mock };
+    licencaInstalacao: { findFirst: jest.Mock; update: jest.Mock };
+    ticketContador: { upsert: jest.Mock };
+    integracaoProfile: { findMany: jest.Mock };
+    snapshotComercialTicket: { create: jest.Mock };
+    tabelaPrecoProdutoCliente: { findFirst: jest.Mock };
+    tabelaPrecoProduto: { findFirst: jest.Mock };
+    veiculo: { findUnique: jest.Mock; findFirst: jest.Mock };
+    unidade: { findFirst: jest.Mock };
+    cliente: { findFirst: jest.Mock };
+    produto: { findFirst: jest.Mock };
+    $transaction: jest.Mock;
+  };
 
   const baseTicket = {
     id: 'tk1',
@@ -36,6 +64,7 @@ describe('TicketService - cálculo de fechamento', () => {
     prisma = {
       ticketPesagem: {
         findUnique: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn().mockResolvedValue({}),
         count: jest.fn().mockResolvedValue(0),
         create: jest.fn(),
@@ -45,6 +74,7 @@ describe('TicketService - cálculo de fechamento', () => {
         create: jest.fn(),
         updateMany: jest.fn(),
       },
+      balanca: { findFirst: jest.fn().mockResolvedValue({ id: 'b1' }) },
       descontoPesagem: { findMany: jest.fn().mockResolvedValue([]) },
       auditoria: { create: jest.fn().mockResolvedValue({}) },
       licencaInstalacao: {
@@ -67,12 +97,13 @@ describe('TicketService - cálculo de fechamento', () => {
       unidade: { findFirst: jest.fn().mockResolvedValue({ id: 'u1' }) },
       cliente: { findFirst: jest.fn().mockResolvedValue({ id: 'c1' }) },
       produto: { findFirst: jest.fn().mockResolvedValue({ id: 'p1' }) },
+      $transaction: jest.fn(),
     };
     // Onda 1: fecharTicket/registrarPassagem usam $transaction. Mock simples
     // que invoca o callback passando o próprio prisma como tx (single-DB).
-    prisma.$transaction = jest.fn(async (arg: any) => {
+    prisma.$transaction = jest.fn(async (arg: unknown) => {
       if (typeof arg === 'function') return arg(prisma);
-      return Promise.all(arg);
+      return Promise.all(arg as Promise<unknown>[]);
     });
 
     const eventEmitter = { emit: jest.fn() };
@@ -88,9 +119,26 @@ describe('TicketService - cálculo de fechamento', () => {
     service = module.get(TicketService);
   });
 
-  function mockTicket(overrides: any = {}) {
+  function mockTicket(overrides: Record<string, unknown> = {}) {
     prisma.ticketPesagem.findUnique.mockResolvedValue({ ...baseTicket, ...overrides });
   }
+
+  it('aplica busca textual no backend por numero, placa e cliente', async () => {
+    await service.findAll({ search: 'ABC1234' }, 'tenant-1');
+
+    expect(prisma.ticketPesagem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          OR: expect.arrayContaining([
+            { numero: { contains: 'ABC1234' } },
+            { veiculoPlaca: { contains: 'ABC1234' } },
+            { cliente: { razaoSocial: { contains: 'ABC1234' } } },
+          ]),
+        }),
+      }),
+    );
+  });
 
   it('calcula peso líquido em 2PF (bruto - tara)', async () => {
     mockTicket();
@@ -203,6 +251,66 @@ describe('TicketService - cálculo de fechamento', () => {
     );
   });
 
+  it('rejeita fechamento comercial obrigatorio quando nao ha tabela vigente', async () => {
+    mockTicket({ modoComercial: 'OBRIGATORIO' });
+    prisma.passagemPesagem.findMany.mockResolvedValue([
+      {
+        papelCalculo: 'BRUTO_OFICIAL',
+        pesoCapturado: 20000,
+        statusPassagem: 'VALIDA',
+        sequencia: 1,
+      },
+      { papelCalculo: 'TARA_OFICIAL', pesoCapturado: 8000, statusPassagem: 'VALIDA', sequencia: 2 },
+    ]);
+    prisma.ticketPesagem.findUnique
+      .mockResolvedValueOnce({ ...baseTicket, modoComercial: 'OBRIGATORIO' })
+      .mockResolvedValueOnce({
+        ...baseTicket,
+        modoComercial: 'OBRIGATORIO',
+        pesoLiquidoFinal: 12000,
+      });
+
+    await expect(service.fecharTicket('tk1', {}, 'tenant-1', 'user-1')).rejects.toThrow(
+      /preco vigente/i,
+    );
+  });
+
+  it('busca tabela comercial dentro do tenant do ticket', async () => {
+    mockTicket({ modoComercial: 'OBRIGATORIO', tenantId: 'tenant-1' });
+    prisma.passagemPesagem.findMany.mockResolvedValue([
+      {
+        papelCalculo: 'BRUTO_OFICIAL',
+        pesoCapturado: 20000,
+        statusPassagem: 'VALIDA',
+        sequencia: 1,
+      },
+      { papelCalculo: 'TARA_OFICIAL', pesoCapturado: 8000, statusPassagem: 'VALIDA', sequencia: 2 },
+    ]);
+    prisma.ticketPesagem.findUnique
+      .mockResolvedValueOnce({ ...baseTicket, tenantId: 'tenant-1', modoComercial: 'OBRIGATORIO' })
+      .mockResolvedValueOnce({
+        ...baseTicket,
+        tenantId: 'tenant-1',
+        modoComercial: 'OBRIGATORIO',
+        pesoLiquidoFinal: 12000,
+      })
+      .mockResolvedValueOnce({
+        ...baseTicket,
+        tenantId: 'tenant-1',
+        modoComercial: 'OBRIGATORIO',
+        pesoLiquidoFinal: 12000,
+      });
+    prisma.tabelaPrecoProdutoCliente.findFirst.mockResolvedValue({ valor: 0.5 });
+
+    await service.fecharTicket('tk1', {}, 'tenant-1', 'user-1');
+
+    expect(prisma.tabelaPrecoProdutoCliente.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'tenant-1' }),
+      }),
+    );
+  });
+
   it('rejeita fechamento sem tara (sem passagem e sem snapshot)', async () => {
     mockTicket();
     prisma.passagemPesagem.findMany.mockResolvedValue([
@@ -220,11 +328,116 @@ describe('TicketService - cálculo de fechamento', () => {
     mockTicket({ statusOperacional: 'FECHADO' });
     await expect(service.fecharTicket('tk1', {}, 'tenant-1', 'user-1')).rejects.toThrow(/estado/i);
   });
+
+  it('rejeita passagem quando a balanca nao pertence ao tenant e unidade do ticket', async () => {
+    prisma.ticketPesagem.findUnique
+      .mockResolvedValueOnce({ unidadeId: 'u1' })
+      .mockResolvedValueOnce({
+        ...baseTicket,
+        passagens: [],
+        statusOperacional: 'ABERTO',
+        primeiraPassagemEm: null,
+      });
+    prisma.balanca.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.registrarPassagem(
+        'tk1',
+        {
+          tipoPassagem: 'OFICIAL',
+          direcaoOperacional: 'ENTRADA',
+          papelCalculo: 'BRUTO_OFICIAL',
+          condicaoVeiculo: 'CARREGADO',
+          pesoCapturado: 12000,
+          balancaId: 'balanca-outra-unidade',
+          origemLeitura: 'BALANCA_SERIAL',
+        },
+        'tenant-1',
+        'user-1',
+      ),
+    ).rejects.toThrow(/balanca/i);
+
+    expect(prisma.passagemPesagem.create).not.toHaveBeenCalled();
+  });
+
+  it('enfileira ticket fechado apenas para perfil outbound da mesma empresa/unidade e com payload canonico minimo', async () => {
+    const ticketFechado = {
+      ...baseTicket,
+      tenantId: 'tenant-1',
+      statusOperacional: 'EM_PESAGEM',
+      unidade: { empresaId: 'empresa-1' },
+      cliente: { id: 'c1', nome: 'Cliente A', documento: '123.456.789-09' },
+      produto: { id: 'p1', descricao: 'Soja' },
+      passagens: [{ sequencia: 1, pesoCapturado: 12000, papelCalculo: 'BRUTO_OFICIAL' }],
+      descontos: [],
+      pesoLiquidoFinal: 12000,
+      valorTotal: 100,
+    };
+    prisma.passagemPesagem.findMany.mockResolvedValue([
+      {
+        papelCalculo: 'BRUTO_OFICIAL',
+        pesoCapturado: 12000,
+        statusPassagem: 'VALIDA',
+        sequencia: 1,
+      },
+      {
+        papelCalculo: 'TARA_OFICIAL',
+        pesoCapturado: 0,
+        statusPassagem: 'VALIDA',
+        sequencia: 2,
+      },
+    ]);
+    prisma.ticketPesagem.findUnique
+      .mockResolvedValueOnce({ ...ticketFechado })
+      .mockResolvedValueOnce({ ...ticketFechado })
+      .mockResolvedValueOnce({ ...ticketFechado })
+      .mockResolvedValueOnce({ ...ticketFechado });
+    prisma.integracaoProfile.findMany.mockResolvedValue([{ id: 'profile-1' }]);
+
+    await service.fecharTicket('tk1', {}, 'tenant-1', 'user-1');
+
+    expect(prisma.integracaoProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          empresaId: 'empresa-1',
+          enabled: true,
+          syncDirection: { in: ['outbound', 'bidirectional'] },
+          connector: { supportedEntities: { contains: 'weighing_ticket' } },
+          OR: [{ unidadeId: null }, { unidadeId: 'u1' }],
+        }),
+      }),
+    );
+    expect(outboxMock.enqueueInTransaction).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        eventType: 'weighing.ticket.closed',
+        payloadCanonical: expect.objectContaining({
+          ticket: expect.objectContaining({
+            id: 'tk1',
+            unidadeId: 'u1',
+            clienteId: 'c1',
+            produtoId: 'p1',
+          }),
+          passagens: expect.any(Array),
+        }),
+      }),
+    );
+    const payload = outboxMock.enqueueInTransaction.mock.calls[0][1].payloadCanonical;
+    expect(JSON.stringify(payload)).not.toContain('123.456.789-09');
+  });
 });
 
 describe('TicketService.create - bloqueio por licença', () => {
   let service: TicketService;
-  let prisma: any;
+  let prisma: {
+    ticketPesagem: { create: jest.Mock; count: jest.Mock; findUnique: jest.Mock };
+    licencaInstalacao: { findFirst: jest.Mock };
+    veiculo: { findUnique: jest.Mock; findFirst: jest.Mock };
+    unidade: { findFirst: jest.Mock };
+    cliente: { findFirst: jest.Mock };
+    produto: { findFirst: jest.Mock };
+  };
 
   beforeEach(async () => {
     prisma = {
@@ -263,7 +476,7 @@ describe('TicketService.create - bloqueio por licença', () => {
           fluxoPesagem: 'PF2_BRUTO_TARA',
           clienteId: 'c',
           produtoId: 'p',
-        } as any,
+        } as CreateTicketDto,
         't',
       ),
     ).rejects.toThrow(/bloqueada|EXPIRADA/i);
@@ -281,7 +494,7 @@ describe('TicketService.create - bloqueio por licença', () => {
           fluxoPesagem: 'PF2_BRUTO_TARA',
           clienteId: 'c',
           produtoId: 'p',
-        } as any,
+        } as CreateTicketDto,
         't',
       ),
     ).rejects.toThrow(/trial/i);
@@ -290,7 +503,16 @@ describe('TicketService.create - bloqueio por licença', () => {
 
 describe('TicketService.create - B9 validacao de tara em PF1', () => {
   let service: TicketService;
-  let prisma: any;
+  let prisma: {
+    ticketPesagem: { create: jest.Mock; count: jest.Mock; findUnique: jest.Mock };
+    unidade: { findFirst: jest.Mock };
+    cliente: { findFirst: jest.Mock };
+    produto: { findFirst: jest.Mock };
+    licencaInstalacao: { findFirst: jest.Mock };
+    ticketContador: { upsert: jest.Mock };
+    veiculo: { findUnique: jest.Mock; findFirst: jest.Mock };
+    $transaction: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = {
@@ -343,7 +565,7 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
           fluxoPesagem: 'PF1_TARA_REFERENCIADA',
           clienteId: 'c',
           produtoId: 'p',
-        } as any,
+        } as CreateTicketDto,
         't',
       ),
     ).rejects.toThrow(/PF1_TARA_REFERENCIADA exige tara/);
@@ -360,14 +582,30 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
           clienteId: 'c',
           produtoId: 'p',
           veiculoId: 'v1',
-        } as any,
+        } as CreateTicketDto,
         't',
       ),
     ).rejects.toThrow(/exige tara/);
     expect(prisma.ticketPesagem.create).not.toHaveBeenCalled();
   });
 
-  it('aceita PF1 com taraReferenciaTipo=MANUAL (sem veiculo)', async () => {
+  it('rejeita PF1 manual sem taraManual positiva', async () => {
+    await expect(
+      service.create(
+        {
+          unidadeId: 'u',
+          fluxoPesagem: 'PF1_TARA_REFERENCIADA',
+          clienteId: 'c',
+          produtoId: 'p',
+          taraReferenciaTipo: 'MANUAL',
+        } as CreateTicketDto,
+        't',
+      ),
+    ).rejects.toThrow(/tara manual/i);
+    expect(prisma.ticketPesagem.create).not.toHaveBeenCalled();
+  });
+
+  it('aceita PF1 com taraReferenciaTipo=MANUAL e taraManual positiva', async () => {
     await service.create(
       {
         unidadeId: 'u',
@@ -375,10 +613,18 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
         clienteId: 'c',
         produtoId: 'p',
         taraReferenciaTipo: 'MANUAL',
-      } as any,
+        taraManual: 4200,
+      } as CreateTicketDto,
       't',
     );
-    expect(prisma.ticketPesagem.create).toHaveBeenCalled();
+    expect(prisma.ticketPesagem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          taraCadastradaSnapshot: 4200,
+          taraReferenciaTipo: 'MANUAL',
+        }),
+      }),
+    );
   });
 
   it('aceita PF1 com veiculo que tem taraCadastrada > 0', async () => {
@@ -390,7 +636,7 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
         clienteId: 'c',
         produtoId: 'p',
         veiculoId: 'v1',
-      } as any,
+      } as CreateTicketDto,
       't',
     );
     expect(prisma.ticketPesagem.create).toHaveBeenCalled();
@@ -403,7 +649,7 @@ describe('TicketService.create - B9 validacao de tara em PF1', () => {
         fluxoPesagem: 'PF2_BRUTO_TARA',
         clienteId: 'c',
         produtoId: 'p',
-      } as any,
+      } as CreateTicketDto,
       't',
     );
     expect(prisma.ticketPesagem.create).toHaveBeenCalled();

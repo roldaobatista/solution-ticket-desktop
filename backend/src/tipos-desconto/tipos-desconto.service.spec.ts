@@ -40,8 +40,8 @@ describe('TiposDescontoService', () => {
   });
 
   describe('create', () => {
-    it('aplica defaults e ignora tenantId do DTO', async () => {
-      await service.create({ tenantId: 'tenant-invasor', descricao: 'Tara' }, 'tenant-jwt');
+    it('aplica defaults usando tenant do JWT', async () => {
+      await service.create({ descricao: 'Tara' }, 'tenant-jwt');
       expect(prisma.tipoDesconto.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           tenantId: 'tenant-jwt',

@@ -1,17 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GenericCrudService } from '../../common/generic-crud/generic-crud.service';
+import { CrudConfig, GenericCrudService } from '../../common/generic-crud/generic-crud.service';
 import { CreateDestinoDto } from '../dto/create-destino.dto';
 import { UpdateDestinoDto } from '../dto/update-destino.dto';
 
 @Injectable()
 export class DestinosService extends GenericCrudService<
-  any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
+  Prisma.DestinoWhereInput,
   CreateDestinoDto,
   UpdateDestinoDto
 > {
-  protected config = {
+  protected config: CrudConfig<Prisma.DestinoWhereInput, CreateDestinoDto, UpdateDestinoDto> = {
     prismaModel: 'destino' as const,
     searchFields: ['descricao'],
     orderByField: 'descricao',

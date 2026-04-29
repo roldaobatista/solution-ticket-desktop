@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IntegrationErrorCategory, RetryPolicyService } from '../retry/retry-policy.service';
 import { decrypt, encrypt } from '../../common/crypto.util';
+import { scrubPii } from '../../common/pii.util';
 
 export interface EnqueueIntegrationEventInput {
   profileId: string;
@@ -37,12 +38,35 @@ export class OutboxService {
     return `enc:v1:${encrypt(JSON.stringify(payload))}`;
   }
 
+  private stableStringify(payload: unknown): string {
+    if (payload === null || typeof payload !== 'object') return JSON.stringify(payload);
+    if (Array.isArray(payload)) {
+      return `[${payload.map((item) => this.stableStringify(item)).join(',')}]`;
+    }
+    const record = payload as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${this.stableStringify(record[key])}`)
+      .join(',')}}`;
+  }
+
   parsePayload(payload: string): unknown {
     if (payload.startsWith('enc:v1:')) return JSON.parse(decrypt(payload.slice('enc:v1:'.length)));
     return JSON.parse(payload);
   }
 
-  enqueue(input: EnqueueIntegrationEventInput) {
+  async enqueue(input: EnqueueIntegrationEventInput) {
+    const existing = await this.prisma.integracaoOutbox.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
+    });
+    if (existing) {
+      const existingPayload = this.parsePayload(existing.payloadCanonical);
+      if (this.stableStringify(existingPayload) !== this.stableStringify(input.payloadCanonical)) {
+        throw new ConflictException('Idempotency key ja existe com payload divergente');
+      }
+      return existing;
+    }
+
     const data = {
       profileId: input.profileId,
       eventType: input.eventType,
@@ -54,14 +78,7 @@ export class OutboxService {
       correlationId: input.correlationId,
     };
 
-    return this.prisma.integracaoOutbox.upsert({
-      where: { idempotencyKey: input.idempotencyKey },
-      update: {
-        payloadCanonical: data.payloadCanonical,
-        correlationId: data.correlationId,
-      },
-      create: data,
-    });
+    return this.prisma.integracaoOutbox.create({ data });
   }
 
   async enqueueForTenant(input: EnqueueForTenantInput) {
@@ -119,13 +136,19 @@ export class OutboxService {
   }
 
   async enqueueInTransaction(tx: Prisma.TransactionClient, input: EnqueueIntegrationEventInput) {
-    return tx.integracaoOutbox.upsert({
+    const existing = await tx.integracaoOutbox.findUnique({
       where: { idempotencyKey: input.idempotencyKey },
-      update: {
-        payloadCanonical: this.serializePayload(input.payloadCanonical),
-        correlationId: input.correlationId,
-      },
-      create: {
+    });
+    if (existing) {
+      const existingPayload = this.parsePayload(existing.payloadCanonical);
+      if (this.stableStringify(existingPayload) !== this.stableStringify(input.payloadCanonical)) {
+        throw new ConflictException('Idempotency key ja existe com payload divergente');
+      }
+      return existing;
+    }
+
+    return tx.integracaoOutbox.create({
+      data: {
         profileId: input.profileId,
         eventType: input.eventType,
         entityType: input.entityType,
@@ -202,7 +225,7 @@ export class OutboxService {
         status: shouldRetry ? 'awaiting_retry' : category === 'business' ? 'error' : 'dead',
         processedAt: null,
         nextRetryAt: shouldRetry ? (retryAfterAt ?? this.retryPolicy.nextRetryAt(attempts)) : null,
-        lastError: error.message,
+        lastError: scrubPii(error.message) as string,
         lastErrorCategory: category,
       },
     });

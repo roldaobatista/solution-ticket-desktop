@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { stderr, stdout } from 'process';
 import * as bcrypt from 'bcryptjs';
 import {
   StatusOperacional,
@@ -9,7 +10,6 @@ import {
   PapelCalculo,
   StatusPassagem,
   OrigemLeitura,
-  StatusLicenca,
   TaraReferenciaTipo,
   ModoComercial,
   CondicaoVeiculo,
@@ -18,6 +18,9 @@ import { Permissao } from '../constants/permissoes';
 import { seedIndicadoresHardware } from './seed-indicadores';
 
 const prisma = new PrismaClient();
+const log = (...items: unknown[]) => stdout.write(`${items.map(String).join(' ')}\n`);
+const logError = (error: unknown) =>
+  stderr.write(`${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
 
 async function seedTiposFaturaIdempotente(tenantId: string) {
   const tipos = [
@@ -34,7 +37,7 @@ async function seedTiposFaturaIdempotente(tenantId: string) {
       await prisma.tipoFatura.create({ data: { tenantId, ...t } });
     }
   }
-  console.log('Tipos de fatura garantidos');
+  log('Tipos de fatura garantidos');
 }
 
 async function seedConectoresIntegracaoIdempotente() {
@@ -79,7 +82,7 @@ async function seedConectoresIntegracaoIdempotente() {
       },
     });
   }
-  console.log('Conectores de integracao garantidos');
+  log('Conectores de integracao garantidos');
 }
 
 async function seedPermissoesIntegracaoAdminIdempotente(tenantId: string) {
@@ -118,16 +121,16 @@ async function seedPermissoesIntegracaoAdminIdempotente(tenantId: string) {
       });
     }
   }
-  console.log('Permissoes de integracao garantidas para Administrador');
+  log('Permissoes de integracao garantidas para Administrador');
 }
 
 async function main() {
-  console.log('Seeding database...');
+  log('Seeding database...');
 
   // Se o banco ja foi semeado (tem tenant), apenas garante upserts idempotentes
   const tenantExistente = await prisma.tenant.findFirst();
   if (tenantExistente) {
-    console.log('Banco ja semeado. Aplicando upserts idempotentes...');
+    log('Banco ja semeado. Aplicando upserts idempotentes...');
     await seedTiposFaturaIdempotente(tenantExistente.id);
     await seedConectoresIntegracaoIdempotente();
     await seedPermissoesIntegracaoAdminIdempotente(tenantExistente.id);
@@ -145,9 +148,7 @@ async function main() {
     throw new Error('SEED_DEFAULT_PASSWORD com valor trivial. Escolha uma senha forte.');
   }
   const senhaHash = await bcrypt.hash(senhaInicial, 10);
-  console.log(
-    'Seed: usando senha inicial de SEED_DEFAULT_PASSWORD (operadores devem trocar no 1º login).',
-  );
+  log('Seed: usando senha inicial de SEED_DEFAULT_PASSWORD (operadores devem trocar no 1º login).');
 
   // 1. Tenant
   const tenant = await prisma.tenant.create({
@@ -156,7 +157,7 @@ async function main() {
       documento: '12.345.678/0001-90',
     },
   });
-  console.log('Tenant created:', tenant.id);
+  log('Tenant created:', tenant.id);
 
   // 2. Empresa
   const empresa = await prisma.empresa.create({
@@ -173,7 +174,7 @@ async function main() {
       site: 'www.graosdobrasil.com.br',
     },
   });
-  console.log('Empresa created:', empresa.id);
+  log('Empresa created:', empresa.id);
 
   // 3. Unidade
   const unidade = await prisma.unidade.create({
@@ -186,7 +187,7 @@ async function main() {
       telefone: '(66) 3333-4444',
     },
   });
-  console.log('Unidade created:', unidade.id);
+  log('Unidade created:', unidade.id);
 
   // 4. Perfis
   const perfilAdmin = await prisma.perfil.create({
@@ -198,7 +199,7 @@ async function main() {
   const perfilSupervisor = await prisma.perfil.create({
     data: { tenantId: tenant.id, nome: 'Supervisor', descricao: 'Supervisor operacional' },
   });
-  console.log('Perfis created');
+  log('Perfis created');
 
   // 5. Permissoes
   const permissoesAdmin = [
@@ -275,7 +276,7 @@ async function main() {
       data: { perfilId: perfilSupervisor.id, modulo, acao, concedido: true },
     });
   }
-  console.log('Permissoes created');
+  log('Permissoes created');
 
   // 6. Usuarios
   const usuarios = [
@@ -312,7 +313,7 @@ async function main() {
       data: { usuarioId: usuario.id, perfilId: u.perfilId },
     });
   }
-  console.log('Usuarios created');
+  log('Usuarios created');
 
   // 7. Clientes
   const clientes = await Promise.all([
@@ -377,7 +378,7 @@ async function main() {
       },
     }),
   ]);
-  console.log('Clientes created');
+  log('Clientes created');
 
   // 8. Transportadoras
   const transportadoras = await Promise.all([
@@ -394,7 +395,7 @@ async function main() {
       data: { tenantId: tenant.id, nome: 'Transborte Express', documento: '45.678.901/0001-04' },
     }),
   ]);
-  console.log('Transportadoras created');
+  log('Transportadoras created');
 
   // 9. Motoristas
   const motoristas = await Promise.all([
@@ -459,7 +460,7 @@ async function main() {
       },
     }),
   ]);
-  console.log('Motoristas created');
+  log('Motoristas created');
 
   // 10. Produtos
   const produtos = await Promise.all([
@@ -518,7 +519,7 @@ async function main() {
       },
     }),
   ]);
-  console.log('Produtos created');
+  log('Produtos created');
 
   // 11. Veiculos
   const veiculos = await Promise.all([
@@ -577,7 +578,7 @@ async function main() {
       },
     }),
   ]);
-  console.log('Veiculos created');
+  log('Veiculos created');
 
   // 12. Destinos
   const destinos = await Promise.all([
@@ -592,10 +593,10 @@ async function main() {
       data: { tenantId: tenant.id, descricao: 'Unidade Industrial - Cuiabá' },
     }),
   ]);
-  console.log('Destinos created');
+  log('Destinos created');
 
   // 13. Origens
-  const origens = await Promise.all([
+  await Promise.all([
     prisma.origem.create({
       data: { tenantId: tenant.id, descricao: 'Fazenda Santa Fé - Zona Rural' },
     }),
@@ -607,7 +608,7 @@ async function main() {
     }),
     prisma.origem.create({ data: { tenantId: tenant.id, descricao: 'Fornecedor Externo - MT' } }),
   ]);
-  console.log('Origens created');
+  log('Origens created');
 
   // 14. Armazens
   const armazens = await Promise.all([
@@ -629,10 +630,10 @@ async function main() {
       data: { tenantId: tenant.id, descricao: 'Patio de Armazenagem', localizacao: 'Setor C' },
     }),
   ]);
-  console.log('Armazens created');
+  log('Armazens created');
 
   // 15. Indicadores
-  const indicadores = await Promise.all([
+  await Promise.all([
     prisma.indicadorPesagem.create({
       data: { tenantId: tenant.id, descricao: 'Pesagem Normal', cor: '#4CAF50' },
     }),
@@ -646,13 +647,13 @@ async function main() {
       data: { tenantId: tenant.id, descricao: 'Retorno de Carga', cor: '#2196F3' },
     }),
   ]);
-  console.log('Indicadores created');
+  log('Indicadores created');
 
   // 15.1 Indicadores de Hardware (PesoLog - 12 modelos)
   await seedIndicadoresHardware(prisma, tenant.id);
 
   // 16. Formas de Pagamento
-  const formasPagamento = await Promise.all([
+  await Promise.all([
     prisma.formaPagamento.create({
       data: { tenantId: tenant.id, descricao: 'Dinheiro', tipo: 'AVISTA' },
     }),
@@ -669,7 +670,7 @@ async function main() {
       data: { tenantId: tenant.id, descricao: 'Cheque', tipo: 'PRAZO' },
     }),
   ]);
-  console.log('Formas de pagamento created');
+  log('Formas de pagamento created');
 
   // 17. Balancas
   const balancas = await Promise.all([
@@ -704,7 +705,7 @@ async function main() {
       },
     }),
   ]);
-  console.log('Balancas created');
+  log('Balancas created');
 
   // 18. Configuracao Operacional
   await prisma.configuracaoOperacionalUnidade.create({
@@ -741,11 +742,11 @@ async function main() {
       manterTaraCadastrada: true,
     },
   });
-  console.log('Configuracao operacional created');
+  log('Configuracao operacional created');
 
   // 19. Licenca: seed NÃO cria trial automaticamente (F-027).
   // O onboarding da aplicação guiará o usuário a iniciar trial com fingerprint real.
-  console.log('Licenca: nenhuma criada no seed (onboarding demanda trial real)');
+  log('Licenca: nenhuma criada no seed (onboarding demanda trial real)');
 
   // 20. Tickets com passagens
   const allUsuarios = await prisma.usuario.findMany();
@@ -818,7 +819,7 @@ async function main() {
       },
     ],
   });
-  console.log('Ticket 1 created (2PF fechado)');
+  log('Ticket 1 created (2PF fechado)');
 
   // Ticket 2: 1PF tara referenciada - Soja
   const ticket2 = await prisma.ticketPesagem.create({
@@ -871,7 +872,7 @@ async function main() {
       origemLeitura: OrigemLeitura.AUTOMATICA,
     },
   });
-  console.log('Ticket 2 created (1PF tara referenciada)');
+  log('Ticket 2 created (1PF tara referenciada)');
 
   // Ticket 3: 2PF fechado - Trigo
   const ticket3 = await prisma.ticketPesagem.create({
@@ -953,7 +954,7 @@ async function main() {
       origem: 'tabela',
     },
   });
-  console.log('Ticket 3 created (2PF com desconto)');
+  log('Ticket 3 created (2PF com desconto)');
 
   // Tickets 4-10: variados
   interface TicketSeed {
@@ -1188,19 +1189,19 @@ async function main() {
     }
   }
 
-  console.log('All tickets created');
+  log('All tickets created');
 
   // Seed de Tipos de Fatura (idempotente)
   await seedTiposFaturaIdempotente(tenant.id);
   await seedConectoresIntegracaoIdempotente();
   await seedPermissoesIntegracaoAdminIdempotente(tenant.id);
 
-  console.log('Seed completed successfully!');
+  log('Seed completed successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    logError(e);
     process.exit(1);
   })
   .finally(async () => {

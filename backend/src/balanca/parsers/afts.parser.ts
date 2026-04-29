@@ -18,7 +18,8 @@ export class AftsParser implements IBalancaParser {
 
     // C8: trama AFTS bem formada tem unidade 'kg' ou 'g' no final.
     // A ausência costuma indicar trama truncada/ruído — rejeitar.
-    if (!/(kg|g|t|lb)\s*$/.test(slice.trim())) return { leitura: null, restante };
+    const unitMatch = slice.trim().match(/\b(kg|g|t|lb)\s*$/i);
+    if (!unitMatch) return { leitura: null, restante };
 
     // Aceita ST/US/OL como prefixo
     const m = slice.match(/^(ST|US|OL),(?:GS|NT),([+\-\s\d.]+)/);
@@ -31,6 +32,11 @@ export class AftsParser implements IBalancaParser {
     if (!/\d/.test(numStr)) return { leitura: null, restante };
     let peso = parseFloat(numStr);
     if (isNaN(peso)) return { leitura: null, restante };
+
+    const unidade = unitMatch[1].toLowerCase();
+    if (unidade === 'g') peso = peso / 1000;
+    if (unidade === 't') peso = peso * 1000;
+    if (unidade === 'lb') peso = peso * 0.45359237;
 
     const fator = this.config.fator ?? 1;
     if (fator > 1) peso = peso / fator;

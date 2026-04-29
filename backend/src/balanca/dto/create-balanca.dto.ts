@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID, IsInt, IsBoolean, IsIn } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsInt,
+  IsIn,
+  IsBoolean,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBalancaDto {
@@ -84,4 +93,49 @@ export class CreateBalancaDto {
   @IsOptional()
   @IsUUID()
   indicadorId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  ativo?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  modbusUnitId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  modbusRegister?: number;
+
+  @ApiPropertyOptional({ enum: ['holding', 'input'] })
+  @IsOptional()
+  @IsIn(['holding', 'input'])
+  modbusFunction?: 'holding' | 'input';
+
+  @ApiPropertyOptional({ enum: ['BE', 'LE'] })
+  @IsOptional()
+  @IsIn(['BE', 'LE'])
+  modbusByteOrder?: 'BE' | 'LE';
+
+  @ApiPropertyOptional({ enum: ['BE', 'LE'] })
+  @IsOptional()
+  @IsIn(['BE', 'LE'])
+  modbusWordOrder?: 'BE' | 'LE';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  modbusSigned?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  modbusScale?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  modbusOffset?: number;
 }

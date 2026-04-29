@@ -55,6 +55,11 @@ export async function changePassword(
   return res.data;
 }
 
+export async function logout(): Promise<{ ok: boolean }> {
+  const res = await apiClient.post('/auth/logout');
+  return res.data;
+}
+
 export async function requestPasswordReset(email: string): Promise<{ ok: boolean }> {
   const res = await apiClient.post('/auth/request-password-reset', { email });
   return res.data;

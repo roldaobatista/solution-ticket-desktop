@@ -40,17 +40,17 @@
 - Balança fecha mesmo com ERP fora
 - Zero perda de ticket
 
-**Coluna 2 — Auditoria fiscal completa**
+**Coluna 2 — Auditoria operacional auditável**
 
-- Rastro de 5 anos (Receita Federal)
-- Hash de integridade
-- Reconciliação automática
+- Eventos de ticket e integração com hash
+- Histórico por usuário, tenant e ticket
+- Base para reconciliação e auditoria
 
-**Coluna 3 — 20+ ERPs suportados**
+**Coluna 3 — Integração com status claro**
 
-- Bling, Omie, ContaAzul, Tiny
-- TOTVS Protheus/RM/Datasul, Sankhya, Senior
-- SAP, Microsoft Dynamics, NetSuite, Oracle
+- Hoje: outbox + conector REST genérico
+- Beta: conector dedicado com aceite técnico
+- Roadmap: ERPs nativos por matriz de maturidade
 
 ---
 
@@ -80,7 +80,7 @@
 
 🔄 **Resiliência local-first**: outbox + retry + DLQ + reconciliação automática
 
-🌐 **20+ ERPs nativos**: REST, OData, SOAP, SFTP, iPaaS — setup em dias
+🌐 **Matriz honesta de integração**: REST genérico hoje; conectores nativos somente quando homologados
 
 ---
 

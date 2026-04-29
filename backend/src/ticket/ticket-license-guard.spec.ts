@@ -1,9 +1,13 @@
 import { ForbiddenException } from '@nestjs/common';
 import { TicketLicenseGuard } from './ticket-license-guard';
 
+jest.mock('../licenca/fingerprint.util', () => ({ obterFingerprint: () => 'fp-test' }));
+
 describe('TicketLicenseGuard', () => {
   let guard: TicketLicenseGuard;
-  let prismaMock: any;
+  let prismaMock: {
+    licencaInstalacao: { findFirst: jest.Mock; update: jest.Mock };
+  };
 
   beforeEach(() => {
     prismaMock = {
@@ -12,13 +16,32 @@ describe('TicketLicenseGuard', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     };
-    guard = new TicketLicenseGuard(prismaMock);
+    guard = new TicketLicenseGuard(prismaMock as never);
   });
 
   describe('verificarLicenca', () => {
     it('bloqueia quando não existe licença (F-001 fail-closed)', async () => {
       prismaMock.licencaInstalacao.findFirst.mockResolvedValue(null);
       await expect(guard.verificarLicenca('unidade-1')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('consulta licenca pelo fingerprint da maquina e tenant do ticket', async () => {
+      prismaMock.licencaInstalacao.findFirst.mockResolvedValue({
+        id: 'l1',
+        statusLicenca: 'ATIVA',
+        pesagensRestantesTrial: null,
+        trialExpiraEm: null,
+      });
+
+      await guard.verificarLicenca('unidade-1', 'tenant-1');
+
+      expect(prismaMock.licencaInstalacao.findFirst).toHaveBeenCalledWith({
+        where: {
+          unidadeId: 'unidade-1',
+          tenantId: 'tenant-1',
+          fingerprintDispositivo: 'fp-test',
+        },
+      });
     });
 
     it('bloqueia quando licença está EXPIRADA', async () => {
@@ -112,6 +135,24 @@ describe('TicketLicenseGuard', () => {
           data: { pesagensRestantesTrial: { decrement: 1 } },
         }),
       );
+    });
+
+    it('decrementa apenas a licenca do tenant e fingerprint atuais', async () => {
+      prismaMock.licencaInstalacao.findFirst.mockResolvedValue({
+        id: 'l1',
+        statusLicenca: 'TRIAL',
+        pesagensRestantesTrial: 5,
+      });
+
+      await guard.decrementarPesagemTrial('unidade-1', 'tenant-1');
+
+      expect(prismaMock.licencaInstalacao.findFirst).toHaveBeenCalledWith({
+        where: {
+          unidadeId: 'unidade-1',
+          tenantId: 'tenant-1',
+          fingerprintDispositivo: 'fp-test',
+        },
+      });
     });
 
     it('não decrementa quando não é trial', async () => {

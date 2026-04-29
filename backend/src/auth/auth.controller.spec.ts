@@ -33,9 +33,9 @@ describe('AuthController', () => {
         accessToken: 'tok',
         usuario: { id: 'u1', email: 'a@b.com', tenantId: 't1', perfis: [] },
       };
-      authService.login.mockResolvedValue(token as any);
+      authService.login.mockResolvedValue(token as never);
 
-      const result = await controller.login({ user } as any);
+      const result = await controller.login({ user } as never);
 
       expect(authService.login).toHaveBeenCalledWith(user);
       expect(result).toEqual(token);
@@ -45,7 +45,7 @@ describe('AuthController', () => {
   describe('me', () => {
     it('deve retornar usuário do request', async () => {
       const user = { id: 'u1', email: 'a@b.com' };
-      const result = await controller.me({ user } as any);
+      const result = await controller.me({ user } as never);
       expect(result).toEqual(user);
     });
   });
@@ -53,9 +53,9 @@ describe('AuthController', () => {
   describe('changePassword', () => {
     it('deve trocar senha com user.id', async () => {
       const user = { id: 'u1', email: 'a@b.com' };
-      authService.changePassword.mockResolvedValue({ ok: true } as any);
+      authService.changePassword.mockResolvedValue({ ok: true } as never);
 
-      const result = await controller.changePassword({ user } as any, {
+      const result = await controller.changePassword({ user } as never, {
         senhaAtual: 'old',
         novaSenha: 'new',
       });
@@ -66,9 +66,9 @@ describe('AuthController', () => {
 
     it('deve usar sub como fallback se id ausente', async () => {
       const user = { sub: 'u2', email: 'a@b.com' };
-      authService.changePassword.mockResolvedValue({ ok: true } as any);
+      authService.changePassword.mockResolvedValue({ ok: true } as never);
 
-      await controller.changePassword({ user } as any, {
+      await controller.changePassword({ user } as never, {
         senhaAtual: 'old',
         novaSenha: 'new',
       });
@@ -79,14 +79,14 @@ describe('AuthController', () => {
     it('deve lançar UnauthorizedException se não há id nem sub', async () => {
       const user = { email: 'a@b.com' };
       await expect(
-        controller.changePassword({ user } as any, { senhaAtual: 'old', novaSenha: 'new' }),
+        controller.changePassword({ user } as never, { senhaAtual: 'old', novaSenha: 'new' }),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('requestPasswordReset', () => {
     it('deve solicitar reset de senha', async () => {
-      authService.requestPasswordReset.mockResolvedValue({ ok: true } as any);
+      authService.requestPasswordReset.mockResolvedValue({ ok: true } as never);
       const result = await controller.requestPasswordReset({ email: 'a@b.com' });
       expect(authService.requestPasswordReset).toHaveBeenCalledWith('a@b.com', undefined);
       expect(result).toEqual({ ok: true });
@@ -95,7 +95,7 @@ describe('AuthController', () => {
 
   describe('resetPassword', () => {
     it('deve resetar senha com token', async () => {
-      authService.resetPassword.mockResolvedValue({ ok: true } as any);
+      authService.resetPassword.mockResolvedValue({ ok: true } as never);
       const result = await controller.resetPassword({ token: 'tok', novaSenha: 'new' });
       expect(authService.resetPassword).toHaveBeenCalledWith('tok', 'new');
       expect(result).toEqual({ ok: true });

@@ -1,6 +1,21 @@
 import { scrubPii } from './pii.util';
 
 describe('scrubPii', () => {
+  type NestedScrubResult = {
+    user: {
+      id: unknown;
+      password: unknown;
+      cpf: unknown;
+      placa: unknown;
+    };
+    nested: Array<{ apiKey: unknown }>;
+    local: {
+      logradouro: unknown;
+      numero: unknown;
+      cep: unknown;
+    };
+  };
+
   it('mascara campos sensiveis no topo do objeto', () => {
     const out = scrubPii({
       email: 'a@b.com',
@@ -21,7 +36,7 @@ describe('scrubPii', () => {
       user: { id: '1', password: 'secret', cpf: '12345678901', placa: 'ABC-1234' },
       nested: [{ apiKey: 'k1' }],
       local: { logradouro: 'Rua X', numero: 100, cep: '12345-000' },
-    }) as any;
+    }) as NestedScrubResult;
     expect(out.user.password).toBe('[REDACTED]');
     expect(out.user.cpf).toBe('[REDACTED]');
     expect(out.user.placa).toBe('[REDACTED]');
@@ -48,7 +63,7 @@ describe('scrubPii', () => {
   });
 
   it('aplica cap de profundidade para evitar ciclo', () => {
-    const obj: any = {};
+    const obj: { self?: unknown } = {};
     obj.self = obj;
     expect(() => scrubPii(obj)).not.toThrow();
   });

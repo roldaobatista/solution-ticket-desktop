@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import MainLayout from '@/components/layout/MainLayout';
@@ -8,18 +8,25 @@ import MainLayout from '@/components/layout/MainLayout';
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, checkAuth, isLoading } = useAuthStore();
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    checkAuth();
+    let mounted = true;
+    Promise.resolve(checkAuth()).finally(() => {
+      if (mounted) setAuthChecked(true);
+    });
+    return () => {
+      mounted = false;
+    };
   }, [checkAuth]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (authChecked && !isLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [authChecked, isAuthenticated, isLoading, router]);
 
-  if (isLoading) {
+  if (!authChecked || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">

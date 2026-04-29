@@ -13,11 +13,21 @@ import type { ParserConfig } from './parsers/parser.interface';
 import type { SerialConfig, SerialParity, FlowControl } from './presets';
 
 export interface ConfigEfetiva {
-  protocolo: 'serial' | 'tcp' | 'modbus';
+  protocolo: 'serial' | 'tcp' | 'modbus-rtu' | 'modbus-tcp';
   endereco: string; // serial: COM3 / TCP: ip:porta / modbus: idem TCP
   serial: SerialConfig;
   parser: ParserConfig;
   atraso: number;
+  modbus: {
+    unitId: number | null;
+    register: number | null;
+    function: 'holding' | 'input' | null;
+    byteOrder: 'BE' | 'LE' | null;
+    wordOrder: 'BE' | 'LE' | null;
+    signed: boolean | null;
+    scale: number | null;
+    offset: number | null;
+  };
 }
 
 const DEFAULT_SERIAL: SerialConfig = {
@@ -56,11 +66,14 @@ function normalizarStopBits(s: number | null | undefined): 1 | 2 {
   return s === 2 ? 2 : 1;
 }
 
-function normalizarProtocolo(p: string | null | undefined): 'serial' | 'tcp' | 'modbus' {
+function normalizarProtocolo(
+  p: string | null | undefined,
+): 'serial' | 'tcp' | 'modbus-rtu' | 'modbus-tcp' {
   if (!p) return 'serial';
   const u = p.toLowerCase();
   if (u === 'tcp' || u === 'tcpip' || u === 'ethernet') return 'tcp';
-  if (u === 'modbus' || u === 'modbus-rtu' || u === 'modbus-tcp') return 'modbus';
+  if (u === 'modbus-tcp') return 'modbus-tcp';
+  if (u === 'modbus' || u === 'modbus-rtu') return 'modbus-rtu';
   return 'serial';
 }
 
@@ -72,9 +85,9 @@ export function resolveEffectiveConfig(
 
   // Endereço — depende do protocolo
   let endereco = '';
-  if (protocolo === 'serial') {
+  if (protocolo === 'serial' || protocolo === 'modbus-rtu') {
     endereco = balanca.porta ?? '';
-  } else if (protocolo === 'tcp' || protocolo === 'modbus') {
+  } else if (protocolo === 'tcp' || protocolo === 'modbus-tcp') {
     const ip = balanca.enderecoIp ?? '';
     const porta = balanca.portaTcp ?? 4001;
     endereco = ip ? `${ip}:${porta}` : '';
@@ -101,6 +114,27 @@ export function resolveEffectiveConfig(
   };
 
   const atraso = balanca.ovrAtraso ?? indicador?.atraso ?? 0;
+  const b = balanca as Balanca & {
+    modbusUnitId?: number | null;
+    modbusRegister?: number | null;
+    modbusFunction?: 'holding' | 'input' | null;
+    modbusByteOrder?: 'BE' | 'LE' | null;
+    modbusWordOrder?: 'BE' | 'LE' | null;
+    modbusSigned?: boolean | null;
+    modbusScale?: unknown;
+    modbusOffset?: unknown;
+  };
 
-  return { protocolo, endereco, serial, parser, atraso };
+  const modbus = {
+    unitId: b.modbusUnitId ?? null,
+    register: b.modbusRegister ?? null,
+    function: b.modbusFunction ?? null,
+    byteOrder: b.modbusByteOrder ?? null,
+    wordOrder: b.modbusWordOrder ?? null,
+    signed: b.modbusSigned ?? null,
+    scale: b.modbusScale == null ? null : Number(b.modbusScale),
+    offset: b.modbusOffset == null ? null : Number(b.modbusOffset),
+  };
+
+  return { protocolo, endereco, serial, parser, atraso, modbus };
 }

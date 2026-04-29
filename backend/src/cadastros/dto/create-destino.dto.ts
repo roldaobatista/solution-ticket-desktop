@@ -3,10 +3,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDestinoDto {
   @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   descricao!: string;

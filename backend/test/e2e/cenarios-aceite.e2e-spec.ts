@@ -61,8 +61,7 @@ describe('Cenarios de Aceite E2E (ANEXO_06)', () => {
 
     // Configurar public key de teste para licenca
     const licencaService = app.get<LicencaService>(LicencaService);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (licencaService as any).publicKey = TEST_PUBLIC_KEY;
+    (licencaService as unknown as { publicKey: string }).publicKey = TEST_PUBLIC_KEY;
 
     await prisma.transportadora.create({
       data: { tenantId, nome: 'Transportadora Teste' },

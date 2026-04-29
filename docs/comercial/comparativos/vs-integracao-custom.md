@@ -7,29 +7,29 @@
 
 ## TL;DR
 
-Integração custom funciona para **um** caso, **um** ERP, **uma** versão. Solution Ticket é **um produto** com 20 ERPs, atualização contínua, auditoria fiscal e suporte. Custom é R$ 200k+ inicial e R$ 5k–R$ 15k/mês de manutenção. ST é ~R$ 500–R$ 3.000/mês total.
+Integração custom funciona para **um** caso, **um** ERP, **uma** versão. Solution Ticket é **um produto de pesagem local-first** com outbox auditável, conector REST genérico e conectores dedicados conforme matriz de maturidade. Custom é R$ 200k+ inicial e R$ 5k–R$ 15k/mês de manutenção. ST é ~R$ 500–R$ 3.000/mês total.
 
 ---
 
 ## Tabela comparativa
 
-| Critério                                |   Integração Custom    |    Solution Ticket     |
-| --------------------------------------- | :--------------------: | :--------------------: |
-| **Tempo até produção**                  |       6–18 meses       |     Dias a semanas     |
-| **Custo inicial**                       |    R$ 150k–R$ 500k     |   R$ 1.500–R$ 25.000   |
-| **Custo recorrente (manutenção)**       |    R$ 5k–R$ 20k/mês    |  R$ 200–R$ 3.000/mês   |
-| **Risco de projeto**                    | Alto (atrasos, escopo) | Baixo (produto pronto) |
-| **Quem mantém**                         |          Você          |     Nós (incluso)      |
-| **Atualização para nova versão do ERP** |       Você paga        |        Incluso         |
-| **Suporte**                             |   Sua equipe interna   |   24/7 (Enterprise)    |
-| **Funciona offline**                    |     Depende do dev     |     ✅ Sim, nativo     |
-| **Auditoria fiscal 5 anos**             |    Você implementa     |       ✅ Nativo        |
-| **Idempotência**                        |    Você implementa     |      ✅ Garantida      |
-| **Reprocessamento self-service**        |    Você implementa     |       ✅ Nativo        |
-| **Múltiplos ERPs (multi-empresa)**      |     Outro projeto      |       ✅ Nativo        |
-| **Documentação**                        |        Depende         |      ✅ Completa       |
-| **Compliance LGPD**                     |     Você responde      |      ✅ Auditado       |
-| **Marketplace de conectores**           |          N/A           |       ✅ Fase 4        |
+| Critério                                |   Integração Custom    |       Solution Ticket        |
+| --------------------------------------- | :--------------------: | :--------------------------: |
+| **Tempo até produção**                  |       6–18 meses       |        Dias a semanas        |
+| **Custo inicial**                       |    R$ 150k–R$ 500k     |      R$ 1.500–R$ 25.000      |
+| **Custo recorrente (manutenção)**       |    R$ 5k–R$ 20k/mês    |     R$ 200–R$ 3.000/mês      |
+| **Risco de projeto**                    | Alto (atrasos, escopo) |    Baixo (produto pronto)    |
+| **Quem mantém**                         |          Você          |        Nós (incluso)         |
+| **Atualização para nova versão do ERP** |       Você paga        |           Incluso            |
+| **Suporte**                             |   Sua equipe interna   |      24/7 (Enterprise)       |
+| **Funciona offline**                    |     Depende do dev     |        ✅ Sim, nativo        |
+| **Auditoria fiscal 5 anos**             |    Você implementa     |          ✅ Nativo           |
+| **Idempotência**                        |    Você implementa     |         ✅ Garantida         |
+| **Reprocessamento self-service**        |    Você implementa     |          ✅ Nativo           |
+| **Múltiplos ERPs (multi-empresa)**      |     Outro projeto      | Conforme conector homologado |
+| **Documentação**                        |        Depende         |         ✅ Completa          |
+| **Compliance LGPD**                     |     Você responde      |         ✅ Auditado          |
+| **Marketplace de conectores**           |          N/A           |           Roadmap            |
 
 ---
 

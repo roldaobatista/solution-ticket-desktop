@@ -43,7 +43,7 @@ describe('MailerController', () => {
       senha: 'p',
       from: 'a@b.com',
     };
-    const r = await controller.upsertConfig('t1', dto as any);
+    await controller.upsertConfig('t1', dto as never);
     expect(service.createOrUpdate).toHaveBeenCalledWith('t1', dto);
   });
 

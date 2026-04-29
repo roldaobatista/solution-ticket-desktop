@@ -63,4 +63,14 @@ export class TcpAdapter extends EventEmitter implements IBalancaAdapter {
   isOpen(): boolean {
     return this.conectado;
   }
+
+  async write(data: Buffer): Promise<void> {
+    if (!this.socket || !this.conectado) throw new Error('Socket TCP fechado');
+    await new Promise<void>((resolve, reject) => {
+      this.socket!.write(data, (err?: Error | null) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
 }

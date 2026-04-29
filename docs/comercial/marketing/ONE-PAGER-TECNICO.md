@@ -20,8 +20,8 @@
 - Backend: NestJS + Prisma + SQLite local
 - Frontend: Next.js + Electron (desktop)
 - Cofre: Windows DPAPI
-- Observabilidade: OpenTelemetry + Prometheus
-- Relay cloud: Cloudflare Workers + KV
+- Observabilidade: logs estruturados, health/readiness e métricas agregadas por tenant
+- Relay cloud: roadmap; backend desktop permanece em loopback
 
 **Arquitetura** (diagrama compacto):
 
@@ -34,7 +34,7 @@ Worker + Mapping Engine (YAML)
         ↓
 Conectores plugáveis (IErpConnector)
         ↓
-ERP / iPaaS / SFTP
+ERP via REST genérico / conectores dedicados homologados
 ```
 
 ---
@@ -46,15 +46,14 @@ ERP / iPaaS / SFTP
 - ✅ At-least-once delivery (outbox transacional)
 - ✅ Idempotência por chave determinística
 - ✅ Retry com backoff exponencial + jitter
-- ✅ Dead-letter queue com classificação técnico/negócio
-- ✅ Circuit breaker por endpoint
-- ✅ Bulkhead — pool isolado por cliente
+- ✅ Estados de reprocessamento e classificação técnico/negócio no outbox
+- Planejado: circuit breaker e bulkhead por conector dedicado
 
 **Performance**:
 
-- ✅ ≥ 1.000 ev/min com Mock; capacidade real por conector em `docs/integracao/CAPACITY.md` (Bling 180, Omie 40-55 ev/min)
-- ✅ Latência p95 < 2s
-- ✅ Cobertura de testes ≥ 85%
+- Capacidade deve ser validada por conector/cliente em homologação
+- Latência depende do ERP alvo e da rede local
+- Cobertura de testes é medida no CI, sem claim comercial fixo
 
 ---
 
@@ -63,30 +62,22 @@ ERP / iPaaS / SFTP
 - 🔒 **Cofre DPAPI**: credenciais encriptadas pelo Windows
 - 🔒 **TLS 1.3 obrigatório** em todas comunicações externas
 - 🔒 **Backend só localhost** (`127.0.0.1:3001`)
-- 🔒 **Webhook entrante via relay cloud** (nunca expõe backend)
+- 🔒 **Backend local em loopback**; relay cloud é roadmap
 - 🔒 **Mascaramento automático** de PII em logs (CPF, CNPJ, tokens)
-- 🔒 **HMAC-SHA256** em webhooks emitidos
-- 🔒 **OAuth 2.0 + Authorization Code + PKCE** suportado
-- 🔒 **mTLS opcional** (Enterprise)
+- 🔒 **Webhook emitido com URL validada**; assinatura HMAC é roadmap
+- 🔒 **OAuth 2.0/PKCE e mTLS** dependem do conector dedicado contratado
 - 🔒 **LGPD compliant**: minimização, mascaramento, esquecimento
 
 ---
 
 ### Bloco 4 — Métodos de integração suportados
 
-| Método     | Conectores que usam                                |
-| ---------- | -------------------------------------------------- |
-| REST/JSON  | Bling, Omie, ContaAzul, Tiny, Sankhya              |
-| OData v4   | SAP S/4HANA, Dynamics 365 BC                       |
-| OData v2   | Dynamics 365 F&O                                   |
-| SOAP       | TOTVS Protheus, NetSuite legado, Sage X3           |
-| BAPI/RFC   | SAP ECC (via JCo)                                  |
-| GraphQL    | Odoo 17+                                           |
-| XML-RPC    | Odoo (legado)                                      |
-| SFTP       | Genérico                                           |
-| CSV/XML    | Genérico                                           |
-| Mensageria | SAP Event Mesh, Azure Service Bus, AWS EventBridge |
-| Webhook    | Via relay cloud Cloudflare                         |
+| Método          | Conectores que usam                   |
+| --------------- | ------------------------------------- |
+| REST/JSON       | Disponível hoje via conector genérico |
+| Mock ERP        | Disponível hoje para demo/testes      |
+| OData/SOAP/SFTP | Planejado por conector dedicado       |
+| Fiscal direto   | Roadmap, fora do MVP atual            |
 
 ---
 
@@ -100,7 +91,7 @@ ERP / iPaaS / SFTP
 - `OrderReference`, `FiscalDocumentReference`
 - `QualityDiscount`, `InventoryMovement`, `Attachment`
 
-Mapping declarativo em YAML — sem código por cliente.
+Mapping declarativo é roadmap; hoje o conector REST genérico exige configuração assistida.
 
 ---
 

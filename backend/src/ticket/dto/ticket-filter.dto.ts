@@ -5,6 +5,11 @@ import { Type } from 'class-transformer';
 export class TicketFilterDto {
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID()
   unidadeId?: string;
 

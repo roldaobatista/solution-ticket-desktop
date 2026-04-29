@@ -34,14 +34,68 @@ import { AjusteLeituraSection } from '@/components/balanca/AjusteLeituraSection'
 import { CalibracaoSection } from '@/components/balanca/CalibracaoSection';
 import { extractMessage } from '@/lib/errors';
 
-const schema = z.object({
-  nome: z.string().min(1, 'Nome obrigatorio'),
-  unidadeId: z.string().min(1, 'Unidade obrigatoria'),
-  indicadorId: z.string().min(1, 'Indicador obrigatorio'),
-  tipoConexao: z.enum(['SERIAL', 'TCP', 'MODBUS_RTU', 'MODBUS_TCP']),
-  porta: z.string().min(1, 'Porta obrigatoria'),
-  ativa: z.boolean().optional(),
-});
+const schema = z
+  .object({
+    nome: z.string().min(1, 'Nome obrigatorio'),
+    unidadeId: z.string().min(1, 'Unidade obrigatoria'),
+    indicadorId: z.string().min(1, 'Indicador obrigatorio'),
+    tipoConexao: z.enum(['SERIAL', 'TCP', 'MODBUS_RTU', 'MODBUS_TCP']),
+    porta: z.string().optional(),
+    host: z.string().optional(),
+    portaTcp: z.coerce.number().int().positive().optional(),
+    modbusUnitId: z.coerce.number().int().min(1).max(247).optional(),
+    modbusRegister: z.coerce.number().int().min(0).optional(),
+    modbusFunction: z.enum(['holding', 'input']).optional(),
+    modbusByteOrder: z.enum(['BE', 'LE']).optional(),
+    modbusWordOrder: z.enum(['BE', 'LE']).optional(),
+    modbusSigned: z.boolean().optional(),
+    modbusScale: z.coerce.number().optional(),
+    modbusOffset: z.coerce.number().optional(),
+    ativa: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.tipoConexao === 'SERIAL' || data.tipoConexao === 'MODBUS_RTU') {
+      if (!data.porta) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['porta'],
+          message: 'Porta obrigatoria',
+        });
+      }
+    }
+    if (data.tipoConexao === 'TCP' || data.tipoConexao === 'MODBUS_TCP') {
+      if (!data.host) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['host'],
+          message: 'Host/IP obrigatorio',
+        });
+      }
+      if (!data.portaTcp) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['portaTcp'],
+          message: 'Porta TCP obrigatoria',
+        });
+      }
+    }
+    if (data.tipoConexao === 'MODBUS_RTU' || data.tipoConexao === 'MODBUS_TCP') {
+      if (!data.modbusUnitId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['modbusUnitId'],
+          message: 'Unit ID obrigatorio',
+        });
+      }
+      if (data.modbusRegister === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['modbusRegister'],
+          message: 'Registrador obrigatorio',
+        });
+      }
+    }
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -50,6 +104,16 @@ const tipoConexaoOptions = [
   { value: 'TCP', label: 'TCP/IP' },
   { value: 'MODBUS_RTU', label: 'Modbus RTU' },
   { value: 'MODBUS_TCP', label: 'Modbus TCP' },
+];
+
+const modbusFunctionOptions = [
+  { value: 'holding', label: 'Holding register' },
+  { value: 'input', label: 'Input register' },
+];
+
+const byteOrderOptions = [
+  { value: 'BE', label: 'BE' },
+  { value: 'LE', label: 'LE' },
 ];
 
 export default function BalancasPage() {
@@ -65,6 +129,15 @@ export default function BalancasPage() {
     tipoConexao: 'SERIAL',
     ativa: true,
     porta: 'COM1',
+    portaTcp: 4001,
+    modbusUnitId: 1,
+    modbusRegister: 0,
+    modbusFunction: 'holding',
+    modbusByteOrder: 'BE',
+    modbusWordOrder: 'BE',
+    modbusSigned: false,
+    modbusScale: 1,
+    modbusOffset: 0,
   });
   const [testing, setTesting] = useState(false);
 
@@ -129,13 +202,32 @@ export default function BalancasPage() {
 
   const handleSubmit = () => {
     if (!validate()) return;
+    const unidade = unidades?.find((u) => u.id === form.unidadeId);
+    if (!unidade?.empresaId && !unidade?.empresa_id) {
+      showToast('Unidade sem empresa associada', 'error');
+      return;
+    }
+    const isModbus = form.tipoConexao === 'MODBUS_RTU' || form.tipoConexao === 'MODBUS_TCP';
     const payload: Partial<Balanca> = {
       nome: form.nome,
+      empresaId: unidade.empresaId || unidade.empresa_id,
       unidadeId: form.unidadeId,
       indicadorId: form.indicadorId,
       tipoConexao: form.tipoConexao,
-      porta: form.porta,
+      porta:
+        form.tipoConexao === 'SERIAL' || form.tipoConexao === 'MODBUS_RTU' ? form.porta : undefined,
+      host: form.tipoConexao === 'TCP' || form.tipoConexao === 'MODBUS_TCP' ? form.host : undefined,
+      porta_tcp:
+        form.tipoConexao === 'TCP' || form.tipoConexao === 'MODBUS_TCP' ? form.portaTcp : undefined,
       ativa: form.ativa ?? true,
+      modbusUnitId: isModbus ? form.modbusUnitId : undefined,
+      modbusRegister: isModbus ? form.modbusRegister : undefined,
+      modbusFunction: isModbus ? form.modbusFunction : undefined,
+      modbusByteOrder: isModbus ? form.modbusByteOrder : undefined,
+      modbusWordOrder: isModbus ? form.modbusWordOrder : undefined,
+      modbusSigned: isModbus ? form.modbusSigned : undefined,
+      modbusScale: isModbus ? form.modbusScale : undefined,
+      modbusOffset: isModbus ? form.modbusOffset : undefined,
     };
     editingId ? updateMut.mutate({ id: editingId, data: payload }) : createMut.mutate(payload);
   };
@@ -162,7 +254,20 @@ export default function BalancasPage() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ tipoConexao: 'SERIAL', ativa: true, porta: 'COM1' });
+    setForm({
+      tipoConexao: 'SERIAL',
+      ativa: true,
+      porta: 'COM1',
+      portaTcp: 4001,
+      modbusUnitId: 1,
+      modbusRegister: 0,
+      modbusFunction: 'holding',
+      modbusByteOrder: 'BE',
+      modbusWordOrder: 'BE',
+      modbusSigned: false,
+      modbusScale: 1,
+      modbusOffset: 0,
+    });
     setErrors({});
     setDialogOpen(true);
   };
@@ -175,6 +280,16 @@ export default function BalancasPage() {
       indicadorId: item.indicadorId || item.indicador_id || '',
       tipoConexao: (item.tipoConexao || item.tipo_conexao || 'SERIAL') as FormData['tipoConexao'],
       porta: item.porta || '',
+      host: item.host || item.enderecoIp || item.endereco_ip || '',
+      portaTcp: item.portaTcp || item.porta_tcp || 4001,
+      modbusUnitId: item.modbusUnitId ?? item.modbus_unit_id ?? 1,
+      modbusRegister: item.modbusRegister ?? item.modbus_register ?? 0,
+      modbusFunction: item.modbusFunction ?? item.modbus_function ?? 'holding',
+      modbusByteOrder: item.modbusByteOrder ?? item.modbus_byte_order ?? 'BE',
+      modbusWordOrder: item.modbusWordOrder ?? item.modbus_word_order ?? 'BE',
+      modbusSigned: item.modbusSigned ?? item.modbus_signed ?? false,
+      modbusScale: item.modbusScale ?? item.modbus_scale ?? 1,
+      modbusOffset: item.modbusOffset ?? item.modbus_offset ?? 0,
       ativa: item.ativa ?? item.ativo ?? true,
     });
     setErrors({});
@@ -408,22 +523,141 @@ export default function BalancasPage() {
             )}
           </div>
 
-          <Input
-            label="Porta *"
-            value={form.porta || ''}
-            onChange={(e) => setForm((f) => ({ ...f, porta: e.target.value }))}
-            placeholder={
-              form.tipoConexao === 'SERIAL' || form.tipoConexao === 'MODBUS_RTU'
-                ? 'COM1'
-                : '192.168.1.100:4001'
-            }
-            error={errors.porta}
-          />
-          <p className="text-xs text-slate-500 -mt-3">
-            {form.tipoConexao === 'SERIAL' || form.tipoConexao === 'MODBUS_RTU'
-              ? 'Ex.: COM1, COM3 (Windows) ou /dev/ttyUSB0 (Linux)'
-              : 'Formato IP:PORTA (ex.: 192.168.1.100:4001)'}
-          </p>
+          {form.tipoConexao === 'SERIAL' || form.tipoConexao === 'MODBUS_RTU' ? (
+            <>
+              <Input
+                label="Porta serial *"
+                value={form.porta || ''}
+                onChange={(e) => setForm((f) => ({ ...f, porta: e.target.value }))}
+                placeholder="COM1"
+                error={errors.porta}
+              />
+              <p className="text-xs text-slate-500 -mt-3">
+                Ex.: COM1, COM3 (Windows) ou /dev/ttyUSB0 (Linux)
+              </p>
+            </>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Input
+                  label="Host/IP *"
+                  value={form.host || ''}
+                  onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
+                  placeholder="192.168.1.100"
+                  error={errors.host}
+                />
+              </div>
+              <Input
+                label="Porta TCP *"
+                type="number"
+                value={form.portaTcp || ''}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, portaTcp: Number(e.target.value) || undefined }))
+                }
+                placeholder={form.tipoConexao === 'MODBUS_TCP' ? '502' : '4001'}
+                error={errors.portaTcp}
+              />
+            </div>
+          )}
+
+          {(form.tipoConexao === 'MODBUS_RTU' || form.tipoConexao === 'MODBUS_TCP') && (
+            <div className="space-y-3 border-t border-slate-200 pt-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Unit ID *"
+                  type="number"
+                  value={form.modbusUnitId ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, modbusUnitId: Number(e.target.value) || undefined }))
+                  }
+                  error={errors.modbusUnitId}
+                />
+                <Input
+                  label="Registrador *"
+                  type="number"
+                  value={form.modbusRegister ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      modbusRegister: e.target.value === '' ? undefined : Number(e.target.value),
+                    }))
+                  }
+                  error={errors.modbusRegister}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Select
+                  label="Função"
+                  options={modbusFunctionOptions}
+                  value={form.modbusFunction || 'holding'}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      modbusFunction: e.target.value as FormData['modbusFunction'],
+                    }))
+                  }
+                  error={errors.modbusFunction}
+                />
+                <Select
+                  label="Byte order"
+                  options={byteOrderOptions}
+                  value={form.modbusByteOrder || 'BE'}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      modbusByteOrder: e.target.value as FormData['modbusByteOrder'],
+                    }))
+                  }
+                  error={errors.modbusByteOrder}
+                />
+                <Select
+                  label="Word order"
+                  options={byteOrderOptions}
+                  value={form.modbusWordOrder || 'BE'}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      modbusWordOrder: e.target.value as FormData['modbusWordOrder'],
+                    }))
+                  }
+                  error={errors.modbusWordOrder}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Escala"
+                  type="number"
+                  value={form.modbusScale ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      modbusScale: e.target.value === '' ? undefined : Number(e.target.value),
+                    }))
+                  }
+                  error={errors.modbusScale}
+                />
+                <Input
+                  label="Offset"
+                  type="number"
+                  value={form.modbusOffset ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      modbusOffset: e.target.value === '' ? undefined : Number(e.target.value),
+                    }))
+                  }
+                  error={errors.modbusOffset}
+                />
+              </div>
+              <div className="flex items-center gap-3 py-1">
+                <Switch
+                  checked={form.modbusSigned ?? false}
+                  onCheckedChange={(checked) => setForm((f) => ({ ...f, modbusSigned: checked }))}
+                />
+                <label className="text-sm text-slate-700">Valor assinado</label>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 py-2">
             <Switch

@@ -27,14 +27,26 @@ jobs:
       - name: Supply-chain audit
         run: pnpm security:audit
 
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Lint
+        run: pnpm lint:check
+
+      - name: Typecheck
+        run: pnpm typecheck:all
+
+      - name: Backend tests
+        run: pnpm --filter ./backend test -- --runInBand
+
+      - name: Frontend tests
+        run: pnpm --filter ./frontend test -- --runInBand --watchAll=false
+
       - name: Generate SBOM
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release | Out-Null
           pnpm dlx @cyclonedx/cyclonedx-npm --output-file release/sbom.cdx.json
-
-      - name: Generate Prisma client
-        run: pnpm db:generate
 
       - name: Build all
         run: pnpm build:all
@@ -49,6 +61,32 @@ jobs:
           CI_RELEASE: 'true'
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Smoke packaged app
+        shell: pwsh
+        run: |
+          $app = Get-ChildItem -Path release\win-unpacked -Filter *.exe | Select-Object -First 1
+          if (-not $app) { throw "win-unpacked .exe nao encontrado" }
+          $proc = Start-Process -FilePath $app.FullName -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                $res = Invoke-WebRequest -Uri "http://127.0.0.1:3001/api/health" -UseBasicParsing -TimeoutSec 2
+                if ($res.StatusCode -eq 200) {
+                  $ready = $true
+                  break
+                }
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (-not $ready) { throw "App empacotado nao respondeu /api/health" }
+          } finally {
+            if ($proc -and -not $proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force
+            }
+          }
 
       - name: Verify Authenticode signature
         shell: pwsh

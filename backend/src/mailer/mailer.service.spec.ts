@@ -10,9 +10,19 @@ jest.mock('nodemailer', () => ({
   }),
 }));
 
+type SmtpMutationArgs = { data: Record<string, unknown> };
+type MailerPrismaMock = {
+  configuracaoSmtp: {
+    findUnique: jest.Mock;
+    create: jest.Mock<Promise<Record<string, unknown>>, [SmtpMutationArgs]>;
+    update: jest.Mock<Promise<Record<string, unknown>>, [SmtpMutationArgs]>;
+    delete: jest.Mock;
+  };
+};
+
 describe('MailerService', () => {
   let service: MailerService;
-  let prisma: any;
+  let prisma: MailerPrismaMock;
   const originalSecret = process.env.JWT_SECRET;
 
   beforeEach(async () => {
@@ -22,10 +32,14 @@ describe('MailerService', () => {
         findUnique: jest.fn(),
         create: jest
           .fn()
-          .mockImplementation((args: any) => Promise.resolve({ id: '1', ...args.data })),
+          .mockImplementation((args: SmtpMutationArgs) =>
+            Promise.resolve({ id: '1', ...args.data }),
+          ),
         update: jest
           .fn()
-          .mockImplementation((args: any) => Promise.resolve({ id: '1', ...args.data })),
+          .mockImplementation((args: SmtpMutationArgs) =>
+            Promise.resolve({ id: '1', ...args.data }),
+          ),
         delete: jest.fn().mockResolvedValue({}),
       },
     };
@@ -60,7 +74,7 @@ describe('MailerService', () => {
       });
       const r = await service.getConfig('t1');
       expect(r).toBeDefined();
-      expect((r as any).senha).toBeUndefined();
+      expect(Object.prototype.hasOwnProperty.call(r, 'senha')).toBe(false);
       expect(r!.host).toBe('smtp.test.com');
     });
 
@@ -85,7 +99,7 @@ describe('MailerService', () => {
       const createCall = prisma.configuracaoSmtp.create.mock.calls[0][0];
       expect(createCall.data.senha).not.toBe('plain');
       expect(typeof createCall.data.senha).toBe('string');
-      expect((result as any).senha).toBeUndefined();
+      expect(Object.prototype.hasOwnProperty.call(result, 'senha')).toBe(false);
     });
   });
 

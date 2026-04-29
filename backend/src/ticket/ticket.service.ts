@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
@@ -26,6 +27,7 @@ import { TicketCalculator } from './ticket-calculator';
 import { TicketLicenseGuard } from './ticket-license-guard';
 import { TicketEventPublisher } from './ticket-event-publisher';
 import { OutboxService } from '../integracao/outbox/outbox.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class TicketService {
@@ -36,6 +38,7 @@ export class TicketService {
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
     private readonly outbox: OutboxService,
+    @Optional() private readonly auditoria?: AuditoriaService,
   ) {
     this.licenseGuard = new TicketLicenseGuard(prisma);
     this.eventPublisher = new TicketEventPublisher(eventEmitter);
@@ -46,16 +49,24 @@ export class TicketService {
   // ============================================================
 
   async create(dto: CreateTicketDto, tenantId: string) {
-    await this.licenseGuard.verificarLicenca(dto.unidadeId);
+    await this.licenseGuard.verificarLicenca(dto.unidadeId, tenantId);
     await this.validarRelacoesTenant(dto, tenantId);
 
     let taraSnapshot: number | undefined;
     let taraTipo = dto.taraReferenciaTipo;
+    if (taraTipo === 'MANUAL') {
+      if (dto.taraManual === undefined || dto.taraManual <= 0) {
+        throw new BadRequestException(
+          'Fluxo PF1_TARA_REFERENCIADA com tara manual exige taraManual positiva.',
+        );
+      }
+      taraSnapshot = dto.taraManual;
+    }
     if (dto.veiculoId) {
       const veiculo = await this.prisma.veiculo.findFirst({
         where: { id: dto.veiculoId, tenantId },
       });
-      if (veiculo?.taraCadastrada) {
+      if (taraTipo !== 'MANUAL' && veiculo?.taraCadastrada) {
         taraSnapshot = Number(veiculo.taraCadastrada);
         if (!taraTipo) taraTipo = 'CADASTRADA';
       }
@@ -69,7 +80,7 @@ export class TicketService {
           : 2;
 
     if (dto.fluxoPesagem === FluxoPesagem.PF1_TARA_REFERENCIADA) {
-      const taraValida = (taraSnapshot && taraSnapshot > 0) || taraTipo === 'MANUAL';
+      const taraValida = taraSnapshot !== undefined && taraSnapshot > 0;
       if (!taraValida) {
         throw new BadRequestException(
           'Fluxo PF1_TARA_REFERENCIADA exige tara: informe veiculoId com tara cadastrada ' +
@@ -134,6 +145,16 @@ export class TicketService {
 
   async findAll(filter: TicketFilterDto, tenantId: string) {
     const where: Prisma.TicketPesagemWhereInput = { tenantId };
+    if (filter.search) {
+      const termo = filter.search.trim();
+      if (termo) {
+        where.OR = [
+          { numero: { contains: termo } },
+          { veiculoPlaca: { contains: termo } },
+          { cliente: { razaoSocial: { contains: termo } } },
+        ];
+      }
+    }
     if (filter.unidadeId) where.unidadeId = filter.unidadeId;
     if (filter.clienteId) where.clienteId = filter.clienteId;
     if (filter.produtoId) where.produtoId = filter.produtoId;
@@ -261,17 +282,15 @@ export class TicketService {
       ticket.statusComercial,
     );
 
-    await this.prisma.auditoria.create({
-      data: {
-        tenantId: ticket.tenantId,
-        entidade: 'ticket_pesagem',
-        entidadeId: ticketId,
-        evento: 'ticket.transicao_estado',
-        estadoAnterior: JSON.stringify({ statusOperacional: ticket.statusOperacional }),
-        estadoNovo: JSON.stringify({ statusOperacional: novoEstado }),
-        usuarioId: usuarioId || null,
-        motivo: motivo || null,
-      },
+    await this.registrarAuditoria({
+      tenantId: ticket.tenantId,
+      entidade: 'ticket_pesagem',
+      entidadeId: ticketId,
+      evento: 'ticket.transicao_estado',
+      estadoAnterior: { statusOperacional: ticket.statusOperacional },
+      estadoNovo: { statusOperacional: novoEstado },
+      usuarioId,
+      motivo,
     });
 
     return updated;
@@ -292,7 +311,7 @@ export class TicketService {
       select: { unidadeId: true },
     });
     if (!ticketPre) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
-    await this.licenseGuard.verificarLicenca(ticketPre.unidadeId);
+    await this.licenseGuard.verificarLicenca(ticketPre.unidadeId, tenantId);
     // C6 (Onda 1): cálculo de sequência DENTRO da $transaction.
     return this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticketPesagem.findUnique({
@@ -309,6 +328,18 @@ export class TicketService {
       if (ticket.statusOperacional === StatusOperacional.CANCELADO) {
         throw new ForbiddenException('Ticket cancelado nao pode receber passagens');
       }
+      const balanca = await tx.balanca.findFirst({
+        where: {
+          id: dto.balancaId,
+          tenantId,
+          unidadeId: ticket.unidadeId,
+          ativo: true,
+        },
+        select: { id: true },
+      });
+      if (!balanca) {
+        throw new BadRequestException('Balanca nao pertence ao tenant/unidade do ticket');
+      }
 
       const ultimaSequencia = ticket.passagens[0]?.sequencia ?? 0;
       const proximaSequencia = ultimaSequencia + 1;
@@ -319,7 +350,7 @@ export class TicketService {
       };
       if (!ticket.primeiraPassagemEm) updateData.primeiraPassagemEm = new Date();
       if (ticket.statusOperacional === StatusOperacional.ABERTO) {
-        updateData.statusOperacional = StatusOperacional.EM_PESAGEM;
+        updateData.statusOperacional = StatusOperacional.AGUARDANDO_PASSAGEM;
       }
 
       const passagem = await tx.passagemPesagem.create({
@@ -357,7 +388,7 @@ export class TicketService {
       where: { id: ticketId, tenantId },
     });
     if (!ticketPre) throw new NotFoundException(`Ticket ${ticketId} nao encontrado`);
-    await this.licenseGuard.verificarLicenca(ticketPre.unidadeId);
+    await this.licenseGuard.verificarLicenca(ticketPre.unidadeId, tenantId);
 
     // C5 (Onda 1): fechamento atomico em $transaction unica.
     const result = await this.prisma.$transaction(async (tx) => {
@@ -401,26 +432,24 @@ export class TicketService {
         await this.criarSnapshotComercialTx(tx, ticketId);
       }
 
-      await tx.auditoria.create({
-        data: {
-          tenantId: ticket.tenantId,
-          entidade: 'ticket_pesagem',
-          entidadeId: ticketId,
-          evento: 'ticket.fechado',
-          estadoAnterior: JSON.stringify({
-            statusOperacional: ticket.statusOperacional,
-            passagens: passagens.map((p) => ({
-              sequencia: p.sequencia,
-              papelCalculo: p.papelCalculo,
-              peso: p.pesoCapturado,
-            })),
-          }),
-          estadoNovo: JSON.stringify({ statusOperacional: StatusOperacional.FECHADO, ...calculo }),
-          usuarioId: usuarioId || null,
+      await this.registrarAuditoriaTx(tx, {
+        tenantId: ticket.tenantId,
+        entidade: 'ticket_pesagem',
+        entidadeId: ticketId,
+        evento: 'ticket.fechado',
+        estadoAnterior: {
+          statusOperacional: ticket.statusOperacional,
+          passagens: passagens.map((p) => ({
+            sequencia: p.sequencia,
+            papelCalculo: p.papelCalculo,
+            peso: p.pesoCapturado,
+          })),
         },
+        estadoNovo: { statusOperacional: StatusOperacional.FECHADO, ...calculo },
+        usuarioId,
       });
 
-      await this.licenseGuard.decrementarPesagemTrial(ticket.unidadeId, tx);
+      await this.licenseGuard.decrementarPesagemTrial(ticket.unidadeId, ticket.tenantId, tx);
       await this.enqueueTicketFechadoTx(tx, ticketId, ticket.tenantId);
 
       return { tenantId: ticket.tenantId };
@@ -533,6 +562,7 @@ export class TicketService {
     if (ticket.pesoLiquidoFinal && ticket.modoComercial !== ModoComercial.DESABILITADO) {
       const precoCliente = await tx.tabelaPrecoProdutoCliente.findFirst({
         where: {
+          tenantId: ticket.tenantId,
           produtoId: ticket.produtoId,
           clienteId: ticket.clienteId,
           ativo: true,
@@ -547,6 +577,7 @@ export class TicketService {
       } else {
         const precoProduto = await tx.tabelaPrecoProduto.findFirst({
           where: {
+            tenantId: ticket.tenantId,
             produtoId: ticket.produtoId,
             ativo: true,
             vigenciaInicio: { lte: new Date() },
@@ -560,6 +591,12 @@ export class TicketService {
       if (valorUnitario && ticket.pesoLiquidoFinal) {
         valorTotal = Number(ticket.pesoLiquidoFinal) * valorUnitario;
       }
+    }
+
+    if (ticket.modoComercial === ModoComercial.OBRIGATORIO && !valorUnitario) {
+      throw new BadRequestException(
+        'Ticket com modoComercial=OBRIGATORIO exige preco vigente para fechamento.',
+      );
     }
 
     await tx.snapshotComercialTicket.create({
@@ -589,15 +626,10 @@ export class TicketService {
     ticketId: string,
     tenantId: string,
   ) {
-    const profiles = await tx.integracaoProfile.findMany({
-      where: { tenantId, enabled: true },
-      select: { id: true },
-    });
-    if (!profiles.length) return;
-
     const ticket = await tx.ticketPesagem.findUnique({
       where: { id: ticketId, tenantId },
       include: {
+        unidade: { select: { empresaId: true } },
         cliente: true,
         transportadora: true,
         motorista: true,
@@ -611,11 +643,25 @@ export class TicketService {
       },
     });
     if (!ticket) return;
+    if (!ticket.unidade?.empresaId) return;
+
+    const profiles = await tx.integracaoProfile.findMany({
+      where: {
+        tenantId,
+        empresaId: ticket.unidade.empresaId,
+        enabled: true,
+        syncDirection: { in: ['outbound', 'bidirectional'] },
+        OR: [{ unidadeId: null }, { unidadeId: ticket.unidadeId }],
+        connector: { supportedEntities: { contains: 'weighing_ticket' } },
+      },
+      select: { id: true },
+    });
+    if (!profiles.length) return;
 
     for (const profile of profiles) {
       await this.outbox.enqueueInTransaction(tx, {
         profileId: profile.id,
-        eventType: 'ticket.fechado',
+        eventType: 'weighing.ticket.closed',
         entityType: 'weighing_ticket',
         entityId: ticketId,
         revision: 1,
@@ -626,10 +672,66 @@ export class TicketService {
           ticketId,
           1,
         ),
-        payloadCanonical: ticket,
+        payloadCanonical: this.toTicketClosedCanonicalPayload(ticket),
         correlationId: randomUUID(),
       });
     }
+  }
+
+  private toTicketClosedCanonicalPayload(
+    ticket: Prisma.TicketPesagemGetPayload<{
+      include: {
+        cliente: true;
+        produto: true;
+        passagens: true;
+        descontos: true;
+      };
+    }>,
+  ) {
+    return {
+      ticket: {
+        id: ticket.id,
+        numero: ticket.numero,
+        tenantId: ticket.tenantId,
+        unidadeId: ticket.unidadeId,
+        clienteId: ticket.clienteId,
+        produtoId: ticket.produtoId,
+        veiculoId: ticket.veiculoId,
+        statusOperacional: ticket.statusOperacional,
+        statusComercial: ticket.statusComercial,
+        fluxoPesagem: ticket.fluxoPesagem,
+        pesoBrutoApurado: ticket.pesoBrutoApurado,
+        pesoTaraApurada: ticket.pesoTaraApurada,
+        pesoLiquidoFinal: ticket.pesoLiquidoFinal,
+        totalDescontos: ticket.totalDescontos,
+        valorUnitario: ticket.valorUnitario,
+        valorTotal: ticket.valorTotal,
+        fechadoEm: ticket.fechadoEm,
+      },
+      cliente: ticket.cliente
+        ? {
+            id: ticket.cliente.id,
+            razaoSocial: ticket.cliente.razaoSocial,
+          }
+        : null,
+      produto: ticket.produto
+        ? {
+            id: ticket.produto.id,
+            descricao: ticket.produto.descricao,
+          }
+        : null,
+      passagens: ticket.passagens.map((passagem) => ({
+        sequencia: passagem.sequencia,
+        papelCalculo: passagem.papelCalculo,
+        pesoCapturado: passagem.pesoCapturado,
+        dataHora: passagem.dataHora,
+      })),
+      descontos: ticket.descontos.map((desconto) => ({
+        tipo: desconto.tipo,
+        descricao: desconto.descricao,
+        valor: desconto.valor,
+      })),
+    };
   }
 
   // ============================================================
@@ -641,16 +743,14 @@ export class TicketService {
     if (ticket.statusOperacional !== StatusOperacional.FECHADO) {
       throw new BadRequestException('Apenas tickets fechados podem ser reimpressos');
     }
-    await this.prisma.auditoria.create({
-      data: {
-        tenantId: ticket.tenantId,
-        entidade: 'ticket_pesagem',
-        entidadeId: ticketId,
-        evento: 'ticket.reimprimir',
-        estadoAnterior: JSON.stringify({ statusOperacional: ticket.statusOperacional }),
-        estadoNovo: JSON.stringify({ acao: 'reimpressao_solicitada' }),
-        usuarioId: usuarioId || null,
-      },
+    await this.registrarAuditoria({
+      tenantId: ticket.tenantId,
+      entidade: 'ticket_pesagem',
+      entidadeId: ticketId,
+      evento: 'ticket.reimprimir',
+      estadoAnterior: { statusOperacional: ticket.statusOperacional },
+      estadoNovo: { acao: 'reimpressao_solicitada' },
+      usuarioId,
     });
     return { sucesso: true, ticketId, numero: ticket.numero, mensagem: 'Reimpressao registrada' };
   }
@@ -658,8 +758,55 @@ export class TicketService {
   async getHistorico(ticketId: string, tenantId: string) {
     await this.findOne(ticketId, tenantId);
     return this.prisma.auditoria.findMany({
-      where: { entidade: 'ticket_pesagem', entidadeId: ticketId },
+      where: { tenantId, entidade: 'ticket_pesagem', entidadeId: ticketId },
       orderBy: { dataHora: 'desc' },
+    });
+  }
+
+  private async registrarAuditoria(data: {
+    tenantId: string;
+    entidade: string;
+    entidadeId: string;
+    evento: string;
+    estadoAnterior?: Record<string, unknown>;
+    estadoNovo?: Record<string, unknown>;
+    usuarioId?: string;
+    motivo?: string;
+  }) {
+    if (this.auditoria) return this.auditoria.registrar(data);
+    return this.prisma.auditoria.create({
+      data: {
+        ...data,
+        estadoAnterior: data.estadoAnterior ? JSON.stringify(data.estadoAnterior) : null,
+        estadoNovo: data.estadoNovo ? JSON.stringify(data.estadoNovo) : null,
+        usuarioId: data.usuarioId || null,
+        motivo: data.motivo || null,
+      },
+    });
+  }
+
+  private async registrarAuditoriaTx(
+    tx: Prisma.TransactionClient,
+    data: {
+      tenantId: string;
+      entidade: string;
+      entidadeId: string;
+      evento: string;
+      estadoAnterior?: Record<string, unknown>;
+      estadoNovo?: Record<string, unknown>;
+      usuarioId?: string;
+      motivo?: string;
+    },
+  ) {
+    if (this.auditoria) return this.auditoria.registrarEmTransacao(tx, data);
+    return tx.auditoria.create({
+      data: {
+        ...data,
+        estadoAnterior: data.estadoAnterior ? JSON.stringify(data.estadoAnterior) : null,
+        estadoNovo: data.estadoNovo ? JSON.stringify(data.estadoNovo) : null,
+        usuarioId: data.usuarioId || null,
+        motivo: data.motivo || null,
+      },
     });
   }
 

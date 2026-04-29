@@ -18,7 +18,7 @@ interface PrismaMock {
     update: jest.Mock;
     updateMany: jest.Mock;
   };
-  itemRomaneio: { create: jest.Mock; createMany: jest.Mock };
+  itemRomaneio: { create: jest.Mock; createMany: jest.Mock; aggregate: jest.Mock };
   $transaction: jest.Mock;
 }
 
@@ -37,7 +37,11 @@ function makePrismaMock(): PrismaMock {
       update: jest.fn(),
       updateMany: jest.fn(),
     },
-    itemRomaneio: { create: jest.fn(), createMany: jest.fn() },
+    itemRomaneio: {
+      create: jest.fn(),
+      createMany: jest.fn(),
+      aggregate: jest.fn().mockResolvedValue({ _max: { sequencia: 0 }, _sum: { peso: 0 } }),
+    },
     $transaction: jest.fn(),
   };
   m.$transaction.mockImplementation(async (cb: (tx: PrismaMock) => Promise<unknown>) => cb(m));
@@ -80,7 +84,13 @@ describe('RomaneioService', () => {
         .mockResolvedValueOnce({ id: 'r1' }) // dentro de vincularTickets (tx)
         .mockResolvedValue({ id: 'r1', numero: 'ROM-000001' }); // findOne final
       prisma.ticketPesagem.findMany.mockResolvedValue([
-        { id: 't1', numero: 'TKT-1', pesoLiquidoFinal: 5000, statusComercial: 'NAO_ROMANEADO' },
+        {
+          id: 't1',
+          numero: 'TKT-1',
+          pesoLiquidoFinal: 5000,
+          statusOperacional: 'FECHADO',
+          statusComercial: 'NAO_ROMANEADO',
+        },
       ]);
       prisma.itemRomaneio.createMany.mockResolvedValue({ count: 1 });
       prisma.ticketPesagem.updateMany.mockResolvedValue({ count: 1 });
@@ -122,7 +132,13 @@ describe('RomaneioService', () => {
 
     it('lanca BadRequest quando ticket sem peso liquido', async () => {
       prisma.ticketPesagem.findMany.mockResolvedValue([
-        { id: 't1', numero: 'TKT-1', pesoLiquidoFinal: null, statusComercial: 'NAO_ROMANEADO' },
+        {
+          id: 't1',
+          numero: 'TKT-1',
+          pesoLiquidoFinal: null,
+          statusOperacional: 'FECHADO',
+          statusComercial: 'NAO_ROMANEADO',
+        },
       ]);
       await expect(service.vincularTickets('r1', ['t1'], 't')).rejects.toThrow(BadRequestException);
     });
@@ -133,6 +149,7 @@ describe('RomaneioService', () => {
           id: 't1',
           numero: 'TKT-1',
           pesoLiquidoFinal: 1000,
+          statusOperacional: 'FECHADO',
           statusComercial: StatusComercial.ROMANEADO,
         },
       ]);
@@ -141,9 +158,22 @@ describe('RomaneioService', () => {
 
     it('soma pesoTotal e atualiza romaneio dentro de transacao', async () => {
       prisma.ticketPesagem.findMany.mockResolvedValue([
-        { id: 't1', numero: 'TKT-1', pesoLiquidoFinal: 1000, statusComercial: 'NAO_ROMANEADO' },
-        { id: 't2', numero: 'TKT-2', pesoLiquidoFinal: 2500, statusComercial: 'NAO_ROMANEADO' },
+        {
+          id: 't1',
+          numero: 'TKT-1',
+          pesoLiquidoFinal: 1000,
+          statusOperacional: 'FECHADO',
+          statusComercial: 'NAO_ROMANEADO',
+        },
+        {
+          id: 't2',
+          numero: 'TKT-2',
+          pesoLiquidoFinal: 2500,
+          statusOperacional: 'FECHADO',
+          statusComercial: 'NAO_ROMANEADO',
+        },
       ]);
+      prisma.ticketPesagem.updateMany.mockResolvedValue({ count: 2 });
       prisma.romaneio.findUnique
         .mockResolvedValueOnce({ id: 'r1', clienteId: 'c' })
         .mockResolvedValue({ id: 'r1', pesoTotal: 3500 });
@@ -155,7 +185,11 @@ describe('RomaneioService', () => {
         ],
       });
       expect(prisma.ticketPesagem.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: ['t1', 't2'] }, tenantId: 't' },
+        where: {
+          id: { in: ['t1', 't2'] },
+          tenantId: 't',
+          statusComercial: StatusComercial.NAO_ROMANEADO,
+        },
         data: { statusComercial: StatusComercial.ROMANEADO },
       });
       expect(prisma.romaneio.update).toHaveBeenCalledWith({
@@ -163,6 +197,49 @@ describe('RomaneioService', () => {
         data: { pesoTotal: 3500 },
       });
       expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('continua sequencia e recalcula peso total somando itens ja existentes', async () => {
+      prisma.itemRomaneio.aggregate.mockResolvedValueOnce({
+        _max: { sequencia: 2 },
+        _sum: { peso: 4500 },
+      });
+      prisma.ticketPesagem.findMany.mockResolvedValue([
+        {
+          id: 't3',
+          numero: 'TKT-3',
+          pesoLiquidoFinal: 1500,
+          statusOperacional: 'FECHADO',
+          statusComercial: 'NAO_ROMANEADO',
+        },
+      ]);
+      prisma.ticketPesagem.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.vincularTickets('r1', ['t3'], 't');
+
+      expect(prisma.itemRomaneio.createMany).toHaveBeenCalledWith({
+        data: [{ romaneioId: 'r1', ticketId: 't3', sequencia: 3, peso: 1500 }],
+      });
+      expect(prisma.romaneio.update).toHaveBeenCalledWith({
+        where: { id: 'r1', tenantId: 't' },
+        data: { pesoTotal: 6000 },
+      });
+    });
+
+    it('rejeita quando outro processo romaneou ticket entre leitura e update condicional', async () => {
+      prisma.ticketPesagem.findMany.mockResolvedValue([
+        {
+          id: 't1',
+          numero: 'TKT-1',
+          pesoLiquidoFinal: 1000,
+          statusOperacional: 'FECHADO',
+          statusComercial: 'NAO_ROMANEADO',
+        },
+      ]);
+      prisma.ticketPesagem.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.vincularTickets('r1', ['t1'], 't')).rejects.toThrow(BadRequestException);
+      expect(prisma.itemRomaneio.createMany).not.toHaveBeenCalled();
     });
   });
 });

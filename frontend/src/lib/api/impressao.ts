@@ -38,6 +38,15 @@ export function getTicketPdfUrl(id: string, template?: string): string {
   return `${base}/impressao/ticket/${id}${qs}`;
 }
 
+export async function getTicketPdfObjectUrl(id: string, template?: string): Promise<string> {
+  if (USE_MOCK) return getTicketPdfUrl(id, template);
+  const res = await apiClient.get(`/impressao/ticket/${id}`, {
+    params: template ? { template } : undefined,
+    responseType: 'blob',
+  });
+  return URL.createObjectURL(res.data as Blob);
+}
+
 export async function getTicketImpressao(
   id: string,
   layout: string,

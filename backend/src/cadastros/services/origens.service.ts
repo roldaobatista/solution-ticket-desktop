@@ -1,17 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GenericCrudService } from '../../common/generic-crud/generic-crud.service';
+import { CrudConfig, GenericCrudService } from '../../common/generic-crud/generic-crud.service';
 import { CreateOrigemDto } from '../dto/create-origem.dto';
 import { UpdateOrigemDto } from '../dto/update-origem.dto';
 
 @Injectable()
 export class OrigensService extends GenericCrudService<
-  any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
+  Prisma.OrigemWhereInput,
   CreateOrigemDto,
   UpdateOrigemDto
 > {
-  protected config = {
+  protected config: CrudConfig<Prisma.OrigemWhereInput, CreateOrigemDto, UpdateOrigemDto> = {
     prismaModel: 'origem' as const,
     searchFields: ['descricao'],
     orderByField: 'descricao',

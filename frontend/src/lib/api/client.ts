@@ -18,8 +18,7 @@ function generateTraceId(): string {
   return `00-${traceId}-${parentId}-01`;
 }
 
-export const USE_MOCK =
-  process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ENABLE_LOCAL_MOCKS === 'true';
+export const USE_MOCK = process.env.NEXT_PUBLIC_ENABLE_LOCAL_MOCKS === 'true';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
@@ -126,4 +125,41 @@ export function mesQuery(periodo: string): string | undefined {
   const d = new Date(periodo);
   if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   return undefined;
+}
+
+const PAYLOAD_KEY_MAP: Record<string, string> = {
+  armazem_padrao_id: 'armazemPadraoId',
+  balanca_id: 'balancaId',
+  cliente_id: 'clienteId',
+  codigo_integracao: 'codigoIntegracao',
+  codigo_interno: 'codigoInterno',
+  data_emissao: 'dataEmissao',
+  data_fim: 'periodoFim',
+  data_inicio: 'periodoInicio',
+  data_vencimento: 'dataVencimento',
+  forma_pagamento_id: 'formaPagamentoId',
+  motorista_id: 'motoristaId',
+  numero_documento: 'numeroDocumento',
+  permite_fracionado: 'permiteFracionado',
+  peso_nf: 'pesoNf',
+  produto_id: 'produtoId',
+  razao_social: 'razaoSocial',
+  romaneio_id: 'romaneioId',
+  tara_cadastrada: 'taraCadastrada',
+  tickets_ids: 'ticketIds',
+  tipo_operacao: 'tipoOperacao',
+  transportadora_id: 'transportadoraId',
+  veiculo_id: 'veiculoId',
+};
+
+function camelizeKey(key: string): string {
+  return PAYLOAD_KEY_MAP[key] ?? key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
+export function toApiPayload<T extends Record<string, unknown>>(input: T): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(input)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [camelizeKey(key), value]),
+  );
 }

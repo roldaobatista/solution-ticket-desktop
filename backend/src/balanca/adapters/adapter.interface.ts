@@ -8,6 +8,7 @@ export interface SerialPortLike {
   isOpen: boolean;
   open(cb: (err: Error | null) => void): void;
   close(cb?: () => void): void;
+  write?(data: Buffer, cb?: (err?: Error | null) => void): void;
   on(event: 'data', listener: (chunk: Buffer) => void): this;
   on(event: 'error', listener: (err: Error) => void): this;
   on(event: 'close', listener: () => void): this;
@@ -53,4 +54,5 @@ export interface IBalancaAdapter extends EventEmitter {
   connect(): Promise<void>;
   close(): Promise<void>;
   isOpen(): boolean;
+  write?(data: Buffer): Promise<void>;
 }

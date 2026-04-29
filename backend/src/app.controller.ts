@@ -3,6 +3,9 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PrismaService } from './prisma/prisma.service';
 import { Public } from './common/decorators/public.decorator';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { CurrentUser } from './common/decorators/current-user.decorator';
+import { Roles } from './common/decorators/roles.decorator';
+import { Permissao } from './constants/permissoes';
 
 const bootedAt = new Date();
 
@@ -44,20 +47,27 @@ export class AppController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Roles(Permissao.DASHBOARD_VISUALIZAR)
   @Get('metrics')
   @ApiOperation({ summary: 'Métricas de negócio agregadas (não-Prometheus)' })
-  async metrics() {
+  async metrics(@CurrentUser('tenantId') tenantId: string) {
+    const hoje = startOfDay();
     const [totalTickets, ticketsHoje, ticketsAbertos, pesagensHoje, balancasOnline, ultimoBackup] =
       await Promise.all([
-        this.prisma.ticketPesagem.count(),
-        this.prisma.ticketPesagem.count({ where: { abertoEm: { gte: startOfDay() } } }),
+        this.prisma.ticketPesagem.count({ where: { tenantId } }),
+        this.prisma.ticketPesagem.count({ where: { tenantId, abertoEm: { gte: hoje } } }),
         this.prisma.ticketPesagem.count({
-          where: { statusOperacional: { in: ['ABERTO', 'EM_PESAGEM', 'AGUARDANDO_PASSAGEM'] } },
+          where: {
+            tenantId,
+            statusOperacional: { in: ['ABERTO', 'EM_PESAGEM', 'AGUARDANDO_PASSAGEM'] },
+          },
         }),
-        this.prisma.passagemPesagem.count({ where: { dataHora: { gte: startOfDay() } } }),
-        this.prisma.balanca.count({ where: { statusOnline: true } }),
+        this.prisma.passagemPesagem.count({
+          where: { dataHora: { gte: hoje }, ticket: { tenantId } },
+        }),
+        this.prisma.balanca.count({ where: { tenantId, statusOnline: true } }),
         this.prisma.fotoPesagem
-          .findFirst({ orderBy: { capturadoEm: 'desc' } })
+          .findFirst({ where: { ticket: { tenantId } }, orderBy: { capturadoEm: 'desc' } })
           .then((f) => (f ? f.capturadoEm.toISOString() : null))
           .catch(() => null),
       ]);

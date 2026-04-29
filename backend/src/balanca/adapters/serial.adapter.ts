@@ -42,15 +42,19 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
       space: 'space',
     };
 
+    const flow = (this.config.flowControl ?? 'none').toLowerCase();
+    const useRtsCts = flow === 'hardware' || flow === 'rts_cts' || flow === 'rtscts';
+    const useXonXoff = flow === 'software' || flow === 'xon_xoff' || flow === 'xonxoff';
+
     this.port = new SerialPort({
       path: this.config.porta,
       baudRate: this.config.baudrate ?? 9600,
       dataBits: (this.config.databits ?? 8) as 5 | 6 | 7 | 8,
       stopBits: (this.config.stopbits ?? 1) as 1 | 1.5 | 2,
       parity: parityMap[(this.config.parity ?? 'none').toLowerCase()] ?? 'none',
-      rtscts: (this.config.flowControl ?? 'none').toLowerCase() === 'hardware',
-      xon: (this.config.flowControl ?? 'none').toLowerCase() === 'software',
-      xoff: (this.config.flowControl ?? 'none').toLowerCase() === 'software',
+      rtscts: useRtsCts,
+      xon: useXonXoff,
+      xoff: useXonXoff,
       autoOpen: false,
     });
 
@@ -76,5 +80,15 @@ export class SerialAdapter extends EventEmitter implements IBalancaAdapter {
 
   isOpen(): boolean {
     return !!this.port && this.port.isOpen === true;
+  }
+
+  async write(data: Buffer): Promise<void> {
+    if (!this.port || !this.port.isOpen) throw new Error('Porta serial fechada');
+    await new Promise<void>((resolve, reject) => {
+      this.port!.write(data, (err?: Error | null) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
   }
 }

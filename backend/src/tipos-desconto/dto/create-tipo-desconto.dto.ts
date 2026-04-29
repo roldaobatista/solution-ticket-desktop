@@ -15,10 +15,6 @@ export type TipoDescontoTipo = (typeof TIPO_DESCONTO_TIPOS)[number];
 
 export class CreateTipoDescontoDto {
   @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
-  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   descricao!: string;

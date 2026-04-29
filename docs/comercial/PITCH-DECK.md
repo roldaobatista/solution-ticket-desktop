@@ -12,7 +12,7 @@
 **Visual**: logo + balança + ERPs (SAP, TOTVS, Bling, Sankhya) conectados por linha
 
 **Título**: Solution Ticket Integration Hub
-**Subtítulo**: A única integração de pesagem ERP que **nunca perde um ticket**
+**Subtítulo**: Integração de pesagem ERP local-first com outbox auditável
 **Rodapé**: {Apresentador} | {Empresa cliente} | {Data}
 
 **Notas do apresentador**: cumprimento + 30s de small talk. Pergunta inicial: "Quantos tickets de pesagem vocês perdem ou retrabalham por mês?"
@@ -63,7 +63,7 @@
 
 1. **Operação não para** — pesagem fecha mesmo com ERP fora
 2. **Zero perda fiscal** — outbox transacional + auditoria 5 anos
-3. **Conector certo para cada ERP** — 20 ERPs suportados ou via API genérica
+3. **Status claro de integração** — REST genérico hoje, conectores dedicados quando homologados
 
 ---
 
@@ -94,7 +94,7 @@
 | Zero perda garantida         |       ✅        |       ❌       |      depende      |
 | Auditoria 5 anos             |       ✅        |       ❌       |      depende      |
 | Reprocessamento self-service |       ✅        |       ❌       |        ❌         |
-| Suporte a 20+ ERPs           |       ✅        |       ❌       |        ❌         |
+| Matriz de integração clara   |       ✅        |       ❌       |      depende      |
 | Tempo de setup               |      dias       |    semanas     |       meses       |
 | Custo                        |      R$$$       |      R$$       |      R$$$$$       |
 
@@ -102,16 +102,15 @@
 
 ## Slide 7 — ERPs suportados
 
-**Título**: Conectamos com o ERP que você já usa
+**Título**: Integração com maturidade explícita
 
-**Visual**: grid com logos:
+**Visual**: matriz de status:
 
-**Brasil PME**: Bling, Omie, ContaAzul, Tiny
-**Brasil Médio/Grande**: TOTVS Protheus/RM/Datasul, Sankhya, Senior, Benner, CIGAM, Mega
-**Global**: SAP, Microsoft Dynamics, NetSuite, Oracle, Infor, Epicor, IFS
-**Long tail**: via conector genérico REST/CSV/SFTP
+**Disponível hoje**: outbox local + conector REST genérico + Mock ERP
+**Beta controlado**: conector dedicado para ERP específico com aceite técnico
+**Planejado**: Bling, Omie, Conta Azul, TOTVS, Sankhya, Senior, SAP, Dynamics, Oracle, NetSuite
 
-**Footer**: "Não está na lista? Conector genérico cobre 80% dos casos. Para o resto, oferecemos conector custom."
+**Footer**: "O ERP do cliente entra na proposta com status: disponível, beta ou projeto dedicado."
 
 ---
 
@@ -166,14 +165,14 @@
 
 **Título**: Planos simples, sem surpresa
 
-|                      | **Standard** | **Pro**        | **Enterprise**            |
-| -------------------- | ------------ | -------------- | ------------------------- |
-| Preço base           | já incluído  | R$ 297/balança | R$ 1.497 + R$ 197/balança |
-| Conectores nativos   | 0            | 1              | 3+                        |
-| API REST             | só leitura   | completa       | completa                  |
-| iPaaS / SOAP / OData | ❌           | ❌             | ✅                        |
-| SLA                  | best-effort  | business hours | 99.5% + 24/7              |
-| Suporte              | comunidade   | e-mail         | account manager           |
+|                      | **Standard**  | **Pro**         | **Enterprise**            |
+| -------------------- | ------------- | --------------- | ------------------------- |
+| Preço base           | já incluído   | R$ 297/balança  | R$ 1.497 + R$ 197/balança |
+| Conectores nativos   | 0             | beta homologado | escopo dedicado           |
+| API REST             | export/manual | REST genérico   | REST + dedicado           |
+| iPaaS / SOAP / OData | não incluso   | roadmap         | sob projeto               |
+| SLA                  | best-effort   | business hours  | 99.5% + 24/7              |
+| Suporte              | comunidade    | e-mail          | account manager           |
 
 Detalhes completos em `PLANO-COMERCIAL.md`. Setup fee one-time conforme categoria do conector.
 
@@ -218,10 +217,10 @@ Sem isso, integração quebrada vira mistério. Com isso, vira to-do.
 
 **Visual**: linha do tempo (somente o que interessa ao cliente)
 
-- **Q2 2026**: Bling, Omie, ContaAzul, Sankhya em produção
-- **Q3 2026**: TOTVS Protheus, RM, Datasul, Senior
-- **Q4 2026**: SAP S/4HANA, Microsoft Dynamics 365, NetSuite
-- **2027**: Marketplace de conectores parceiros + SDK público
+- **Q2 2026**: outbox, conector REST genérico e piloto de conector dedicado
+- **Q3 2026**: primeiros conectores nativos homologados por cliente
+- **Q4 2026**: ampliação para ERPs Tier-1 conforme matriz de maturidade
+- **2027**: SDK/marketplace de conectores parceiros
 
 ---
 

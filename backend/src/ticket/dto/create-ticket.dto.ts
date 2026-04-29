@@ -11,6 +11,9 @@ type FluxoPesagem = (typeof FLUXO_PESAGEM_VALUES)[number];
 const MODO_COMERCIAL_VALUES = ['DESABILITADO', 'HABILITADO', 'INFORMATIVO', 'OBRIGATORIO'] as const;
 type ModoComercial = (typeof MODO_COMERCIAL_VALUES)[number];
 
+const TARA_REFERENCIA_VALUES = ['CADASTRADA', 'MANUAL', 'PESADA', 'CAPTURADA_EM_BALANCA'] as const;
+type TaraReferenciaTipo = (typeof TARA_REFERENCIA_VALUES)[number];
+
 export class CreateTicketDto {
   @ApiProperty()
   @IsUUID()
@@ -88,8 +91,16 @@ export class CreateTicketDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  taraReferenciaTipo?: string;
+  @IsIn(TARA_REFERENCIA_VALUES as unknown as string[])
+  taraReferenciaTipo?: TaraReferenciaTipo;
+
+  @ApiPropertyOptional({
+    description: 'Tara manual em kg para PF1_TARA_REFERENCIADA quando taraReferenciaTipo=MANUAL',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  taraManual?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

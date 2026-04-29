@@ -8,7 +8,22 @@ import { MailerService } from '../mailer/mailer.service';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let prisma: any;
+  let prisma: {
+    usuario: {
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
+    };
+    unidade: { findFirst: jest.Mock };
+    permissao: { findMany: jest.Mock };
+    tokenReset: {
+      create: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
+    };
+    $transaction: jest.Mock;
+  };
   let jwt: JwtService;
 
   beforeEach(async () => {
@@ -19,6 +34,7 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         update: jest.fn().mockResolvedValue({}),
       },
+      unidade: { findFirst: jest.fn().mockResolvedValue(null) },
       permissao: { findMany: jest.fn().mockResolvedValue([]) },
       tokenReset: {
         create: jest.fn().mockResolvedValue({}),
@@ -66,7 +82,7 @@ describe('AuthService', () => {
 
       const user = await service.validateUser('a@b.com', 'senha123');
       expect(user).toBeDefined();
-      expect((user as any).senhaHash).toBeUndefined();
+      expect((user as { senhaHash?: string }).senhaHash).toBeUndefined();
       expect(prisma.usuario.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ tentativasLogin: 0 }) }),
       );
@@ -105,7 +121,7 @@ describe('AuthService', () => {
           perfis: [],
         },
       ]);
-      await expect(service.validateUser('a@b.com', 'x')).rejects.toThrow(/bloqueado/i);
+      await expect(service.validateUser('a@b.com', 'x')).rejects.toThrow(/credenciais/i);
     });
 
     it('incrementa tentativas quando senha inválida', async () => {
@@ -231,6 +247,13 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('gera accessToken com payload esperado', async () => {
+      prisma.unidade.findFirst.mockResolvedValue({
+        id: 'u1',
+        nome: 'Unidade Matriz',
+        cidade: 'Campo Grande',
+        uf: 'MS',
+      });
+
       const res = await service.login({
         id: 'u1',
         email: 'a@b.com',
@@ -243,6 +266,8 @@ describe('AuthService', () => {
         expect.objectContaining({ sub: 'u1', email: 'a@b.com', tenantId: 't1' }),
       );
       expect(res.usuario.id).toBe('u1');
+      expect(res.usuario.unidadeId).toBe('u1');
+      expect(res.usuario.unidadeNome).toBe('Unidade Matriz');
     });
   });
 

@@ -76,95 +76,118 @@ export class OutboxProcessorService {
     },
   ): Promise<ProcessOutboxResult> {
     const startedAt = Date.now();
-    const canonicalEvent = this.toCanonicalEvent(event);
+    let canonicalEvent: CanonicalIntegrationEvent | undefined;
 
-    if (!event.profile.enabled) {
-      const error = new Error('Perfil de integracao desativado');
-      await this.outbox.markFailed(event.id, error, 'business');
-      await this.logs.log({
+    try {
+      canonicalEvent = this.toCanonicalEvent(event);
+
+      if (!event.profile.enabled) {
+        const error = new Error('Perfil de integracao desativado');
+        await this.outbox.markFailed(event.id, error, 'business');
+        await this.logs.log({
+          profileId: event.profileId,
+          direction: 'outbound',
+          operation: event.eventType,
+          status: 'error',
+          correlationId: event.correlationId,
+          requestPayloadMasked: canonicalEvent.payload,
+          durationMs: Date.now() - startedAt,
+          errorCode: 'PROFILE_DISABLED',
+          errorMessage: error.message,
+        });
+        return { processed: true, eventId: event.id, status: 'error', errorCategory: 'business' };
+      }
+
+      const connector = this.registry.get(event.profile.connector.code);
+      const result = await connector.push(
+        canonicalEvent,
+        {
+          baseUrl: event.profile.baseUrl ?? undefined,
+          authMethod: event.profile.authMethod,
+          secretRef: event.profile.secretRef ?? undefined,
+          options: this.parseConfig(event.profile.configJson),
+        },
+        {
+          tenantId: event.profile.tenantId,
+          empresaId: event.profile.empresaId,
+          unidadeId: event.profile.unidadeId ?? undefined,
+          profileId: event.profileId,
+          correlationId: event.correlationId,
+        },
+      );
+
+      if (result.ok) {
+        const sent = await this.outbox.markSent(event.id);
+        await this.tryPersistExternalLink(
+          event,
+          result.externalId,
+          result.externalCode,
+          result.remoteVersion,
+        );
+        await this.tryLog({
+          profileId: event.profileId,
+          direction: 'outbound',
+          operation: event.eventType,
+          status: 'sent',
+          correlationId: event.correlationId,
+          requestPayloadMasked: canonicalEvent.payload,
+          responsePayloadMasked: result,
+          durationMs: Date.now() - startedAt,
+        });
+        return { processed: true, eventId: event.id, status: sent.status };
+      }
+
+      const category = result.errorCategory ?? (result.retryable ? 'technical' : 'business');
+      const retryAfterAt = result.retryAfterMs
+        ? new Date(Date.now() + result.retryAfterMs)
+        : undefined;
+      const failed = await this.outbox.markFailed(
+        event.id,
+        new Error(result.errorMessage ?? result.errorCode ?? 'Falha no conector'),
+        category,
+        retryAfterAt,
+      );
+
+      await this.tryLog({
         profileId: event.profileId,
         direction: 'outbound',
         operation: event.eventType,
         status: 'error',
         correlationId: event.correlationId,
         requestPayloadMasked: canonicalEvent.payload,
+        responsePayloadMasked: result,
         durationMs: Date.now() - startedAt,
-        errorCode: 'PROFILE_DISABLED',
-        errorMessage: error.message,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
       });
-      return { processed: true, eventId: event.id, status: 'error', errorCategory: 'business' };
-    }
 
-    const connector = this.registry.get(event.profile.connector.code);
-    const result = await connector.push(
-      canonicalEvent,
-      {
-        baseUrl: event.profile.baseUrl ?? undefined,
-        authMethod: event.profile.authMethod,
-        secretRef: event.profile.secretRef ?? undefined,
-        options: this.parseConfig(event.profile.configJson),
-      },
-      {
-        tenantId: event.profile.tenantId,
-        empresaId: event.profile.empresaId,
-        unidadeId: event.profile.unidadeId ?? undefined,
-        profileId: event.profileId,
-        correlationId: event.correlationId,
-      },
-    );
-
-    if (result.ok) {
-      const sent = await this.outbox.markSent(event.id);
-      await this.tryPersistExternalLink(
-        event,
-        result.externalId,
-        result.externalCode,
-        result.remoteVersion,
-      );
+      return {
+        processed: true,
+        eventId: event.id,
+        status: failed.status,
+        errorCategory: failed.lastErrorCategory,
+        errorCode: result.errorCode,
+      };
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      const failed = await this.outbox.markFailed(event.id, err, 'technical');
       await this.tryLog({
         profileId: event.profileId,
         direction: 'outbound',
         operation: event.eventType,
-        status: 'sent',
+        status: 'error',
         correlationId: event.correlationId,
-        requestPayloadMasked: canonicalEvent.payload,
-        responsePayloadMasked: result,
+        requestPayloadMasked: canonicalEvent?.payload,
         durationMs: Date.now() - startedAt,
+        errorMessage: err.message,
       });
-      return { processed: true, eventId: event.id, status: sent.status };
+      return {
+        processed: true,
+        eventId: event.id,
+        status: failed.status,
+        errorCategory: failed.lastErrorCategory,
+      };
     }
-
-    const category = result.errorCategory ?? (result.retryable ? 'technical' : 'business');
-    const retryAfterAt = result.retryAfterMs
-      ? new Date(Date.now() + result.retryAfterMs)
-      : undefined;
-    const failed = await this.outbox.markFailed(
-      event.id,
-      new Error(result.errorMessage ?? result.errorCode ?? 'Falha no conector'),
-      category,
-      retryAfterAt,
-    );
-
-    await this.tryLog({
-      profileId: event.profileId,
-      direction: 'outbound',
-      operation: event.eventType,
-      status: 'error',
-      correlationId: event.correlationId,
-      requestPayloadMasked: canonicalEvent.payload,
-      responsePayloadMasked: result,
-      durationMs: Date.now() - startedAt,
-      errorCode: result.errorCode,
-      errorMessage: result.errorMessage,
-    });
-
-    return {
-      processed: true,
-      eventId: event.id,
-      status: failed.status,
-      errorCategory: failed.lastErrorCategory,
-      errorCode: result.errorCode,
-    };
   }
 
   private toCanonicalEvent(event: IntegracaoOutbox): CanonicalIntegrationEvent {

@@ -1,4 +1,4 @@
-import { apiClient, USE_MOCK } from './client';
+import { apiClient, toApiPayload, USE_MOCK } from './client';
 import { Romaneio, PaginatedResponse } from '@/types';
 import { mockApi } from '../mock-api';
 import { mapRomaneio, mapPaginated } from './mappers';
@@ -25,6 +25,6 @@ export async function getRomaneios(
 
 export async function createRomaneio(data: Partial<Romaneio>): Promise<Romaneio> {
   if (USE_MOCK) return mockApi.createRomaneio(data);
-  const res = await apiClient.post('/romaneios', data);
+  const res = await apiClient.post('/romaneios', toApiPayload(data as Record<string, unknown>));
   return mapRomaneio(res.data);
 }

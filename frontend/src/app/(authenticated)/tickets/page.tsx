@@ -43,11 +43,16 @@ export default function TicketsPage() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const limit = 10;
 
-  const composedSearch = [search, placa, cliente].filter(Boolean).join(' ');
+  const composedSearch = [search, cliente].filter(Boolean).join(' ');
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['tickets', page, composedSearch, statusFilter, dataInicio, dataFim],
-    queryFn: () => getTickets(page, limit, composedSearch, statusFilter),
+    queryKey: ['tickets', page, composedSearch, statusFilter, dataInicio, dataFim, placa],
+    queryFn: () =>
+      getTickets(page, limit, composedSearch, statusFilter, {
+        dataInicio: dataInicio || undefined,
+        dataFim: dataFim || undefined,
+        placa: placa || undefined,
+      }),
   });
 
   const handleSearch = () => {
@@ -65,13 +70,7 @@ export default function TicketsPage() {
     setPage(1);
   };
 
-  const tickets = (data?.data || []).filter((t) => {
-    if (!dataInicio && !dataFim) return true;
-    const dt = new Date(t.created_at).getTime();
-    if (dataInicio && dt < new Date(dataInicio).getTime()) return false;
-    if (dataFim && dt > new Date(dataFim).getTime() + 86400000) return false;
-    return true;
-  });
+  const tickets = data?.data || [];
   const totalPages = data?.totalPages || 0;
   const total = data?.total || 0;
 

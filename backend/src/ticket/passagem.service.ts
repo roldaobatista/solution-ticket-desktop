@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdicionarDescontoDto } from './dto/adicionar-desconto.dto';
-import { StatusOperacional, StatusPassagem } from '../constants/enums';
+import { StatusComercial, StatusOperacional, StatusPassagem } from '../constants/enums';
 
 @Injectable()
 export class PassagemService {
@@ -67,8 +67,21 @@ export class PassagemService {
     });
     if (!ticket) throw new NotFoundException('Ticket nao encontrado');
 
-    if (ticket.statusOperacional === StatusOperacional.CANCELADO) {
-      throw new BadRequestException('Nao e permitido adicionar desconto a ticket cancelado');
+    const estadosOperacionaisEditaveis: string[] = [
+      StatusOperacional.ABERTO,
+      StatusOperacional.EM_PESAGEM,
+      StatusOperacional.AGUARDANDO_PASSAGEM,
+    ];
+    if (!estadosOperacionaisEditaveis.includes(ticket.statusOperacional)) {
+      throw new BadRequestException(
+        `Nao e permitido adicionar desconto no estado ${ticket.statusOperacional}`,
+      );
+    }
+
+    if (ticket.statusComercial !== StatusComercial.NAO_ROMANEADO) {
+      throw new BadRequestException(
+        `Nao e permitido adicionar desconto com status comercial ${ticket.statusComercial}`,
+      );
     }
 
     return this.prisma.descontoPesagem.create({

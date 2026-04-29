@@ -517,6 +517,18 @@ let configuracao: ConfiguracaoOperacional = {
 };
 
 let currentUser: Usuario | null = null;
+
+function getMockUserFromSession(): Usuario | null {
+  if (currentUser) return currentUser;
+  if (typeof window === 'undefined') return null;
+
+  const token = window.sessionStorage.getItem('access_token');
+  const match = token?.match(/^local-mock-token-([^-]+)-/);
+  if (!match) return null;
+
+  currentUser = usuarios.find((u) => u.id === match[1]) ?? null;
+  return currentUser;
+}
 let nextId = 100;
 
 function genId(prefix: string) {
@@ -554,8 +566,8 @@ export const mockApi = {
     senha: string,
   ): Promise<{ access_token: string; usuario: Usuario }> => {
     await delay(300);
-    if (process.env.NODE_ENV !== 'development') {
-      throw new Error('Mock API indisponivel fora de desenvolvimento');
+    if (process.env.NEXT_PUBLIC_ENABLE_LOCAL_MOCKS !== 'true') {
+      throw new Error('Mock API indisponivel sem NEXT_PUBLIC_ENABLE_LOCAL_MOCKS=true');
     }
     const expectedPassword = process.env.NEXT_PUBLIC_LOCAL_MOCK_PASSWORD;
     if (!expectedPassword) {
@@ -565,13 +577,14 @@ export const mockApi = {
     if (!user) throw new Error('Usuario nao encontrado');
     if (senha !== expectedPassword) throw new Error('Senha incorreta');
     currentUser = user;
-    return { access_token: `local-dev-token-${Date.now()}`, usuario: user };
+    return { access_token: `local-mock-token-${user.id}-${Date.now()}`, usuario: user };
   },
 
   getMe: async (): Promise<Usuario> => {
     await delay(200);
-    if (!currentUser) throw new Error('Nao autenticado');
-    return currentUser;
+    const user = getMockUserFromSession();
+    if (!user) throw new Error('Nao autenticado');
+    return user;
   },
 
   // Dashboard

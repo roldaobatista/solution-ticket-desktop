@@ -1,12 +1,16 @@
 import { test, expect } from '@playwright/test';
 
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@solutionticket.com';
+const ADMIN_PASSWORD =
+  process.env.E2E_ADMIN_PASSWORD ?? process.env.SEED_DEFAULT_PASSWORD ?? 'admin123';
+
 /**
  * Testes E2E de fluxos críticos do Solution Ticket.
  *
  * Pre-condicoes:
  * - Frontend rodando em http://127.0.0.1:3000
  * - Se backend nao estiver disponivel, o frontend deve estar em modo mock
- *   (NEXT_PUBLIC_USE_MOCK=true) para que estes smoke tests de UI passem.
+ *   (NEXT_PUBLIC_ENABLE_LOCAL_MOCKS=true) para que estes smoke tests de UI passem.
  *
  * Para rodar com backend real:
  *   1. Inicie backend: pnpm --filter ./backend start
@@ -15,17 +19,14 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Autenticacao', () => {
-  test('login com credenciais validas redireciona para dashboard', async ({ page }) => {
+  test('login com credenciais validas redireciona para area autenticada', async ({ page }) => {
     await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', 'admin@solutionticket.com');
-    await page.fill('input[type="password"], input[name="senha"]', 'admin123');
+    await page.fill('input[type="email"], input[name="email"]', ADMIN_EMAIL);
+    await page.fill('input[type="password"], input[name="senha"]', ADMIN_PASSWORD);
     await page.click('button[type="submit"]');
 
-    // Aguarda navegacao (mock ou backend real deve redirecionar autenticado)
-    await page.waitForURL(/\/(dashboard|tickets)/, { timeout: 5000 }).catch(() => {
-      // Se falhar, pode ser porque estamos em mock e nao ha backend —
-      // neste caso o teste ainda verifica que a UI reage ao submit.
-    });
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 10_000 });
+    await expect(page.locator('text=/ticket|pesagem|balanca|cliente/i').first()).toBeVisible();
   });
 
   test('login com senha invalida mostra erro', async ({ page }) => {
@@ -45,14 +46,14 @@ test.describe('Navegacao pos-login', () => {
   test.beforeEach(async ({ page }) => {
     // Realiza login rapido antes de cada teste
     await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', 'admin@solutionticket.com');
-    await page.fill('input[type="password"], input[name="senha"]', 'admin123');
+    await page.fill('input[type="email"], input[name="email"]', ADMIN_EMAIL);
+    await page.fill('input[type="password"], input[name="senha"]', ADMIN_PASSWORD);
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/(dashboard|tickets)/, { timeout: 5000 }).catch(() => {});
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 10_000 });
   });
 
-  test('dashboard carrega KPIs', async ({ page }) => {
-    await page.goto('/dashboard');
+  test('home autenticada carrega KPIs', async ({ page }) => {
+    await page.goto('/');
     await expect(page.locator('text=/pesagens|ticket|balanca|cliente/i').first()).toBeVisible({
       timeout: 5000,
     });

@@ -27,3 +27,7 @@ export function getUnidadeId(): string {
 export function setUnidadeId(id: string): void {
   useUnidadeStore.getState().setUnidadeId(id);
 }
+
+export function clearUnidadeId(): void {
+  useUnidadeStore.getState().clearUnidadeId();
+}

@@ -54,7 +54,7 @@
 ### Arquitetura implantada
 
 - **Plano**: {Standard / Pro / Enterprise}
-- **Conectores nativos**: {lista}
+- **Integração homologada**: {REST genérico / conector dedicado / status na matriz}
 - **Volume mensal**: {X pesagens}
 - **Balanças integradas**: {N}
 - **Unidades**: {N}

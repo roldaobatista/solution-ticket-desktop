@@ -3,7 +3,7 @@
  * indicadores, unidades, perfis, usuarios cadastro, armazens, empresas,
  * tipos de veiculo, origens, destinos, tipos de desconto.
  */
-import { apiClient, resolveTenantId, USE_MOCK } from './client';
+import { apiClient, toApiPayload, USE_MOCK } from './client';
 import {
   Cliente,
   Transportadora,
@@ -54,12 +54,15 @@ export async function getClienteById(id: string): Promise<Cliente> {
 }
 export async function createCliente(data: Partial<Cliente>): Promise<Cliente> {
   if (USE_MOCK) return mockApi.createCliente(data);
-  const res = await apiClient.post('/clientes', data);
+  const res = await apiClient.post('/clientes', toApiPayload(data as Record<string, unknown>));
   return mapCliente(res.data);
 }
 export async function updateCliente(id: string, data: Partial<Cliente>): Promise<Cliente> {
   if (USE_MOCK) return mockApi.updateCliente(id, data);
-  const res = await apiClient.patch(`/clientes/${id}`, data);
+  const res = await apiClient.patch(
+    `/clientes/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapCliente(res.data);
 }
 export async function deleteCliente(id: string): Promise<void> {
@@ -79,7 +82,10 @@ export async function getTransportadoras(
 }
 export async function createTransportadora(data: Partial<Transportadora>): Promise<Transportadora> {
   if (USE_MOCK) return mockApi.createTransportadora(data);
-  const res = await apiClient.post('/transportadoras', data);
+  const res = await apiClient.post(
+    '/transportadoras',
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapTransportadora(res.data);
 }
 export async function updateTransportadora(
@@ -87,7 +93,10 @@ export async function updateTransportadora(
   data: Partial<Transportadora>,
 ): Promise<Transportadora> {
   if (USE_MOCK) return mockApi.updateTransportadora(id, data);
-  const res = await apiClient.patch(`/transportadoras/${id}`, data);
+  const res = await apiClient.patch(
+    `/transportadoras/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapTransportadora(res.data);
 }
 export async function deleteTransportadora(id: string): Promise<void> {
@@ -107,12 +116,15 @@ export async function getMotoristas(
 }
 export async function createMotorista(data: Partial<Motorista>): Promise<Motorista> {
   if (USE_MOCK) return mockApi.createMotorista(data);
-  const res = await apiClient.post('/motoristas', data);
+  const res = await apiClient.post('/motoristas', toApiPayload(data as Record<string, unknown>));
   return mapMotorista(res.data);
 }
 export async function updateMotorista(id: string, data: Partial<Motorista>): Promise<Motorista> {
   if (USE_MOCK) return mockApi.updateMotorista(id, data);
-  const res = await apiClient.patch(`/motoristas/${id}`, data);
+  const res = await apiClient.patch(
+    `/motoristas/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapMotorista(res.data);
 }
 export async function deleteMotorista(id: string): Promise<void> {
@@ -132,12 +144,15 @@ export async function getProdutos(
 }
 export async function createProduto(data: Partial<Produto>): Promise<Produto> {
   if (USE_MOCK) return mockApi.createProduto(data);
-  const res = await apiClient.post('/produtos', data);
+  const res = await apiClient.post('/produtos', toApiPayload(data as Record<string, unknown>));
   return mapProduto(res.data);
 }
 export async function updateProduto(id: string, data: Partial<Produto>): Promise<Produto> {
   if (USE_MOCK) return mockApi.updateProduto(id, data);
-  const res = await apiClient.patch(`/produtos/${id}`, data);
+  const res = await apiClient.patch(
+    `/produtos/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapProduto(res.data);
 }
 export async function deleteProduto(id: string): Promise<void> {
@@ -157,12 +172,15 @@ export async function getVeiculos(
 }
 export async function createVeiculo(data: Partial<Veiculo>): Promise<Veiculo> {
   if (USE_MOCK) return mockApi.createVeiculo(data);
-  const res = await apiClient.post('/veiculos', data);
+  const res = await apiClient.post('/veiculos', toApiPayload(data as Record<string, unknown>));
   return mapVeiculo(res.data);
 }
 export async function updateVeiculo(id: string, data: Partial<Veiculo>): Promise<Veiculo> {
   if (USE_MOCK) return mockApi.updateVeiculo(id, data);
-  const res = await apiClient.patch(`/veiculos/${id}`, data);
+  const res = await apiClient.patch(
+    `/veiculos/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapVeiculo(res.data);
 }
 export async function deleteVeiculo(id: string): Promise<void> {
@@ -231,16 +249,17 @@ export async function getIndicadoresList(): Promise<IndicadorPesagem[]> {
 }
 
 // --- Unidades (select) ---
-export async function getUnidades(): Promise<Array<{ id: string; nome: string }>> {
+export async function getUnidades(): Promise<Unidade[]> {
   if (USE_MOCK) {
     return [
-      { id: 'un1', nome: 'Unidade Matriz' },
-      { id: 'un2', nome: 'Unidade Filial' },
+      { id: 'un1', empresaId: 'emp1', nome: 'Unidade Matriz' },
+      { id: 'un2', empresaId: 'emp1', nome: 'Unidade Filial' },
     ];
   }
   const res = await apiClient.get('/empresa/unidades/list');
   const d = res.data;
-  return Array.isArray(d) ? d : d?.data || [];
+  const arr = Array.isArray(d) ? d : d?.data || [];
+  return arr.map(mapUnidade);
 }
 
 // --- Armazens ---
@@ -266,11 +285,14 @@ export async function getArmazens(
   return mapPaginated(d, mapArmazem);
 }
 export async function createArmazem(data: Partial<Armazem>): Promise<Armazem> {
-  const res = await apiClient.post('/armazens', data);
+  const res = await apiClient.post('/armazens', toApiPayload(data as Record<string, unknown>));
   return mapArmazem(res.data);
 }
 export async function updateArmazem(id: string, data: Partial<Armazem>): Promise<Armazem> {
-  const res = await apiClient.patch(`/armazens/${id}`, data);
+  const res = await apiClient.patch(
+    `/armazens/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapArmazem(res.data);
 }
 export async function deleteArmazem(id: string): Promise<void> {
@@ -300,11 +322,14 @@ export async function getEmpresas(
   }
 }
 export async function createEmpresa(data: Partial<Empresa>): Promise<Empresa> {
-  const res = await apiClient.post('/empresa', data);
+  const res = await apiClient.post('/empresa', toApiPayload(data as Record<string, unknown>));
   return mapEmpresa(res.data);
 }
 export async function updateEmpresa(id: string, data: Partial<Empresa>): Promise<Empresa> {
-  const res = await apiClient.patch(`/empresa/${id}`, data);
+  const res = await apiClient.patch(
+    `/empresa/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapEmpresa(res.data);
 }
 export async function deleteEmpresa(id: string): Promise<void> {
@@ -356,11 +381,17 @@ export async function getUnidadesPaginated(
   };
 }
 export async function createUnidade(data: Partial<Unidade>): Promise<Unidade> {
-  const res = await apiClient.post('/empresa/unidades', data);
+  const res = await apiClient.post(
+    '/empresa/unidades',
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapUnidade(res.data);
 }
 export async function updateUnidade(id: string, data: Partial<Unidade>): Promise<Unidade> {
-  const res = await apiClient.patch(`/empresa/unidades/${id}`, data);
+  const res = await apiClient.patch(
+    `/empresa/unidades/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapUnidade(res.data);
 }
 export async function deleteUnidade(id: string): Promise<void> {
@@ -389,14 +420,14 @@ export async function getUsuariosCadastro(
 export async function createUsuarioCadastro(
   data: Partial<UsuarioCadastro>,
 ): Promise<UsuarioCadastro> {
-  const res = await apiClient.post('/users', data);
+  const res = await apiClient.post('/users', toApiPayload(data as Record<string, unknown>));
   return mapUsuarioCadastro(res.data);
 }
 export async function updateUsuarioCadastro(
   id: string,
   data: Partial<UsuarioCadastro>,
 ): Promise<UsuarioCadastro> {
-  const res = await apiClient.patch(`/users/${id}`, data);
+  const res = await apiClient.patch(`/users/${id}`, toApiPayload(data as Record<string, unknown>));
   return mapUsuarioCadastro(res.data);
 }
 export async function deleteUsuarioCadastro(id: string): Promise<void> {
@@ -450,19 +481,18 @@ export async function getOrigens(
   search = '',
 ): Promise<PaginatedResponse<Origem>> {
   if (USE_MOCK) return { ...EMPTY_PAGE, page, limit } as PaginatedResponse<Origem>;
-  const tid = resolveTenantId();
-  const res = await apiClient.get('/origens', {
-    params: { page, limit, search, tenantId: tid || undefined },
-  });
+  const res = await apiClient.get('/origens', { params: { page, limit, search } });
   return mapPaginated(res.data, mapOrigem);
 }
 export async function createOrigem(data: Partial<Origem>): Promise<Origem> {
-  const payload = { ...data, tenantId: data.tenantId || resolveTenantId() };
-  const res = await apiClient.post('/origens', payload);
+  const res = await apiClient.post('/origens', toApiPayload(data as Record<string, unknown>));
   return mapOrigem(res.data);
 }
 export async function updateOrigem(id: string, data: Partial<Origem>): Promise<Origem> {
-  const res = await apiClient.patch(`/origens/${id}`, data);
+  const res = await apiClient.patch(
+    `/origens/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapOrigem(res.data);
 }
 export async function deleteOrigem(id: string): Promise<void> {
@@ -486,19 +516,18 @@ export async function getDestinos(
   search = '',
 ): Promise<PaginatedResponse<Destino>> {
   if (USE_MOCK) return { ...EMPTY_PAGE, page, limit } as PaginatedResponse<Destino>;
-  const tid = resolveTenantId();
-  const res = await apiClient.get('/destinos', {
-    params: { page, limit, search, tenantId: tid || undefined },
-  });
+  const res = await apiClient.get('/destinos', { params: { page, limit, search } });
   return mapPaginated(res.data, mapDestino);
 }
 export async function createDestino(data: Partial<Destino>): Promise<Destino> {
-  const payload = { ...data, tenantId: data.tenantId || resolveTenantId() };
-  const res = await apiClient.post('/destinos', payload);
+  const res = await apiClient.post('/destinos', toApiPayload(data as Record<string, unknown>));
   return mapDestino(res.data);
 }
 export async function updateDestino(id: string, data: Partial<Destino>): Promise<Destino> {
-  const res = await apiClient.patch(`/destinos/${id}`, data);
+  const res = await apiClient.patch(
+    `/destinos/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapDestino(res.data);
 }
 export async function deleteDestino(id: string): Promise<void> {
@@ -526,10 +555,9 @@ export interface TipoDesconto {
   createdAt?: string;
   updatedAt?: string;
 }
-export async function getTiposDesconto(tenantId?: string): Promise<TipoDesconto[]> {
+export async function getTiposDesconto(_tenantId?: string): Promise<TipoDesconto[]> {
   if (USE_MOCK) return [];
-  const tid = tenantId || resolveTenantId();
-  const res = await apiClient.get('/tipos-desconto', { params: tid ? { tenantId: tid } : {} });
+  const res = await apiClient.get('/tipos-desconto');
   const d = res.data;
   const arr = Array.isArray(d) ? d : d?.data || [];
   return arr.map(mapTipoDesconto);
@@ -539,15 +567,20 @@ export async function getTipoDescontoById(id: string): Promise<TipoDesconto> {
   return mapTipoDesconto(res.data);
 }
 export async function createTipoDesconto(data: Partial<TipoDesconto>): Promise<TipoDesconto> {
-  const payload = { ...data, tenantId: data.tenantId || resolveTenantId() };
-  const res = await apiClient.post('/tipos-desconto', payload);
+  const res = await apiClient.post(
+    '/tipos-desconto',
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapTipoDesconto(res.data);
 }
 export async function updateTipoDesconto(
   id: string,
   data: Partial<TipoDesconto>,
 ): Promise<TipoDesconto> {
-  const res = await apiClient.patch(`/tipos-desconto/${id}`, data);
+  const res = await apiClient.patch(
+    `/tipos-desconto/${id}`,
+    toApiPayload(data as Record<string, unknown>),
+  );
   return mapTipoDesconto(res.data);
 }
 export async function deleteTipoDesconto(id: string): Promise<void> {

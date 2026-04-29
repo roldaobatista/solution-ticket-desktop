@@ -9,6 +9,9 @@ import { BalancaStatusGlobal } from '@/components/balanca/BalancaStatusGlobal';
 export default function Header() {
   const { user, logout } = useAuthStore();
   const [menuAberto, setMenuAberto] = useState(false);
+  const unidadeNome = user?.unidadeNome || 'Unidade não selecionada';
+  const unidadeLocal =
+    user?.unidadeCidade && user?.unidadeUf ? `${user.unidadeCidade} / ${user.unidadeUf}` : '';
 
   return (
     <header className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-slate-200 z-30 flex items-center justify-between px-6">
@@ -16,8 +19,8 @@ export default function Header() {
       <div className="flex items-center gap-3">
         <Building2 className="w-5 h-5 text-slate-500" />
         <div>
-          <div className="text-sm font-medium text-slate-800">Unidade Principal</div>
-          <div className="text-xs text-slate-500">Campo Grande / MS</div>
+          <div className="text-sm font-medium text-slate-800">{unidadeNome}</div>
+          {unidadeLocal && <div className="text-xs text-slate-500">{unidadeLocal}</div>}
         </div>
       </div>
 
@@ -56,7 +59,7 @@ export default function Header() {
               <button
                 onClick={() => {
                   setMenuAberto(false);
-                  logout();
+                  void logout();
                 }}
                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
               >

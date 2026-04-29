@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { obterFingerprint } from '../licenca/fingerprint.util';
 
 type PrismaTx = Prisma.TransactionClient | PrismaService;
 
@@ -14,10 +15,20 @@ type PrismaTx = Prisma.TransactionClient | PrismaService;
 export class TicketLicenseGuard {
   constructor(private readonly prisma: PrismaService) {}
 
-  async verificarLicenca(unidadeId: string, tx?: PrismaTx): Promise<void> {
-    const client = tx ?? this.prisma;
+  async verificarLicenca(
+    unidadeId: string,
+    tenantIdOrTx?: string | PrismaTx,
+    maybeTx?: PrismaTx,
+  ): Promise<void> {
+    const tenantId = typeof tenantIdOrTx === 'string' ? tenantIdOrTx : undefined;
+    const client =
+      maybeTx ?? (typeof tenantIdOrTx === 'string' ? this.prisma : tenantIdOrTx) ?? this.prisma;
     const licenca = await client.licencaInstalacao.findFirst({
-      where: { unidadeId },
+      where: {
+        unidadeId,
+        fingerprintDispositivo: obterFingerprint(),
+        ...(tenantId ? { tenantId } : {}),
+      },
     });
 
     // F-001: fail-closed — sem licença ou trial explícito, bloqueia operações de ticket
@@ -47,10 +58,20 @@ export class TicketLicenseGuard {
     }
   }
 
-  async decrementarPesagemTrial(unidadeId: string, tx?: PrismaTx): Promise<void> {
-    const client = tx ?? this.prisma;
+  async decrementarPesagemTrial(
+    unidadeId: string,
+    tenantIdOrTx?: string | PrismaTx,
+    maybeTx?: PrismaTx,
+  ): Promise<void> {
+    const tenantId = typeof tenantIdOrTx === 'string' ? tenantIdOrTx : undefined;
+    const client =
+      maybeTx ?? (typeof tenantIdOrTx === 'string' ? this.prisma : tenantIdOrTx) ?? this.prisma;
     const licenca = await client.licencaInstalacao.findFirst({
-      where: { unidadeId },
+      where: {
+        unidadeId,
+        fingerprintDispositivo: obterFingerprint(),
+        ...(tenantId ? { tenantId } : {}),
+      },
     });
     if (!licenca) return;
     if (licenca.statusLicenca !== 'TRIAL') return;

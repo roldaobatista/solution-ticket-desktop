@@ -37,10 +37,10 @@ describe('ProfileSecretService', () => {
     expect(prisma.integracaoProfileSecret.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: expect.objectContaining({
-          encryptedValue: expect.stringMatching(/^(dpapi|enc):v1:/),
+          encryptedValue: expect.stringMatching(/^(dpapi|local):v1:/),
         }),
         create: expect.objectContaining({
-          encryptedValue: expect.stringMatching(/^(dpapi|enc):v1:/),
+          encryptedValue: expect.stringMatching(/^(dpapi|local):v1:/),
         }),
         select: expect.not.objectContaining({ encryptedValue: true }),
       }),

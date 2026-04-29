@@ -33,6 +33,7 @@ function mapCreateTicketPayload(data: LooseTicketPayload): Record<string, unknow
     fluxoPesagem: fluxoPesagem ?? 'PF2_BRUTO_TARA',
     taraReferenciaTipo: raw.taraReferenciaTipo ?? raw.tara_referencia_tipo,
     modoComercial: raw.modoComercial ?? raw.modo_comercial,
+    taraManual: raw.taraManual ?? raw.tara_manual,
   };
 }
 
@@ -70,10 +71,11 @@ export async function getTickets(
   limit?: number,
   search?: string,
   statusOperacional?: string,
+  filters?: { dataInicio?: string; dataFim?: string; placa?: string; numero?: string },
 ): Promise<PaginatedResponse<TicketPesagem>> {
   if (USE_MOCK) return mockApi.getTickets(page, limit, search, statusOperacional);
   const res = await apiClient.get('/tickets', {
-    params: { page, limit, search, statusOperacional },
+    params: { page, limit, search, statusOperacional, ...filters },
   });
   return mapPaginatedTickets(res.data);
 }

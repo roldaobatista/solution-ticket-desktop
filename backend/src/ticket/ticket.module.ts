@@ -5,9 +5,10 @@ import { PassagemService } from './passagem.service';
 import { DocumentosController } from './documentos.controller';
 import { DocumentosService } from './documentos.service';
 import { IntegracaoModule } from '../integracao/integracao.module';
+import { AuditoriaModule } from '../auditoria/auditoria.module';
 
 @Module({
-  imports: [IntegracaoModule],
+  imports: [IntegracaoModule, AuditoriaModule],
   controllers: [TicketController, DocumentosController],
   providers: [TicketService, PassagemService, DocumentosService],
   exports: [TicketService],

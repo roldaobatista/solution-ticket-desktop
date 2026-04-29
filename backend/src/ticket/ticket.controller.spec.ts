@@ -49,9 +49,9 @@ describe('TicketController', () => {
 
   describe('create', () => {
     it('deve criar ticket', async () => {
-      const dto = { unidadeId: 'u1', clienteId: 'c1', produtoId: 'p1' } as any;
+      const dto = { unidadeId: 'u1', clienteId: 'c1', produtoId: 'p1' } as never;
       const ticket = { id: 'tid' };
-      ticketService.create.mockResolvedValue(ticket as any);
+      ticketService.create.mockResolvedValue(ticket as never);
 
       const result = await controller.create(dto, tenantId);
 
@@ -62,9 +62,9 @@ describe('TicketController', () => {
 
   describe('findAll', () => {
     it('deve listar tickets com filtros', async () => {
-      const filter = { unidadeId: 'u1' } as any;
+      const filter = { unidadeId: 'u1' } as never;
       const tickets = [{ id: 't1' }];
-      ticketService.findAll.mockResolvedValue(tickets as any);
+      ticketService.findAll.mockResolvedValue(tickets as never);
 
       const result = await controller.findAll(filter, tenantId);
 
@@ -76,7 +76,7 @@ describe('TicketController', () => {
   describe('findOne', () => {
     it('deve buscar ticket por id', async () => {
       const ticket = { id: 't1' };
-      ticketService.findOne.mockResolvedValue(ticket as any);
+      ticketService.findOne.mockResolvedValue(ticket as never);
 
       const result = await controller.findOne('t1', tenantId);
 
@@ -87,9 +87,9 @@ describe('TicketController', () => {
 
   describe('update', () => {
     it('deve atualizar ticket', async () => {
-      const dto = { observacao: 'obs' } as any;
+      const dto = { observacao: 'obs' } as never;
       const ticket = { id: 't1' };
-      ticketService.update.mockResolvedValue(ticket as any);
+      ticketService.update.mockResolvedValue(ticket as never);
 
       const result = await controller.update('t1', dto, tenantId);
 
@@ -101,7 +101,7 @@ describe('TicketController', () => {
   describe('getEstatisticas', () => {
     it('deve retornar estatísticas da unidade', async () => {
       const stats = { pesagensHoje: 5 };
-      ticketService.getEstatisticas.mockResolvedValue(stats as any);
+      ticketService.getEstatisticas.mockResolvedValue(stats as never);
 
       const result = await controller.getEstatisticas('u1', tenantId);
 
@@ -112,9 +112,9 @@ describe('TicketController', () => {
 
   describe('registrarPassagem', () => {
     it('deve registrar passagem', async () => {
-      const dto = { pesoCapturado: 1000 } as any;
+      const dto = { pesoCapturado: 1000 } as never;
       const passagem = { id: 'p1' };
-      ticketService.registrarPassagem.mockResolvedValue(passagem as any);
+      ticketService.registrarPassagem.mockResolvedValue(passagem as never);
 
       const result = await controller.registrarPassagem('t1', dto, tenantId, 'u1');
 
@@ -126,7 +126,7 @@ describe('TicketController', () => {
   describe('listarPassagens', () => {
     it('deve listar passagens do ticket', async () => {
       const passagens = [{ id: 'p1' }];
-      passagemService.findByTicket.mockResolvedValue(passagens as any);
+      passagemService.findByTicket.mockResolvedValue(passagens as never);
 
       const result = await controller.listarPassagens('t1', tenantId);
 
@@ -138,7 +138,7 @@ describe('TicketController', () => {
   describe('invalidarPassagem', () => {
     it('deve invalidar passagem', async () => {
       const res = { ok: true };
-      passagemService.invalidar.mockResolvedValue(res as any);
+      passagemService.invalidar.mockResolvedValue(res as never);
 
       const result = await controller.invalidarPassagem(
         't1',
@@ -154,9 +154,9 @@ describe('TicketController', () => {
 
   describe('fecharTicket', () => {
     it('deve fechar ticket', async () => {
-      const dto = {} as any;
+      const dto = {} as never;
       const ticket = { id: 't1', statusOperacional: 'FECHADO' };
-      ticketService.fecharTicket.mockResolvedValue(ticket as any);
+      ticketService.fecharTicket.mockResolvedValue(ticket as never);
 
       const result = await controller.fecharTicket('t1', dto, tenantId, 'u1');
 
@@ -167,9 +167,9 @@ describe('TicketController', () => {
 
   describe('cancelarTicket', () => {
     it('deve cancelar ticket', async () => {
-      const dto = { motivo: 'erro' } as any;
+      const dto = { motivo: 'erro' } as never;
       const ticket = { id: 't1', statusOperacional: 'CANCELADO' };
-      ticketService.cancelarTicket.mockResolvedValue(ticket as any);
+      ticketService.cancelarTicket.mockResolvedValue(ticket as never);
 
       const result = await controller.cancelarTicket('t1', dto, tenantId, 'u1');
 
@@ -181,7 +181,7 @@ describe('TicketController', () => {
   describe('solicitarManutencao', () => {
     it('deve solicitar manutencao', async () => {
       const ticket = { id: 't1', statusOperacional: 'EM_MANUTENCAO' };
-      ticketService.solicitarManutencao.mockResolvedValue(ticket as any);
+      ticketService.solicitarManutencao.mockResolvedValue(ticket as never);
 
       const result = await controller.solicitarManutencao(
         't1',
@@ -203,7 +203,7 @@ describe('TicketController', () => {
   describe('concluirManutencao', () => {
     it('deve concluir manutencao', async () => {
       const ticket = { id: 't1', statusOperacional: 'FECHADO' };
-      ticketService.concluirManutencao.mockResolvedValue(ticket as any);
+      ticketService.concluirManutencao.mockResolvedValue(ticket as never);
 
       const result = await controller.concluirManutencao('t1', 'u1', tenantId);
 
@@ -214,9 +214,9 @@ describe('TicketController', () => {
 
   describe('adicionarDesconto', () => {
     it('deve adicionar desconto', async () => {
-      const dto = { tipoDescontoId: 'd1', valor: 100 } as any;
+      const dto = { tipoDescontoId: 'd1', valor: 100 } as never;
       const res = { id: 'desc1' };
-      passagemService.adicionarDesconto.mockResolvedValue(res as any);
+      passagemService.adicionarDesconto.mockResolvedValue(res as never);
 
       const result = await controller.adicionarDesconto('t1', dto, tenantId);
 
@@ -228,7 +228,7 @@ describe('TicketController', () => {
   describe('listarDescontos', () => {
     it('deve listar descontos', async () => {
       const descontos = [{ id: 'd1' }];
-      passagemService.listarDescontos.mockResolvedValue(descontos as any);
+      passagemService.listarDescontos.mockResolvedValue(descontos as never);
 
       const result = await controller.listarDescontos('t1', tenantId);
 
@@ -240,7 +240,7 @@ describe('TicketController', () => {
   describe('getHistorico', () => {
     it('deve retornar historico', async () => {
       const historico = [{ evento: 'fechamento' }];
-      ticketService.getHistorico.mockResolvedValue(historico as any);
+      ticketService.getHistorico.mockResolvedValue(historico as never);
 
       const result = await controller.getHistorico('t1', tenantId);
 
@@ -252,7 +252,7 @@ describe('TicketController', () => {
   describe('reimprimirTicket', () => {
     it('deve registrar reimpressao', async () => {
       const res = { sucesso: true };
-      ticketService.reimprimir.mockResolvedValue(res as any);
+      ticketService.reimprimir.mockResolvedValue(res as never);
 
       const result = await controller.reimprimirTicket('t1', 'u1', tenantId);
 

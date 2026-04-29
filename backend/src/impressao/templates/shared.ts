@@ -1,4 +1,3 @@
-import PDFDocument from 'pdfkit';
 import type { TicketComRelacoes, EmpresaRender, UnidadeRender } from './types';
 
 export interface TicketContext {

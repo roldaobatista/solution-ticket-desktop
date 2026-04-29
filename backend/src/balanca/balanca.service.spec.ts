@@ -1,8 +1,18 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { BalancaService } from './balanca.service';
 
+type BalancaPrismaMock = {
+  empresa: { findFirst: jest.Mock };
+  unidade: { findFirst: jest.Mock };
+  balanca: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+  };
+};
+
 describe('BalancaService', () => {
-  let prisma: any;
+  let prisma: BalancaPrismaMock;
   let service: BalancaService;
 
   beforeEach(() => {
@@ -14,7 +24,7 @@ describe('BalancaService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       },
     };
-    service = new BalancaService(prisma);
+    service = new BalancaService(prisma as unknown as PrismaService);
   });
 
   const baseDto = {
@@ -57,5 +67,26 @@ describe('BalancaService', () => {
         tenantId: 'tenant-1',
       }),
     });
+  });
+
+  it('aceita modbus-tcp com enderecoIp e portaTcp sem exigir porta serial', async () => {
+    await service.create(
+      { ...baseDto, protocolo: 'modbus-tcp', enderecoIp: '192.168.0.20', portaTcp: 502 },
+      'tenant-1',
+    );
+
+    expect(prisma.balanca.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        protocolo: 'modbus-tcp',
+        enderecoIp: '192.168.0.20',
+        portaTcp: 502,
+      }),
+    });
+  });
+
+  it('exige porta serial para modbus-rtu', async () => {
+    await expect(
+      service.create({ ...baseDto, protocolo: 'modbus-rtu' }, 'tenant-1'),
+    ).rejects.toThrow(BadRequestException);
   });
 });

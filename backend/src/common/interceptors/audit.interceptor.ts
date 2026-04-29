@@ -1,9 +1,8 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { concatMap } from 'rxjs/operators';
 import { AuditoriaService } from '../../auditoria/auditoria.service';
 import { Logger } from '@nestjs/common';
-import { scrubPii } from '../pii.util';
 
 function redactUrl(url: string): string {
   try {
@@ -29,42 +28,54 @@ export class AuditInterceptor implements NestInterceptor {
     const user = request.user;
 
     return next.handle().pipe(
-      tap(async (response: unknown) => {
-        // Only audit mutation methods
-        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-          try {
-            const respData =
-              typeof response === 'object' && response !== null && 'data' in response
-                ? (response as { data?: { id?: string } }).data
-                : undefined;
-            if (!user?.tenantId) return;
-
-            const safeUrl = redactUrl(rawUrl);
-            // F-009: minimizar payload de auditoria — nao armazenar body completo
-            const entidade = this.extractEntity(safeUrl);
-            const entidadeId = request.params?.id || respData?.id || 'unknown';
-            const acao = this.extractAction(safeUrl);
-
-            const estadoNovo: Record<string, unknown> = { entidade, acao, id: entidadeId };
-            if (method === 'PUT' || method === 'PATCH') {
-              // Em updates, registrar apenas que houve alteracao (sem body completo)
-              estadoNovo.alterado = true;
-            }
-
-            await this.auditoriaService.registrar({
-              entidade,
-              entidadeId,
-              evento: `${method.toLowerCase()}.${acao}`,
-              usuarioId: user?.id,
-              tenantId: user.tenantId,
-              estadoNovo: JSON.stringify(estadoNovo),
-            });
-          } catch (err) {
-            this.logger.error(`Falha ao registrar auditoria: ${(err as Error).message}`);
-          }
-        }
+      concatMap(async (response: unknown) => {
+        await this.auditMutation(method, rawUrl, user, request.params, response);
+        return response;
       }),
     );
+  }
+
+  private async auditMutation(
+    method: string,
+    rawUrl: string,
+    user: { id?: string; tenantId?: string } | undefined,
+    params: { id?: string } | undefined,
+    response: unknown,
+  ): Promise<void> {
+    // Only audit mutation methods
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) || !user?.tenantId) {
+      return;
+    }
+
+    try {
+      const respData =
+        typeof response === 'object' && response !== null && 'data' in response
+          ? (response as { data?: { id?: string } }).data
+          : undefined;
+
+      const safeUrl = redactUrl(rawUrl);
+      // F-009: minimizar payload de auditoria — nao armazenar body completo
+      const entidade = this.extractEntity(safeUrl);
+      const entidadeId = params?.id || respData?.id || 'unknown';
+      const acao = this.extractAction(safeUrl);
+
+      const estadoNovo: Record<string, unknown> = { entidade, acao, id: entidadeId };
+      if (method === 'PUT' || method === 'PATCH') {
+        // Em updates, registrar apenas que houve alteracao (sem body completo)
+        estadoNovo.alterado = true;
+      }
+
+      await this.auditoriaService.registrar({
+        entidade,
+        entidadeId,
+        evento: `${method.toLowerCase()}.${acao}`,
+        usuarioId: user.id,
+        tenantId: user.tenantId,
+        estadoNovo: JSON.stringify(estadoNovo),
+      });
+    } catch (err) {
+      this.logger.error(`Falha ao registrar auditoria: ${(err as Error).message}`);
+    }
   }
 
   private extractEntity(url: string): string {

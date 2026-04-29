@@ -71,6 +71,11 @@ export class ReconnectingAdapter extends EventEmitter implements IBalancaAdapter
     return this.aberto;
   }
 
+  async write(data: Buffer): Promise<void> {
+    if (!this.inner.write) throw new Error('Adapter nao suporta escrita');
+    await this.inner.write(data);
+  }
+
   private agendarReconexao() {
     // H2: idempotência — se já existe um reconnect agendado, ignorar.
     // Sem este guard, eventos 'close' em rajada (ex.: error → close em sequência)

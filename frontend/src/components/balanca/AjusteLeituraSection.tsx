@@ -54,7 +54,7 @@ export function AjusteLeituraSection({
     }
     setLoading(true);
     try {
-      await apiClient.patch(`/cadastros/indicadores/${indicadorId}`, {
+      await apiClient.put(`/indicadores/${indicadorId}`, {
         fator: Number(fatorCalculado.toFixed(6)),
       });
       onApplied?.();

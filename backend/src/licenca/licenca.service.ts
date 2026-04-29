@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as jwt from 'jsonwebtoken';
@@ -102,6 +108,7 @@ export class LicencaService implements OnModuleInit {
    * Se existe em fingerprint diferente (mesma unidade), cria nova (por maquina).
    */
   async iniciarTrial(unidadeId: string, tenantId: string, fingerprintOverride?: string) {
+    await this.validarUnidadeDoTenant(unidadeId, tenantId);
     const fingerprint = fingerprintOverride || this.getFingerprint();
 
     const existente = await this.prisma.licencaInstalacao.findFirst({
@@ -149,6 +156,8 @@ export class LicencaService implements OnModuleInit {
    * Valida JWT RSA offline e ativa a licenca para a unidade+fingerprint.
    */
   async ativar(params: { unidadeId: string; tenantId: string; chave: string; usuarioId?: string }) {
+    await this.validarUnidadeDoTenant(params.unidadeId, params.tenantId);
+
     if (!this.publicKey) {
       throw new BadRequestException(
         'Sistema de licenciamento indisponivel (chave publica ausente).',
@@ -302,6 +311,16 @@ export class LicencaService implements OnModuleInit {
     return c.createHash('sha256').update(chave).digest('hex');
   }
 
+  private async validarUnidadeDoTenant(unidadeId: string, tenantId: string) {
+    const unidade = await this.prisma.unidade.findFirst({
+      where: { id: unidadeId, empresa: { tenantId } },
+      select: { id: true },
+    });
+    if (!unidade) {
+      throw new ForbiddenException('Unidade nao pertence ao tenant autenticado');
+    }
+  }
+
   /**
    * Retorna status atual, aplicando transicao TRIAL -> EXPIRADA se aplicavel.
    */
@@ -314,7 +333,6 @@ export class LicencaService implements OnModuleInit {
     if (!licenca) {
       return {
         status: 'SEM_LICENCA',
-        fingerprint,
         plan: null,
         diasRestantes: null,
         pesagensRestantes: null,
@@ -322,8 +340,6 @@ export class LicencaService implements OnModuleInit {
         expira: null,
         trialIniciadoEm: null,
         limitePesagensTrial: null,
-        chaveValidacaoHash: null,
-        chaveLicenciamentoHash: null,
         bloqueadoEm: null,
         motivoBloqueio: null,
       };
@@ -410,15 +426,12 @@ export class LicencaService implements OnModuleInit {
     return {
       status: licenca.statusLicenca,
       plan: licenca.tipoLicenca,
-      fingerprint,
       diasRestantes,
       pesagensRestantes: licenca.pesagensRestantesTrial,
       ativadoEm: licenca.ativadoEm,
       expira: licenca.expiraEm,
       trialIniciadoEm: licenca.trialIniciadoEm,
       limitePesagensTrial: licenca.limitePesagensTrial,
-      chaveValidacaoHash: licenca.chaveValidacaoHash,
-      chaveLicenciamentoHash: licenca.chaveLicenciamentoHash,
       bloqueadoEm: licenca.bloqueadoEm,
       motivoBloqueio: licenca.motivoBloqueio,
     };

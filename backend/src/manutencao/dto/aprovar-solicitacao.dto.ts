@@ -1,10 +1,11 @@
 import { IsOptional, IsString, IsUUID } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AprovarSolicitacaoDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID()
-  aprovadorId!: string;
+  aprovadorId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -28,6 +28,7 @@ export class ComercialService {
 
   // Tabelas de Preco por Produto
   async createTabelaPrecoProduto(dto: CreateTabelaPrecoProdutoDto, tenantId: string) {
+    await this.ensureProdutoTenant(dto.produtoId, tenantId);
     return this.prisma.tabelaPrecoProduto.create({
       data: {
         tenantId,
@@ -90,6 +91,11 @@ export class ComercialService {
 
   // Tabelas de Preco por Produto + Cliente
   async createTabelaPrecoCliente(dto: CreateTabelaPrecoClienteDto, tenantId: string) {
+    await Promise.all([
+      this.ensureProdutoTenant(dto.produtoId, tenantId),
+      this.ensureClienteTenant(dto.clienteId, tenantId),
+      dto.destinoId ? this.ensureDestinoTenant(dto.destinoId, tenantId) : Promise.resolve(),
+    ]);
     return this.prisma.tabelaPrecoProdutoCliente.create({
       data: {
         tenantId,
@@ -341,6 +347,11 @@ export class ComercialService {
 
   // Tabelas de Frete
   async createTabelaFrete(dto: CreateTabelaFreteDto, tenantId: string) {
+    await Promise.all([
+      dto.produtoId ? this.ensureProdutoTenant(dto.produtoId, tenantId) : Promise.resolve(),
+      dto.clienteId ? this.ensureClienteTenant(dto.clienteId, tenantId) : Promise.resolve(),
+      dto.destinoId ? this.ensureDestinoTenant(dto.destinoId, tenantId) : Promise.resolve(),
+    ]);
     return this.prisma.tabelaFrete.create({
       data: {
         tenantId,
@@ -387,6 +398,7 @@ export class ComercialService {
 
   // Tabelas de Umidade
   async createTabelaUmidade(dto: CreateTabelaUmidadeDto, tenantId: string) {
+    await this.ensureProdutoTenant(dto.produtoId, tenantId);
     return this.prisma.tabelaUmidade.create({
       data: {
         tenantId,
@@ -432,5 +444,29 @@ export class ComercialService {
       where: { ticketId, ticket: { tenantId } },
       orderBy: { versaoSnapshot: 'desc' },
     });
+  }
+
+  private async ensureProdutoTenant(produtoId: string, tenantId: string) {
+    const produto = await this.prisma.produto.findFirst({
+      where: { id: produtoId, tenantId },
+      select: { id: true },
+    });
+    if (!produto) throw new ForbiddenException('Produto nao pertence ao tenant');
+  }
+
+  private async ensureClienteTenant(clienteId: string, tenantId: string) {
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id: clienteId, tenantId },
+      select: { id: true },
+    });
+    if (!cliente) throw new ForbiddenException('Cliente nao pertence ao tenant');
+  }
+
+  private async ensureDestinoTenant(destinoId: string, tenantId: string) {
+    const destino = await this.prisma.destino.findFirst({
+      where: { id: destinoId, tenantId },
+      select: { id: true },
+    });
+    if (!destino) throw new ForbiddenException('Destino nao pertence ao tenant');
   }
 }

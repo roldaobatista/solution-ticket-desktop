@@ -2,10 +2,6 @@ import { IsNotEmpty, IsOptional, IsString, IsUUID, IsNumber, Matches } from 'cla
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateVeiculoDto {
-  @ApiProperty()
-  @IsUUID()
-  tenantId!: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()

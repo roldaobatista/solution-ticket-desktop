@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,11 +17,16 @@ import {
   getProdutos,
   createTicket,
   registrarPassagem,
+  fecharTicket,
+  capturarPeso,
 } from '@/lib/api';
 import { formatWeight } from '@/lib/utils';
 import PesoRealtime from '@/components/peso/PesoRealtime';
 import TicketPreview from '@/components/ticket/TicketPreview';
+import { Toast, useToast } from '@/components/ui/toast';
+import { extractMessage } from '@/lib/errors';
 import { Save, X, ArrowDownToLine, Plus } from 'lucide-react';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function PesagemEntradaPage() {
   const router = useRouter();
@@ -45,6 +50,7 @@ export default function PesagemEntradaPage() {
   const [pesoAtual, setPesoAtual] = useState(0);
   const [estavel, setEstavel] = useState(false);
   const [previewTicketId, setPreviewTicketId] = useState<string | null>(null);
+  const { toast, showToast, hideToast } = useToast();
 
   const { data: balancas } = useQuery({
     queryKey: ['balancas'],
@@ -117,6 +123,7 @@ export default function PesagemEntradaPage() {
   const salvarMutation = useMutation({
     mutationFn: async () => {
       const balanca = balancas?.data?.find((b) => b.id === form.balanca_id);
+      const taraManual = Number(form.tara_veiculo) || undefined;
       const ticket = await createTicket({
         unidade_id: balanca?.unidade_id ?? balanca?.unidadeId,
         cliente_id: form.cliente_id,
@@ -129,6 +136,8 @@ export default function PesagemEntradaPage() {
         peso_nf: form.peso_nf ? Number(form.peso_nf) : undefined,
         observacao: form.observacao || undefined,
         fluxo_pesagem: pesagemComTara ? '1PF_TARA_REFERENCIADA' : '2PF_BRUTO_TARA',
+        tara_referencia_tipo: pesagemComTara && taraManual ? 'MANUAL' : undefined,
+        tara_manual: pesagemComTara && taraManual ? taraManual : undefined,
       });
 
       await registrarPassagem(ticket.id, {
@@ -142,12 +151,27 @@ export default function PesagemEntradaPage() {
         indicador_estabilidade: estavel ? 1 : 0,
       });
 
+      if (pesagemComTara) {
+        await fecharTicket(ticket.id);
+      }
+
       return ticket;
     },
     onSuccess: (ticket) => {
       setPreviewTicketId(ticket.id);
     },
+    onError: (e: unknown) => showToast(extractMessage(e, 'Erro ao salvar pesagem'), 'error'),
   });
+
+  const handlePesoChange = useCallback(
+    (p: number, e: boolean) => {
+      if (!pesagemManual) {
+        setPesoAtual(p);
+        setEstavel(e);
+      }
+    },
+    [pesagemManual],
+  );
 
   const canSave =
     !!form.balanca_id &&
@@ -156,6 +180,34 @@ export default function PesagemEntradaPage() {
     !!form.produto_id &&
     pesoAtual > 0 &&
     (pesagemManual || estavel);
+
+  const capturarPesoAtual = useCallback(async () => {
+    if (!form.balanca_id) {
+      showToast('Selecione uma balanca antes de capturar', 'warning');
+      return;
+    }
+    try {
+      const leitura = await capturarPeso(form.balanca_id);
+      setPesoAtual(leitura.peso);
+      setEstavel(leitura.estavel);
+    } catch (e: unknown) {
+      showToast(extractMessage(e, 'Erro ao capturar peso'), 'error');
+    }
+  }, [form.balanca_id, showToast]);
+
+  const salvarPesagem = useCallback(() => {
+    if (canSave && !salvarMutation.isPending) salvarMutation.mutate();
+  }, [canSave, salvarMutation]);
+
+  const shortcuts = useMemo(
+    () => ({
+      F1: capturarPesoAtual,
+      F2: salvarPesagem,
+      Escape: () => router.push('/tickets'),
+    }),
+    [capturarPesoAtual, salvarPesagem, router],
+  );
+  useKeyboardShortcuts(shortcuts);
 
   const onSelecionaVeiculo = (id: string) => {
     const v = veiculos?.data?.find((x) => x.id === id);
@@ -297,15 +349,7 @@ export default function PesagemEntradaPage() {
 
         {/* Painel direito */}
         <div className="space-y-4">
-          <PesoRealtime
-            balancaId={form.balanca_id || undefined}
-            onPesoChange={(p, e) => {
-              if (!pesagemManual) {
-                setPesoAtual(p);
-                setEstavel(e);
-              }
-            }}
-          />
+          <PesoRealtime balancaId={form.balanca_id || undefined} onPesoChange={handlePesoChange} />
 
           {pesagemManual && (
             <Card>
@@ -338,11 +382,11 @@ export default function PesagemEntradaPage() {
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
         <Button variant="secondary" onClick={() => router.push('/tickets')}>
           <X className="w-4 h-4 mr-2" />
-          Cancelar Pesagem
+          Descartar
         </Button>
         <Button
           variant="primary"
-          onClick={() => salvarMutation.mutate()}
+          onClick={salvarPesagem}
           disabled={!canSave}
           isLoading={salvarMutation.isPending}
         >
@@ -359,6 +403,7 @@ export default function PesagemEntradaPage() {
           router.push('/tickets');
         }}
       />
+      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
     </div>
   );
 }

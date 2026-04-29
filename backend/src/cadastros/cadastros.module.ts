@@ -7,7 +7,6 @@ import { VeiculosController } from './controllers/veiculos.controller';
 import { DestinosController } from './controllers/destinos.controller';
 import { OrigensController } from './controllers/origens.controller';
 import { ArmazensController } from './controllers/armazens.controller';
-import { IndicadoresController } from './controllers/indicadores.controller';
 import { FormasPagamentoController } from './controllers/formas-pagamento.controller';
 import { ClientesService } from './services/clientes.service';
 import { TransportadorasService } from './services/transportadoras.service';
@@ -17,7 +16,6 @@ import { VeiculosService } from './services/veiculos.service';
 import { DestinosService } from './services/destinos.service';
 import { OrigensService } from './services/origens.service';
 import { ArmazensService } from './services/armazens.service';
-import { IndicadoresService } from './services/indicadores.service';
 import { FormasPagamentoService } from './services/formas-pagamento.service';
 
 @Module({
@@ -30,7 +28,6 @@ import { FormasPagamentoService } from './services/formas-pagamento.service';
     DestinosController,
     OrigensController,
     ArmazensController,
-    IndicadoresController,
     FormasPagamentoController,
   ],
   providers: [
@@ -42,7 +39,6 @@ import { FormasPagamentoService } from './services/formas-pagamento.service';
     DestinosService,
     OrigensService,
     ArmazensService,
-    IndicadoresService,
     FormasPagamentoService,
   ],
 })

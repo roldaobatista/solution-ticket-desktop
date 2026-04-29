@@ -293,6 +293,8 @@ export function mapEmpresa(raw: any): Empresa {
 export function mapUnidade(raw: any): Unidade {
   return {
     id: raw.id,
+    empresaId: raw.empresaId,
+    empresa_id: raw.empresaId,
     nome: raw.nome,
     endereco: raw.endereco,
     cidade: raw.cidade,
@@ -305,9 +307,22 @@ export function mapUnidade(raw: any): Unidade {
 }
 
 export function mapBalanca(raw: any): Balanca {
+  const protocolo = raw.protocolo as string | undefined;
+  const tipoConexao =
+    raw.tipoConexao ??
+    (protocolo === 'tcp'
+      ? 'TCP'
+      : protocolo === 'modbus-rtu'
+        ? 'MODBUS_RTU'
+        : protocolo === 'modbus-tcp'
+          ? 'MODBUS_TCP'
+          : 'SERIAL');
+  const online = raw.statusOnline === true;
   return {
     id: raw.id,
     nome: raw.nome,
+    empresaId: raw.empresaId,
+    empresa_id: raw.empresaId,
     unidadeId: raw.unidadeId,
     unidade_id: raw.unidadeId,
     unidade_nome: raw.unidade?.nome,
@@ -315,16 +330,35 @@ export function mapBalanca(raw: any): Balanca {
     indicador_id: raw.indicadorId,
     indicador_nome: raw.indicador?.modelo,
     indicador: raw.indicador,
-    tipoConexao: raw.tipoConexao,
-    tipo_conexao: raw.tipoConexao,
+    tipoConexao,
+    tipo_conexao: tipoConexao,
     porta: raw.porta,
     ativa: raw.ativa,
     serial_number: raw.serialNumber,
     protocolo: raw.protocolo,
     baud_rate: raw.baudRate,
     host: raw.enderecoIp,
+    enderecoIp: raw.enderecoIp,
+    endereco_ip: raw.enderecoIp,
+    portaTcp: raw.portaTcp,
     porta_tcp: raw.portaTcp,
-    status_conexao: raw.statusConexao,
+    modbusUnitId: raw.modbusUnitId,
+    modbus_unit_id: raw.modbusUnitId,
+    modbusRegister: raw.modbusRegister,
+    modbus_register: raw.modbusRegister,
+    modbusFunction: raw.modbusFunction,
+    modbus_function: raw.modbusFunction,
+    modbusByteOrder: raw.modbusByteOrder,
+    modbus_byte_order: raw.modbusByteOrder,
+    modbusWordOrder: raw.modbusWordOrder,
+    modbus_word_order: raw.modbusWordOrder,
+    modbusSigned: raw.modbusSigned,
+    modbus_signed: raw.modbusSigned,
+    modbusScale: raw.modbusScale == null ? undefined : Number(raw.modbusScale),
+    modbus_scale: raw.modbusScale == null ? undefined : Number(raw.modbusScale),
+    modbusOffset: raw.modbusOffset == null ? undefined : Number(raw.modbusOffset),
+    modbus_offset: raw.modbusOffset == null ? undefined : Number(raw.modbusOffset),
+    status_conexao: raw.statusConexao ?? (online ? 'ONLINE' : 'OFFLINE'),
     balanca_entrada: raw.balancaEntrada,
     balanca_saida: raw.balancaSaida,
     ativo: raw.ativo,

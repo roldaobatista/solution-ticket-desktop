@@ -37,7 +37,7 @@ describe('DTO validations — ticket domain', () => {
 
     it('rejeita pesoNf string', async () => {
       const dto = base();
-      (dto as any).pesoNf = 'invalido';
+      (dto as unknown as { pesoNf: string }).pesoNf = 'invalido';
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'pesoNf')).toBe(true);
     });

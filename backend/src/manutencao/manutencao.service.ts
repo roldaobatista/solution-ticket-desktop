@@ -18,13 +18,14 @@ import { SolicitacaoFilterDto } from './dto/solicitacao-filter.dto';
 export class ManutencaoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async criarSolicitacao(dto: CreateSolicitacaoDto) {
+  async criarSolicitacao(dto: CreateSolicitacaoDto, tenantId: string, solicitanteId: string) {
     return this.prisma.solicitacaoAprovacao.create({
       data: {
+        tenantId,
         tipoSolicitacao: dto.tipoSolicitacao as TipoSolicitacaoAprovacao,
         entidadeAlvo: dto.entidadeAlvo,
         entidadeId: dto.entidadeId,
-        solicitanteId: dto.solicitanteId,
+        solicitanteId,
         motivo: dto.motivo,
         status: StatusSolicitacaoAprovacao.PENDENTE,
         aprovadorPrimarioId: dto.aprovadorPrimarioId || null,
@@ -33,8 +34,8 @@ export class ManutencaoService {
     });
   }
 
-  async findAll(filter: SolicitacaoFilterDto) {
-    const where: Prisma.SolicitacaoAprovacaoWhereInput = {};
+  async findAll(filter: SolicitacaoFilterDto, tenantId: string) {
+    const where: Prisma.SolicitacaoAprovacaoWhereInput = { tenantId };
     if (filter.status) where.status = filter.status;
     if (filter.tipoSolicitacao) where.tipoSolicitacao = filter.tipoSolicitacao;
     if (filter.solicitanteId) where.solicitanteId = filter.solicitanteId;
@@ -57,14 +58,14 @@ export class ManutencaoService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findOne(id: string) {
-    const entity = await this.prisma.solicitacaoAprovacao.findUnique({ where: { id } });
+  async findOne(id: string, tenantId: string) {
+    const entity = await this.prisma.solicitacaoAprovacao.findFirst({ where: { id, tenantId } });
     if (!entity) throw new NotFoundException('Solicitacao nao encontrada');
     return entity;
   }
 
-  async aprovar(id: string, dto: AprovarSolicitacaoDto) {
-    const solicitacao = await this.findOne(id);
+  async aprovar(id: string, dto: AprovarSolicitacaoDto, tenantId: string, aprovadorId: string) {
+    const solicitacao = await this.findOne(id, tenantId);
     if (solicitacao.status !== StatusSolicitacaoAprovacao.PENDENTE) {
       throw new Error('Solicitacao ja foi decidida');
     }
@@ -73,15 +74,15 @@ export class ManutencaoService {
       where: { id },
       data: {
         status: StatusSolicitacaoAprovacao.APROVADA,
-        aprovadorPrimarioId: dto.aprovadorId,
+        aprovadorPrimarioId: aprovadorId,
         decididaEm: new Date(),
         justificativaDecisao: dto.justificativa || null,
       },
     });
   }
 
-  async recusar(id: string, dto: AprovarSolicitacaoDto) {
-    const solicitacao = await this.findOne(id);
+  async recusar(id: string, dto: AprovarSolicitacaoDto, tenantId: string, aprovadorId: string) {
+    const solicitacao = await this.findOne(id, tenantId);
     if (solicitacao.status !== StatusSolicitacaoAprovacao.PENDENTE) {
       throw new Error('Solicitacao ja foi decidida');
     }
@@ -90,7 +91,7 @@ export class ManutencaoService {
       where: { id },
       data: {
         status: StatusSolicitacaoAprovacao.RECUSADA,
-        aprovadorPrimarioId: dto.aprovadorId,
+        aprovadorPrimarioId: aprovadorId,
         decididaEm: new Date(),
         justificativaDecisao: dto.justificativa || null,
       },

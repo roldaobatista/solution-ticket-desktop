@@ -25,13 +25,13 @@
 
 ### 1.1 Posicionamento
 
-**"O único hub de integração ERP que garante que seu ticket de pesagem nunca se perde, mesmo se o ERP cair."**
+**"Hub local-first para integrar pesagem ao ERP sem perder rastreabilidade do ticket quando o ERP cai."**
 
 Diferencial competitivo:
 
-- **Confiabilidade fiscal absoluta** (zero perda, zero duplicidade, rastro 5 anos)
-- **Time-to-integrate < 5 dias** para ERP suportado
-- **Operação não para** com ERP fora — único no mercado de pesagem
+- **Confiabilidade operacional auditável** (outbox, idempotência e rastro por ticket)
+- **Time-to-integrate definido por matriz de maturidade** e aceite técnico
+- **Operação de pesagem não para** com ERP fora
 - **Marketplace de conectores** (Fase 4) — efeito de rede
 
 ### 1.2 Segmentação
@@ -91,12 +91,12 @@ Diferencial competitivo:
 ### 2.2 Pro (módulo de integração ativado)
 
 - API REST aberta versionada (`/api/v1`)
-- Conector genérico REST + CSV/XML + SFTP
+- Conector genérico REST
 - Webhooks emitidos (para iPaaS do cliente)
 - Outbox + retry + DLQ
 - Reprocessamento via UI
 - Dashboard de integração
-- **1 conector ERP nativo incluído** (escolha do cliente entre Bling, Omie, ContaAzul, Tiny)
+- **1 conector dedicado em beta** quando houver escopo aprovado e homologação contratada
 - Suporte business hours
 
 **Para quem**: PME com 1 ERP cloud moderno
@@ -104,11 +104,11 @@ Diferencial competitivo:
 ### 2.3 Enterprise
 
 - Tudo do Pro, mais:
-- **Múltiplos conectores nativos** (até 3 incluídos)
+- **Múltiplos conectores dedicados** conforme matriz de maturidade e homologação
 - Multi-empresa / multi-unidade
 - Suporte a iPaaS, SOAP, OData, banco staging
 - Reconciliação avançada com diff visual
-- Auditoria fiscal completa com export
+- Auditoria operacional com hash e export
 - Suporte a homologação dedicada
 - Templates customizados por cliente
 - SLA contratual (ver seção 8)
@@ -151,14 +151,14 @@ Diferencial competitivo:
 
 Setup e mensalidade variam pela complexidade do ERP:
 
-| Categoria                    | Conectores                                       | Setup fee       | Mensalidade adicional |
-| ---------------------------- | ------------------------------------------------ | --------------- | --------------------- |
-| **PME cloud**                | Bling, Omie, ContaAzul, Tiny                     | R$ 1.500        | R$ 197                |
-| **Médio BR**                 | Sankhya, Senior                                  | R$ 4.500        | R$ 397                |
-| **Tier-1 BR**                | TOTVS (Protheus/RM/Datasul), Mega, CIGAM, Benner | R$ 12.000       | R$ 797                |
-| **Global Tier-1**            | SAP, Dynamics 365, NetSuite, Oracle              | R$ 25.000       | R$ 1.497              |
-| **Long tail**                | Infor, Epicor, IFS, Sage, Acumatica, Odoo        | Sob consulta    | Sob consulta          |
-| **Genérico** (REST/CSV/SFTP) | —                                                | Incluído no Pro | Incluído              |
+| Categoria           | Conectores                                       | Setup fee       | Mensalidade adicional |
+| ------------------- | ------------------------------------------------ | --------------- | --------------------- |
+| **PME cloud**       | Bling, Omie, ContaAzul, Tiny                     | R$ 1.500        | R$ 197                |
+| **Médio BR**        | Sankhya, Senior                                  | R$ 4.500        | R$ 397                |
+| **Tier-1 BR**       | TOTVS (Protheus/RM/Datasul), Mega, CIGAM, Benner | R$ 12.000       | R$ 797                |
+| **Global Tier-1**   | SAP, Dynamics 365, NetSuite, Oracle              | R$ 25.000       | R$ 1.497              |
+| **Long tail**       | Infor, Epicor, IFS, Sage, Acumatica, Odoo        | Sob consulta    | Sob consulta          |
+| **Genérico** (REST) | —                                                | Incluído no Pro | Incluído              |
 
 ### 3.4 Anual com desconto
 
@@ -349,7 +349,7 @@ Perguntas-chave:
 | "Já temos integração caseira" | "Quanto vocês perdem em retrabalho/mês? Conta de padaria: nosso payback típico é 3 meses."                                 |
 | "É caro"                      | "Nosso setup fee custa o equivalente a 2 dias de balança parada por falha de integração. Quanto vocês faturam por dia?"    |
 | "Vamos esperar"               | "Janela do mercado: quem integrar agora cria barreira competitiva. Posso oferecer setup com 30% off para fechar este mês." |
-| "Nosso ERP não está na lista" | "Conector genérico REST/CSV cobre. Em paralelo, podemos avaliar custo de conector dedicado."                               |
+| "Nosso ERP não está na lista" | "Conector genérico REST pode cobrir quando o ERP tem API. Em paralelo, avaliamos custo de conector dedicado."              |
 | "Não confio em hub local"     | "100% da pesagem fica local; auditoria de 5 anos garantida; mostro relatório de incidentes (zero perda em produção)."      |
 
 ### 9.4 Materiais de venda

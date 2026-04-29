@@ -2,7 +2,36 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BaseFilterDto } from '../../cadastros/dto/base-filter.dto';
 
-export interface CrudConfig<TWhere, TCreate, TUpdate, TInclude = undefined> {
+type CrudWhere = Record<string, unknown>;
+type CrudOrderBy = Record<string, 'asc' | 'desc'>;
+
+interface CrudFindManyArgs<TInclude> {
+  where: CrudWhere;
+  skip: number;
+  take: number;
+  orderBy: CrudOrderBy;
+  include?: TInclude;
+}
+
+interface CrudFindUniqueArgs<TInclude> {
+  where: CrudWhere;
+  include?: TInclude;
+}
+
+interface CrudDelegate<TCreate extends object, TUpdate extends object, TInclude> {
+  create(args: { data: TCreate & Partial<{ tenantId: string }> }): Promise<unknown>;
+  findMany(args: CrudFindManyArgs<TInclude>): Promise<unknown[]>;
+  count(args: { where: CrudWhere }): Promise<number>;
+  findUnique(args: CrudFindUniqueArgs<TInclude>): Promise<unknown | null>;
+  update(args: { where: CrudWhere; data: TUpdate | { ativo: false } }): Promise<unknown>;
+}
+
+export interface CrudConfig<
+  TWhere extends object,
+  TCreate extends object,
+  TUpdate extends object,
+  TInclude = undefined,
+> {
   prismaModel: keyof PrismaService & string;
   searchFields: (keyof TWhere & string)[];
   orderByField: string;
@@ -12,15 +41,23 @@ export interface CrudConfig<TWhere, TCreate, TUpdate, TInclude = undefined> {
   beforeUpdate?: (id: string, dto: TUpdate) => TUpdate | Promise<TUpdate>;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 @Injectable()
-export abstract class GenericCrudService<TWhere, TCreate, TUpdate, TInclude = undefined> {
+export abstract class GenericCrudService<
+  TWhere extends object,
+  TCreate extends object,
+  TUpdate extends object,
+  TInclude = undefined,
+> {
   protected abstract config: CrudConfig<TWhere, TCreate, TUpdate, TInclude>;
 
   constructor(protected readonly prisma: PrismaService) {}
 
-  private getModel() {
-    return this.prisma[this.config.prismaModel] as any;
+  private getModel(): CrudDelegate<TCreate, TUpdate, TInclude> {
+    return this.prisma[this.config.prismaModel] as unknown as CrudDelegate<
+      TCreate,
+      TUpdate,
+      TInclude
+    >;
   }
 
   async create(dto: TCreate, tenantId?: string) {
@@ -29,7 +66,7 @@ export abstract class GenericCrudService<TWhere, TCreate, TUpdate, TInclude = un
   }
 
   async findAll(filter: BaseFilterDto, tenantId?: string) {
-    const where: any = {};
+    const where: CrudWhere = {};
     if (tenantId) where.tenantId = tenantId;
     else if (filter.tenantId) where.tenantId = filter.tenantId;
     if (filter.search && this.config.searchFields.length) {
@@ -47,7 +84,7 @@ export abstract class GenericCrudService<TWhere, TCreate, TUpdate, TInclude = un
     const limit = filter.limit || 20;
     const skip = (page - 1) * limit;
 
-    const findManyArgs: any = {
+    const findManyArgs: CrudFindManyArgs<TInclude> = {
       where,
       skip,
       take: limit,
@@ -66,7 +103,7 @@ export abstract class GenericCrudService<TWhere, TCreate, TUpdate, TInclude = un
   }
 
   async findOne(id: string, tenantId?: string) {
-    const args: any = { where: tenantId ? { id, tenantId } : { id } };
+    const args: CrudFindUniqueArgs<TInclude> = { where: tenantId ? { id, tenantId } : { id } };
     if (this.config.defaultInclude) {
       args.include = this.config.defaultInclude;
     }

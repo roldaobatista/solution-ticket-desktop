@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsArray,
   IsDateString,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -19,6 +19,15 @@ export class CreateFaturaDto {
   @IsOptional()
   @IsUUID()
   romaneioId?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Tickets fechados para gerar romaneio e fatura',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  ticketIds?: string[];
 
   @ApiProperty({ description: 'Data de emissao (ISO)' })
   @IsDateString()

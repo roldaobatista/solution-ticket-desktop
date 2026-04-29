@@ -374,12 +374,18 @@ function NovaFaturaDialog({
     enabled: open && !!clienteId,
   });
 
+  const totalSelecionado = (pendentes || [])
+    .filter((t) => selectedTickets.includes(t.id))
+    .reduce((acc, t) => acc + (t.valor_total ? t.valor_total / 100 : 0), 0);
+
   const mut = useMutation({
     mutationFn: () =>
       createFatura({
         cliente_id: clienteId,
         tipo_fatura_id: tipoFaturaId,
         tickets_ids: selectedTickets,
+        data_emissao: new Date().toISOString().slice(0, 10),
+        total_geral: totalSelecionado,
         observacao,
       }),
     onSuccess: () => {
@@ -395,10 +401,6 @@ function NovaFaturaDialog({
     setSelectedTickets((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
-
-  const totalSelecionado = (pendentes || [])
-    .filter((t) => selectedTickets.includes(t.id))
-    .reduce((acc, t) => acc + (t.valor_total ? t.valor_total / 100 : 0), 0);
 
   return (
     <Dialog

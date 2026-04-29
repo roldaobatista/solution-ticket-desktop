@@ -17,11 +17,6 @@ export class CreateUserDto {
   @IsNotEmpty()
   senha!: string;
 
-  @ApiProperty()
-  @IsUUID()
-  @IsNotEmpty()
-  tenantId!: string;
-
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsUUID('4', { each: true })

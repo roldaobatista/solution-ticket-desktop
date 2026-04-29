@@ -407,6 +407,14 @@ model Balanca {
   baudRate         Int?    @map("baud_rate")
   enderecoIp       String? @map("endereco_ip")
   portaTcp         Int?    @map("porta_tcp")
+  modbusUnitId     Int?    @map("modbus_unit_id")
+  modbusRegister   Int?    @map("modbus_register")
+  modbusFunction   String? @map("modbus_function")
+  modbusByteOrder  String? @map("modbus_byte_order")
+  modbusWordOrder  String? @map("modbus_word_order")
+  modbusSigned     Boolean @default(false) @map("modbus_signed")
+  modbusScale      Decimal? @map("modbus_scale")
+  modbusOffset     Decimal? @map("modbus_offset")
   statusOnline     Boolean @default(true) @map("status_online")
   tipoEntradaSaida String? @map("tipo_entrada_saida")
   indicadorId      String? @map("indicador_id")
@@ -644,6 +652,7 @@ model TicketPesagem {
   passagens          PassagemPesagem[]
   descontos          DescontoPesagem[]
   documentos         DocumentoPesagem[]
+  fotos              FotoPesagem[]
   snapshotsComercial SnapshotComercialTicket[]
   romaneios          ItemRomaneio[]
 
@@ -879,6 +888,7 @@ model ItemRomaneio {
   romaneio Romaneio      @relation(fields: [romaneioId], references: [id])
   ticket   TicketPesagem @relation(fields: [ticketId], references: [id])
 
+  @@unique([ticketId], name: "item_romaneio_ticket_unique")
   @@index([romaneioId])
   @@index([ticketId])
   @@map("item_romaneio")
@@ -1005,6 +1015,7 @@ model TicketContador {
 
 model SolicitacaoAprovacao {
   id                    String    @id @default(uuid()) @map("id")
+  tenantId              String    @map("tenant_id")
   tipoSolicitacao       String    @map("tipo_solicitacao")
   entidadeAlvo          String    @map("entidade_alvo")
   entidadeId            String    @map("entidade_id")
@@ -1019,6 +1030,7 @@ model SolicitacaoAprovacao {
   criadoEm              DateTime  @default(now()) @map("criado_em")
   atualizadoEm          DateTime  @updatedAt @map("atualizado_em")
 
+  @@index([tenantId])
   @@map("solicitacao_aprovacao")
 }
 
@@ -1037,8 +1049,11 @@ model Auditoria {
   usuarioId      String?  @map("usuario_id")
   motivo         String?  @map("motivo")
   dataHora       DateTime @default(now()) @map("data_hora")
+  prevHash       String?  @map("prev_hash")
+  hash           String   @default("legacy") @map("hash")
 
   @@index([tenantId])
+  @@index([tenantId, hash])
   @@index([dataHora])
   @@index([entidade, entidadeId])
   @@map("auditoria")
@@ -1240,6 +1255,8 @@ model FotoPesagem {
   tamanhoBytes   Int      @default(0) @map("tamanho_bytes")
   sha256         String?  @map("sha256")
   capturadoEm    DateTime @default(now()) @map("capturado_em")
+
+  ticket TicketPesagem @relation(fields: [ticketId], references: [id])
 
   @@index([ticketId])
   @@index([passagemId])
@@ -1511,10 +1528,13 @@ model IntegracaoLog {
   errorCode             String?  @map("error_code")
   errorMessage          String?  @map("error_message")
   criadoEm              DateTime @default(now()) @map("created_at")
+  prevHash              String?  @map("prev_hash")
+  hash                  String   @default("legacy") @map("hash")
 
   profile IntegracaoProfile? @relation(fields: [profileId], references: [id])
 
   @@index([profileId, criadoEm])
+  @@index([profileId, hash])
   @@index([correlationId])
   @@map("integracao_log")
 }

@@ -29,6 +29,13 @@ export class AuditoriaController {
     return this.auditoriaService.recentes(tenantId, Number.isFinite(n) ? n : 20);
   }
 
+  @Get('verificar-cadeia')
+  @Roles(Permissao.AUDITORIA_VISUALIZAR)
+  @ApiOperation({ summary: 'Verificar integridade criptografica da cadeia de auditoria' })
+  verificarCadeia(@CurrentUser('tenantId') tenantId: string) {
+    return this.auditoriaService.verificarCadeia(tenantId);
+  }
+
   @Get(':entidade/:entidadeId')
   @Roles(Permissao.AUDITORIA_VISUALIZAR)
   @ApiOperation({ summary: 'Buscar auditoria por entidade' })

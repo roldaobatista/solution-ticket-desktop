@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { StatusComercial } from '../constants/enums';
+import { StatusComercial, StatusOperacional } from '../constants/enums';
 import { buildPaginated, resolvePaging } from '../common/dto/pagination.dto';
 import { CreateRomaneioDto } from './dto/create-romaneio.dto';
 import { UpdateRomaneioDto } from './dto/update-romaneio.dto';
@@ -114,7 +114,15 @@ export class RomaneioService {
           throw new NotFoundException(`Tickets nao encontrados: ${missing.join(', ')}`);
         }
 
-        let pesoTotal = 0;
+        const aggregateBefore = await tx.itemRomaneio.aggregate({
+          where: { romaneioId },
+          _max: { sequencia: true },
+          _sum: { peso: true },
+        });
+        const sequenciaInicial = aggregateBefore._max.sequencia ?? 0;
+        const pesoExistente = Number(aggregateBefore._sum.peso || 0);
+
+        let pesoLote = 0;
         const itens: Prisma.ItemRomaneioCreateManyInput[] = [];
 
         for (let i = 0; i < tickets.length; i++) {
@@ -122,24 +130,44 @@ export class RomaneioService {
           if (!ticket.pesoLiquidoFinal) {
             throw new BadRequestException(`Ticket ${ticket.numero} nao possui peso liquido final`);
           }
+          if (ticket.statusOperacional !== StatusOperacional.FECHADO) {
+            throw new BadRequestException(`Ticket ${ticket.numero} precisa estar FECHADO`);
+          }
           if (ticket.statusComercial === StatusComercial.ROMANEADO) {
             throw new BadRequestException(`Ticket ${ticket.numero} ja esta romaneado`);
           }
-          pesoTotal += Number(ticket.pesoLiquidoFinal);
+          if (ticket.statusComercial !== StatusComercial.NAO_ROMANEADO) {
+            throw new BadRequestException(
+              `Ticket ${ticket.numero} nao esta disponivel para romaneio`,
+            );
+          }
+          pesoLote += Number(ticket.pesoLiquidoFinal);
           itens.push({
             romaneioId,
             ticketId: ticket.id,
-            sequencia: i + 1,
+            sequencia: sequenciaInicial + i + 1,
             peso: ticket.pesoLiquidoFinal,
           });
         }
 
-        await tx.itemRomaneio.createMany({ data: itens });
-        await tx.ticketPesagem.updateMany({
-          where: { id: { in: ticketIds }, tenantId },
+        const updated = await tx.ticketPesagem.updateMany({
+          where: {
+            id: { in: ticketIds },
+            tenantId,
+            statusComercial: StatusComercial.NAO_ROMANEADO,
+          },
           data: { statusComercial: StatusComercial.ROMANEADO },
         });
-        await tx.romaneio.update({ where: { id: romaneioId, tenantId }, data: { pesoTotal } });
+        if (updated.count !== ticketIds.length) {
+          throw new BadRequestException(
+            'Um ou mais tickets foram romaneados por outro processo. Recarregue a lista.',
+          );
+        }
+        await tx.itemRomaneio.createMany({ data: itens });
+        await tx.romaneio.update({
+          where: { id: romaneioId, tenantId },
+          data: { pesoTotal: pesoExistente + pesoLote },
+        });
 
         return romaneioId;
       })

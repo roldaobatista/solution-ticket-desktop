@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import { stderr, stdout } from 'process';
+
 const prisma = new PrismaClient();
+const log = (message: string) => stdout.write(`${message}\n`);
+const logError = (error: unknown) =>
+  stderr.write(`${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
 
 async function seedUmidade() {
   // Soja - tabela padrão
@@ -70,7 +75,7 @@ async function seedUmidade() {
         },
       ],
     });
-    console.log('Tabela de umidade para Soja criada');
+    log('Tabela de umidade para Soja criada');
   }
 
   if (milho) {
@@ -126,8 +131,8 @@ async function seedUmidade() {
         },
       ],
     });
-    console.log('Tabela de umidade para Milho criada');
+    log('Tabela de umidade para Milho criada');
   }
 }
 
-seedUmidade().catch(console.error);
+seedUmidade().catch(logError);

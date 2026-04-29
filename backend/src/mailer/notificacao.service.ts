@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import * as http from 'http';
 import * as https from 'https';
 import { PrismaService } from '../prisma/prisma.service';
@@ -36,11 +36,30 @@ export class NotificacaoService {
       webhookUrl?: string;
     },
   ) {
+    const safeData = this.validarConfig(data);
     const existing = await this.prisma.configuracaoNotificacao.findUnique({ where: { tenantId } });
     if (existing) {
-      return this.prisma.configuracaoNotificacao.update({ where: { tenantId }, data });
+      return this.prisma.configuracaoNotificacao.update({ where: { tenantId }, data: safeData });
     }
-    return this.prisma.configuracaoNotificacao.create({ data: { tenantId, ...data } });
+    return this.prisma.configuracaoNotificacao.create({ data: { tenantId, ...safeData } });
+  }
+
+  private validarConfig<T extends { webhookUrl?: string }>(data: T): T {
+    if (data.webhookUrl === undefined || data.webhookUrl.trim() === '') return data;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(data.webhookUrl);
+    } catch {
+      throw new BadRequestException('webhookUrl invalida');
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new BadRequestException('webhookUrl deve usar http ou https');
+    }
+    parsed.username = '';
+    parsed.password = '';
+    parsed.hash = '';
+    return { ...data, webhookUrl: parsed.toString() };
   }
 
   /** Dispara e-mail e/ou webhook conforme as preferencias do tenant para o evento. */

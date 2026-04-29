@@ -2,9 +2,23 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginated, resolvePaging } from '../common/dto/pagination.dto';
+import { StatusComercial, StatusOperacional } from '../constants/enums';
 import { CreateFaturaDto } from './dto/create-fatura.dto';
 import { UpdateFaturaDto } from './dto/update-fatura.dto';
 import { RegistrarPagamentoDto } from './dto/registrar-pagamento.dto';
+
+const FATURA_STATUS = {
+  ABERTA: 'ABERTA',
+  PARCIAL: 'PARCIAL',
+  BAIXADA: 'BAIXADA',
+} as const;
+type FaturaStatus = (typeof FATURA_STATUS)[keyof typeof FATURA_STATUS];
+
+const ROMANEIO_STATUS = {
+  FATURADO: 'FATURADO',
+  PARCIALMENTE_BAIXADO: 'PARCIALMENTE_BAIXADO',
+  BAIXADO: 'BAIXADO',
+} as const;
 
 @Injectable()
 export class FaturaService {
@@ -12,21 +26,47 @@ export class FaturaService {
 
   async create(dto: CreateFaturaDto & { tenantId?: string }, tenantId?: string) {
     const effectiveTenantId = tenantId ?? dto.tenantId!;
-    await this.ensureClienteTenant(dto.clienteId, effectiveTenantId);
-    if (dto.romaneioId) await this.ensureRomaneioTenant(dto.romaneioId, effectiveTenantId);
     const numero = await this.gerarNumero(effectiveTenantId);
 
-    const fatura = await this.prisma.fatura.create({
-      data: {
-        numero,
-        tenantId: effectiveTenantId,
-        romaneioId: dto.romaneioId ?? null,
-        clienteId: dto.clienteId,
-        dataEmissao: new Date(dto.dataEmissao),
-        notaFiscal: dto.notaFiscal ?? null,
-        observacao: dto.observacao ?? null,
-        totalGeral: dto.totalGeral,
-      },
+    const fatura = await this.prisma.$transaction(async (tx) => {
+      await this.ensureClienteTenant(dto.clienteId, effectiveTenantId, tx);
+      const romaneioId =
+        dto.romaneioId ??
+        (dto.ticketIds?.length
+          ? await this.criarRomaneioParaFaturaTx(tx, dto, effectiveTenantId)
+          : undefined);
+      const romaneio = romaneioId
+        ? await this.ensureRomaneioTenant(romaneioId, effectiveTenantId, tx)
+        : null;
+
+      const criada = await tx.fatura.create({
+        data: {
+          numero,
+          tenantId: effectiveTenantId,
+          romaneioId: romaneioId ?? null,
+          clienteId: dto.clienteId,
+          dataEmissao: new Date(dto.dataEmissao),
+          notaFiscal: dto.notaFiscal ?? null,
+          observacao: dto.observacao ?? null,
+          totalGeral: dto.totalGeral,
+        },
+      });
+
+      if (romaneio) {
+        await tx.romaneio.update({
+          where: { id: romaneio.id, tenantId: effectiveTenantId },
+          data: { status: ROMANEIO_STATUS.FATURADO },
+        });
+        await tx.ticketPesagem.updateMany({
+          where: {
+            id: { in: romaneio.itens.map((item) => item.ticketId) },
+            tenantId: effectiveTenantId,
+          },
+          data: { statusComercial: 'FATURADO' },
+        });
+      }
+
+      return criada;
     });
 
     return this.findOne(fatura.id, effectiveTenantId);
@@ -110,18 +150,7 @@ export class FaturaService {
         },
       });
 
-      const totalPagamentos = await tx.pagamentoFatura.aggregate({
-        where: { faturaId },
-        _sum: { valor: true },
-      });
-      const totalPago = Number(totalPagamentos._sum.valor || 0);
-      const totalFatura = Number(fatura.totalGeral);
-
-      let novoStatus = 'ABERTA';
-      if (totalPago >= totalFatura) novoStatus = 'BAIXADA';
-      else if (totalPago > 0) novoStatus = 'PARCIAL';
-
-      await tx.fatura.update({ where: { id: faturaId, tenantId }, data: { status: novoStatus } });
+      await this.recalcularStatusFaturaTx(tx, faturaId, tenantId, Number(fatura.totalGeral));
 
       return pagamento;
     });
@@ -134,20 +163,37 @@ export class FaturaService {
   }
 
   async baixarPagamento(pagamentoId: string, tenantId: string, usuarioId?: string) {
-    const pagamento = await this.prisma.pagamentoFatura.findFirst({
-      where: { id: pagamentoId, fatura: { tenantId } },
-    });
-    if (!pagamento) throw new NotFoundException('Pagamento nao encontrado');
+    return this.prisma.$transaction(async (tx) => {
+      const pagamento = await tx.pagamentoFatura.findFirst({
+        where: { id: pagamentoId, fatura: { tenantId } },
+        include: {
+          fatura: {
+            include: {
+              romaneio: { include: { itens: { select: { ticketId: true } } } },
+            },
+          },
+        },
+      });
+      if (!pagamento) throw new NotFoundException('Pagamento nao encontrado');
 
-    const updated = await this.prisma.pagamentoFatura.update({
-      where: { id: pagamentoId },
-      data: {
-        status: 'BAIXADO',
-        dataBaixa: new Date(),
-        usuarioBaixa: usuarioId ?? null,
-      },
+      const updated = await tx.pagamentoFatura.update({
+        where: { id: pagamentoId },
+        data: {
+          status: 'BAIXADO',
+          dataBaixa: new Date(),
+          usuarioBaixa: usuarioId ?? null,
+        },
+      });
+
+      const novoStatus = await this.recalcularStatusFaturaTx(
+        tx,
+        pagamento.faturaId,
+        tenantId,
+        Number(pagamento.fatura.totalGeral),
+      );
+      await this.propagateStatusComercialTx(tx, pagamento.fatura, tenantId, novoStatus);
+      return updated;
     });
-    return updated;
   }
 
   private async gerarNumero(tenantId: string): Promise<string> {
@@ -155,19 +201,147 @@ export class FaturaService {
     return `FAT-${String(count + 1).padStart(6, '0')}`;
   }
 
-  private async ensureClienteTenant(clienteId: string, tenantId: string) {
-    const cliente = await this.prisma.cliente.findUnique({
+  private async ensureClienteTenant(
+    clienteId: string,
+    tenantId: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const cliente = await tx.cliente.findUnique({
       where: { id: clienteId, tenantId },
       select: { id: true },
     });
     if (!cliente) throw new ForbiddenException('Cliente nao pertence ao tenant');
   }
 
-  private async ensureRomaneioTenant(romaneioId: string, tenantId: string) {
-    const romaneio = await this.prisma.romaneio.findUnique({
+  private async ensureRomaneioTenant(
+    romaneioId: string,
+    tenantId: string,
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const romaneio = await tx.romaneio.findUnique({
       where: { id: romaneioId, tenantId },
-      select: { id: true },
+      include: { itens: { select: { ticketId: true } } },
     });
     if (!romaneio) throw new ForbiddenException('Romaneio nao pertence ao tenant');
+    return romaneio;
+  }
+
+  private async recalcularStatusFaturaTx(
+    tx: Prisma.TransactionClient,
+    faturaId: string,
+    tenantId: string,
+    totalFatura: number,
+  ) {
+    const totalPagamentos = await tx.pagamentoFatura.aggregate({
+      where: { faturaId, status: 'BAIXADO' },
+      _sum: { valor: true },
+    });
+    const totalPago = Number(totalPagamentos._sum.valor || 0);
+
+    let novoStatus: FaturaStatus = FATURA_STATUS.ABERTA;
+    if (totalPago >= totalFatura) novoStatus = FATURA_STATUS.BAIXADA;
+    else if (totalPago > 0) novoStatus = FATURA_STATUS.PARCIAL;
+
+    await tx.fatura.update({ where: { id: faturaId, tenantId }, data: { status: novoStatus } });
+    return novoStatus;
+  }
+
+  private async propagateStatusComercialTx(
+    tx: Prisma.TransactionClient,
+    fatura: {
+      romaneioId: string | null;
+      romaneio?: { itens: Array<{ ticketId: string }> } | null;
+    },
+    tenantId: string,
+    statusFatura: string,
+  ) {
+    if (!fatura.romaneioId || !fatura.romaneio) return;
+    if (statusFatura === FATURA_STATUS.ABERTA) return;
+
+    const statusComercial =
+      statusFatura === FATURA_STATUS.BAIXADA ? 'BAIXADO' : 'PARCIALMENTE_BAIXADO';
+    const statusRomaneio =
+      statusFatura === FATURA_STATUS.BAIXADA
+        ? ROMANEIO_STATUS.BAIXADO
+        : ROMANEIO_STATUS.PARCIALMENTE_BAIXADO;
+    const ticketIds = fatura.romaneio.itens.map((item) => item.ticketId);
+
+    await tx.romaneio.update({
+      where: { id: fatura.romaneioId, tenantId },
+      data: { status: statusRomaneio },
+    });
+    if (ticketIds.length) {
+      await tx.ticketPesagem.updateMany({
+        where: { id: { in: ticketIds }, tenantId },
+        data: { statusComercial },
+      });
+    }
+  }
+
+  private async criarRomaneioParaFaturaTx(
+    tx: Prisma.TransactionClient,
+    dto: CreateFaturaDto,
+    tenantId: string,
+  ) {
+    const ticketIds = dto.ticketIds ?? [];
+    const tickets = await tx.ticketPesagem.findMany({
+      where: { id: { in: ticketIds }, tenantId, clienteId: dto.clienteId },
+    });
+
+    if (tickets.length !== ticketIds.length) {
+      throw new ForbiddenException('Um ou mais tickets nao pertencem ao tenant/cliente da fatura');
+    }
+
+    let pesoTotal = 0;
+    const itens: Prisma.ItemRomaneioCreateManyInput[] = [];
+    for (let i = 0; i < tickets.length; i++) {
+      const ticket = tickets[i];
+      if (ticket.statusOperacional !== StatusOperacional.FECHADO) {
+        throw new ForbiddenException(`Ticket ${ticket.numero} precisa estar FECHADO`);
+      }
+      if (ticket.statusComercial !== StatusComercial.NAO_ROMANEADO) {
+        throw new ForbiddenException(`Ticket ${ticket.numero} ja possui vinculo comercial`);
+      }
+      if (!ticket.pesoLiquidoFinal) {
+        throw new ForbiddenException(`Ticket ${ticket.numero} nao possui peso liquido final`);
+      }
+      pesoTotal += Number(ticket.pesoLiquidoFinal);
+      itens.push({
+        romaneioId: '',
+        ticketId: ticket.id,
+        sequencia: i + 1,
+        peso: ticket.pesoLiquidoFinal,
+      });
+    }
+
+    const count = await tx.romaneio.count({ where: { tenantId } });
+    const romaneio = await tx.romaneio.create({
+      data: {
+        numero: `ROM-${String(count + 1).padStart(6, '0')}`,
+        tenantId,
+        clienteId: dto.clienteId,
+        periodoInicio: new Date(dto.dataEmissao),
+        periodoFim: new Date(dto.dataEmissao),
+        observacao: dto.observacao ?? null,
+        pesoTotal,
+      },
+    });
+
+    await tx.itemRomaneio.createMany({
+      data: itens.map((item) => ({ ...item, romaneioId: romaneio.id })),
+    });
+    const updated = await tx.ticketPesagem.updateMany({
+      where: {
+        id: { in: ticketIds },
+        tenantId,
+        statusComercial: StatusComercial.NAO_ROMANEADO,
+      },
+      data: { statusComercial: StatusComercial.ROMANEADO },
+    });
+    if (updated.count !== ticketIds.length) {
+      throw new ForbiddenException('Um ou mais tickets foram vinculados por outro processo');
+    }
+
+    return romaneio.id;
   }
 }

@@ -78,7 +78,10 @@ describe('BackupService — WAL safety', () => {
     fs.mkdirSync(backupsDir, { recursive: true });
     const backupPath = path.join(backupsDir, 'restore-target.db');
     fs.writeFileSync(backupPath, 'db-restaurado');
-    fs.writeFileSync(`${backupPath}.sha256`, await (service as any).hashFile(backupPath));
+    const backupHash = await (
+      service as unknown as { hashFile(filePath: string): Promise<string> }
+    ).hashFile(backupPath);
+    fs.writeFileSync(`${backupPath}.sha256`, backupHash);
     fs.writeFileSync(path.join(tmpDir, 'solution-ticket.db-wal'), 'wal-antigo');
     fs.writeFileSync(path.join(tmpDir, 'solution-ticket.db-shm'), 'shm-antigo');
     jest.spyOn(global, 'setTimeout').mockImplementation((() => 0) as never);

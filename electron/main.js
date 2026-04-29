@@ -332,16 +332,20 @@ function startFrontend() {
     return null;
   }
 
-  logLine('frontend', `spawn next start port=${FRONTEND_PORT}`);
+  logLine('frontend', `spawn next start host=127.0.0.1 port=${FRONTEND_PORT}`);
 
-  const proc = spawn(process.execPath, [nextBin, 'start', '-p', String(FRONTEND_PORT)], {
-    cwd: getFrontendDir(),
-    env: buildEnv({
-      ELECTRON_RUN_AS_NODE: '1',
-      NODE_ENV: 'production',
-    }),
-    stdio: 'pipe',
-  });
+  const proc = spawn(
+    process.execPath,
+    [nextBin, 'start', '-H', '127.0.0.1', '-p', String(FRONTEND_PORT)],
+    {
+      cwd: getFrontendDir(),
+      env: buildEnv({
+        ELECTRON_RUN_AS_NODE: '1',
+        NODE_ENV: 'production',
+      }),
+      stdio: 'pipe',
+    },
+  );
 
   proc.stdout.on('data', (d) => logLine('frontend', d.toString().trim()));
   proc.stderr.on('data', (d) => logLine('frontend-err', d.toString().trim()));
