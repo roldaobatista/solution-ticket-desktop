@@ -2,11 +2,11 @@ import { Controller, Get, Param, Post, Query, Res, Body, UseGuards } from '@nest
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ImpressaoService } from './impressao.service';
-import { errorMessage } from '../common/error-message.util';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Permissao } from '../constants/permissoes';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ImprimirEscposDto, SalvarEscposDto } from './dto/escpos.dto';
 
 // Onda 2.6: JwtAuthGuard adicionado.
 @ApiTags('Impressão')
@@ -34,14 +34,10 @@ export class ImpressaoController {
     @CurrentUser('tenantId') tenantId: string,
   ) {
     const tpl = template || layoutLegado;
-    try {
-      const buffer = await this.service.gerarTicketPdf(ticketId, tenantId, tpl);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="ticket-${ticketId}.pdf"`);
-      res.send(buffer);
-    } catch (err: unknown) {
-      res.status(500).json({ erro: errorMessage(err, 'Falha ao gerar PDF') });
-    }
+    const buffer = await this.service.gerarTicketPdf(ticketId, tenantId, tpl);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="ticket-${ticketId}.pdf"`);
+    res.send(buffer);
   }
 
   // Erros de impressão (Gap 9)
@@ -75,14 +71,10 @@ export class ImpressaoController {
     @Res() res: Response,
     @CurrentUser('tenantId') tenantId: string,
   ) {
-    try {
-      const buffer = await this.service.gerarTicketEscposBuffer(ticketId, tenantId);
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Content-Disposition', `attachment; filename="ticket-${ticketId}.bin"`);
-      res.send(buffer);
-    } catch (err: unknown) {
-      res.status(500).json({ erro: errorMessage(err, 'Falha ao gerar ESC/POS') });
-    }
+    const buffer = await this.service.gerarTicketEscposBuffer(ticketId, tenantId);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="ticket-${ticketId}.bin"`);
+    res.send(buffer);
   }
 
   @Post('ticket/:ticketId/escpos/imprimir')
@@ -90,16 +82,12 @@ export class ImpressaoController {
   @ApiOperation({ summary: 'Imprime ticket ESC/POS diretamente na porta' })
   async imprimirEscpos(
     @Param('ticketId') ticketId: string,
-    @Body() body: { porta: string },
+    @Body() body: ImprimirEscposDto,
     @Res() res: Response,
     @CurrentUser('tenantId') tenantId: string,
   ) {
-    try {
-      const ok = await this.service.imprimirTicketEscpos(ticketId, tenantId, body.porta);
-      res.json({ sucesso: ok });
-    } catch (err: unknown) {
-      res.status(500).json({ erro: errorMessage(err, 'Falha ao imprimir ESC/POS') });
-    }
+    const ok = await this.service.imprimirTicketEscpos(ticketId, tenantId, body.porta);
+    res.json({ sucesso: ok });
   }
 
   @Post('ticket/:ticketId/escpos/salvar')
@@ -107,15 +95,11 @@ export class ImpressaoController {
   @ApiOperation({ summary: 'Salva buffer ESC/POS em arquivo temporário' })
   async salvarEscpos(
     @Param('ticketId') ticketId: string,
-    @Body() body: { nome?: string },
+    @Body() body: SalvarEscposDto,
     @Res() res: Response,
     @CurrentUser('tenantId') tenantId: string,
   ) {
-    try {
-      const filePath = await this.service.salvarTicketEscpos(ticketId, tenantId, body.nome);
-      res.json({ sucesso: true, arquivo: filePath });
-    } catch (err: unknown) {
-      res.status(500).json({ erro: errorMessage(err, 'Falha ao salvar ESC/POS') });
-    }
+    const filePath = await this.service.salvarTicketEscpos(ticketId, tenantId, body.nome);
+    res.json({ sucesso: true, arquivo: filePath });
   }
 }

@@ -5,10 +5,19 @@ import {
   CallHandler,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { from, Observable } from 'rxjs';
 import { concatMap } from 'rxjs/operators';
 import { AuditoriaService } from '../../auditoria/auditoria.service';
 import { Logger } from '@nestjs/common';
+
+interface AuditContextData {
+  method: string;
+  user: { id?: string; tenantId: string };
+  params?: { id?: string };
+  entidade: string;
+  acao: string;
+  critical: boolean;
+}
 
 function redactUrl(url: string): string {
   try {
@@ -32,64 +41,123 @@ export class AuditInterceptor implements NestInterceptor {
     const method = request.method;
     const rawUrl = request.url;
     const user = request.user;
+    const auditContext = this.buildAuditContext(method, rawUrl, user, request.params);
+
+    if (!auditContext) {
+      return next.handle();
+    }
+
+    if (auditContext.critical) {
+      return from(this.auditCriticalPreflight(auditContext)).pipe(
+        concatMap(() => next.handle()),
+        concatMap(async (response: unknown) => {
+          await this.auditMutation(auditContext, response);
+          return response;
+        }),
+      );
+    }
 
     return next.handle().pipe(
       concatMap(async (response: unknown) => {
-        await this.auditMutation(method, rawUrl, user, request.params, response);
+        await this.auditMutation(auditContext, response);
         return response;
       }),
     );
   }
 
-  private async auditMutation(
+  private buildAuditContext(
     method: string,
     rawUrl: string,
     user: { id?: string; tenantId?: string } | undefined,
     params: { id?: string } | undefined,
-    response: unknown,
-  ): Promise<void> {
-    // Only audit mutation methods
+  ): AuditContextData | null {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) || !user?.tenantId) {
-      return;
+      return null;
     }
 
+    const safeUrl = redactUrl(rawUrl);
+    const entidade = this.extractEntity(safeUrl);
+    const acao = this.extractAction(safeUrl);
+    const tenantId = user.tenantId;
+
+    return {
+      method,
+      user: { id: user.id, tenantId },
+      params,
+      entidade,
+      acao,
+      critical: this.isCriticalEntity(entidade),
+    };
+  }
+
+  private async auditCriticalPreflight(context: AuditContextData): Promise<void> {
+    const entidadeId = context.params?.id || 'unknown';
+    const estadoNovo = {
+      entidade: context.entidade,
+      acao: context.acao,
+      id: entidadeId,
+      fase: 'preflight',
+    };
+
+    try {
+      await this.auditoriaService.registrar({
+        entidade: context.entidade,
+        entidadeId,
+        evento: `${context.method.toLowerCase()}.${context.acao}.preflight`,
+        usuarioId: context.user.id,
+        tenantId: context.user.tenantId,
+        estadoNovo: JSON.stringify(estadoNovo),
+      });
+    } catch (err) {
+      this.logger.error(`Falha no preflight de auditoria critica: ${(err as Error).message}`);
+      throw new InternalServerErrorException('Operacao critica abortada: auditoria indisponivel');
+    }
+  }
+
+  private async auditMutation(context: AuditContextData, response: unknown): Promise<void> {
     try {
       const respData =
         typeof response === 'object' && response !== null && 'data' in response
           ? (response as { data?: { id?: string } }).data
           : undefined;
 
-      const safeUrl = redactUrl(rawUrl);
       // F-009: minimizar payload de auditoria — nao armazenar body completo
-      const entidade = this.extractEntity(safeUrl);
-      const entidadeId = params?.id || respData?.id || 'unknown';
-      const acao = this.extractAction(safeUrl);
+      const entidadeId = context.params?.id || respData?.id || 'unknown';
 
-      const estadoNovo: Record<string, unknown> = { entidade, acao, id: entidadeId };
-      if (method === 'PUT' || method === 'PATCH') {
+      const estadoNovo: Record<string, unknown> = {
+        entidade: context.entidade,
+        acao: context.acao,
+        id: entidadeId,
+      };
+      if (context.method === 'PUT' || context.method === 'PATCH') {
         // Em updates, registrar apenas que houve alteracao (sem body completo)
         estadoNovo.alterado = true;
       }
 
       await this.auditoriaService.registrar({
-        entidade,
+        entidade: context.entidade,
         entidadeId,
-        evento: `${method.toLowerCase()}.${acao}`,
-        usuarioId: user.id,
-        tenantId: user.tenantId,
+        evento: `${context.method.toLowerCase()}.${context.acao}`,
+        usuarioId: context.user.id,
+        tenantId: context.user.tenantId,
         estadoNovo: JSON.stringify(estadoNovo),
       });
     } catch (err) {
       this.logger.error(`Falha ao registrar auditoria: ${(err as Error).message}`);
-      if (this.isCriticalMutation(rawUrl)) {
-        throw new InternalServerErrorException('Operacao critica abortada: auditoria indisponivel');
-      }
     }
   }
 
-  private isCriticalMutation(url: string): boolean {
-    const entity = this.extractEntity(redactUrl(url));
-    return ['tickets', 'fatura', 'licenca', 'backup', 'configuracoes', 'balancas'].includes(entity);
+  private isCriticalEntity(entity: string): boolean {
+    return [
+      'tickets',
+      'fatura',
+      'faturas',
+      'licenca',
+      'backup',
+      'configuracoes',
+      'balanca',
+      'balancas',
+    ].includes(entity);
   }
 
   private extractEntity(url: string): string {
